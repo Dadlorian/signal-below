@@ -1,0 +1,1048 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Playnet Field Manual</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a vertical cross-section of the buried complex. A sticky "elevator" panel on the left,
+   one reading column on the right, each part of the code is a floor at a real depth. */
+:root {
+  color-scheme: dark;
+  --ground: #101614;
+  --surface: #161e1b;
+  --raise: #1c2522;
+  --line: #2b3732;
+  --line-strong: #46544c;
+  --ink: #efe6cc;
+  --ink-2: #c4c1a8;
+  --muted: #8f9b8b;
+  --brass: #dfbd71;
+  --signal: #8bb294;
+  --rust: #e0956a;
+  --code-bg: #0c110f;
+  /* chart: package groups (validated: CVD + lightness band on this surface) */
+  --cat-live: #b58424;
+  --cat-tools: #2a9c8a;
+  --cat-hidden: #cf6440;
+  /* chart: rarity ramp, Common -> Legendary (validated ordinal) */
+  --r1: #6e5d2f; --r2: #8f773a; --r3: #b09245; --r4: #cfac52; --r5: #efcb6f;
+
+  --f-display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "DM Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  --t-xs: 0.75rem; --t-sm: 0.875rem; --t-md: 1.0625rem; --t-lg: 1.375rem; --t-xl: 2rem; --t-2xl: clamp(2.4rem, 6vw, 3.6rem);
+  --measure: 66ch;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --ground: #f3ecd9; --surface: #f8f2e1; --raise: #ece2c8; --line: #d8cba8; --line-strong: #b5a479;
+    --ink: #1a221f; --ink-2: #39443d; --muted: #5b6556; --brass: #84601a; --signal: #2f6b47; --rust: #a24a25;
+    --code-bg: #efe6cd;
+    --cat-live: #a8771c; --cat-tools: #008a73; --cat-hidden: #b4502d;
+    --r1: #c4a253; --r2: #a38433; --r3: #81661f; --r4: #5f4a10; --r5: #3f3006;
+  }
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --ground: #f3ecd9; --surface: #f8f2e1; --raise: #ece2c8; --line: #d8cba8; --line-strong: #b5a479;
+  --ink: #1a221f; --ink-2: #39443d; --muted: #5b6556; --brass: #84601a; --signal: #2f6b47; --rust: #a24a25;
+  --code-bg: #efe6cd;
+  --cat-live: #a8771c; --cat-tools: #008a73; --cat-hidden: #b4502d;
+  --r1: #c4a253; --r2: #a38433; --r3: #81661f; --r4: #5f4a10; --r5: #3f3006;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font: 400 var(--t-md)/1.62 var(--f-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+a { color: var(--brass); text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; border-radius: 4px; }
+code, .mono { font-family: var(--f-mono); font-size: 0.9em; }
+code { background: var(--code-bg); border: 1px solid var(--line); border-radius: 4px; padding: 0.05em 0.35em; overflow-wrap: anywhere; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; line-height: 1.12; letter-spacing: -0.02em; }
+p { margin: 0; max-width: var(--measure); }
+.eyebrow { font: 500 var(--t-xs)/1.3 var(--f-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+
+.page { max-width: 1120px; margin: 0 auto; padding-block: 40px 96px; display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 56px; }
+.main { min-width: 0; display: grid; gap: 88px; }
+
+/* elevator */
+.elevator { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; display: grid; gap: 18px; font-family: var(--f-mono); font-size: var(--t-xs); }
+.elevator ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; border-left: 1px solid var(--line); }
+.elevator a { display: grid; grid-template-columns: 3.2em 1fr; gap: 8px; padding: 4px 0 4px 12px; color: var(--muted); text-decoration: none; margin-left: -1px; border-left: 1px solid transparent; }
+.elevator a:hover { color: var(--ink); border-left-color: var(--brass); }
+.elevator a.here { color: var(--ink); border-left-color: var(--brass); }
+.elevator .d { color: var(--brass); font-variant-numeric: tabular-nums; }
+.elevator .sealed-link .d { color: var(--muted); }
+
+/* hero */
+.hero { display: grid; gap: 22px; padding-top: 8px; }
+.hero h1 { font-size: var(--t-2xl); font-weight: 700; letter-spacing: -0.04em; }
+.hero h1 em { font-style: normal; color: var(--brass); }
+.hero .lede { font-size: var(--t-lg); line-height: 1.5; color: var(--ink-2); max-width: 36em; }
+.stamp { justify-self: start; display: flex; flex-wrap: wrap; gap: 6px 18px; font: 500 var(--t-xs)/1.4 var(--f-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line-strong); padding: 10px 14px; border-radius: 3px; }
+.stamp b { color: var(--ink); font-weight: 500; }
+
+.section { display: grid; gap: 20px; scroll-margin-top: 24px; }
+.section > h2 { font-size: var(--t-xl); }
+.section .intro { color: var(--ink-2); }
+
+.ideas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+.ideas > div { display: grid; gap: 8px; align-content: start; padding-top: 14px; border-top: 1px solid var(--line-strong); }
+.ideas h3 { font-size: var(--t-md); font-weight: 600; }
+.ideas p { font-size: var(--t-sm); color: var(--ink-2); }
+
+/* map */
+.map-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); padding: 16px; }
+.map-wrap svg { display: block; width: 100%; min-width: 660px; height: auto; }
+.m-box { fill: var(--raise); stroke: var(--line-strong); stroke-width: 1.2; }
+.m-live { stroke: var(--signal); }
+.m-hidden { fill: var(--surface); stroke: var(--rust); stroke-dasharray: 5 4; }
+.m-band { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1; }
+.m-sealed { fill: url(#hatch); stroke: var(--line-strong); }
+.m-hatch { stroke: var(--line-strong); stroke-width: 1; }
+.m-you { fill: var(--brass); }
+.m-you-t { fill: var(--ground); font: 600 12px var(--f-mono); letter-spacing: 0.08em; }
+.m-t { fill: var(--ink); font: 500 12px var(--f-mono); letter-spacing: 0.06em; }
+.m-s { fill: var(--muted); font: 400 11px var(--f-mono); }
+.m-rust { fill: var(--rust); font: 400 11px var(--f-mono); }
+.m-arrow { fill: none; stroke: var(--muted); stroke-width: 1.4; }
+.m-arrow-hidden { fill: none; stroke: var(--rust); stroke-width: 1.4; stroke-dasharray: 5 4; }
+.m-head { fill: var(--muted); }
+.m-head-rust { fill: var(--rust); }
+.m-rule { stroke: var(--line-strong); stroke-dasharray: 2 4; }
+.map-key { display: flex; flex-wrap: wrap; gap: 8px 22px; font: 400 var(--t-xs)/1.4 var(--f-mono); color: var(--muted); }
+.map-key span { display: inline-flex; align-items: center; gap: 8px; }
+.map-key i { width: 22px; height: 12px; border-radius: 2px; display: inline-block; }
+.k-live { border: 1.5px solid var(--signal); background: var(--raise); }
+.k-hidden { border: 1.5px dashed var(--rust); }
+.k-sealed { border: 1px solid var(--line-strong); background: repeating-linear-gradient(45deg, var(--line-strong) 0 1px, transparent 1px 6px); }
+
+/* floors */
+.floor { display: grid; gap: 22px; scroll-margin-top: 24px; padding-top: 28px; border-top: 1px solid var(--line-strong); position: relative; }
+.plate { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.depth { font: 500 var(--t-sm)/1 var(--f-mono); color: var(--brass); letter-spacing: 0.06em; font-variant-numeric: tabular-nums; }
+.chip { font: 500 0.6875rem/1 var(--f-mono); letter-spacing: 0.12em; text-transform: uppercase; padding: 5px 8px 4px; border-radius: 3px; border: 1px solid currentColor; }
+.chip.live { color: var(--signal); }
+.chip.hidden { color: var(--rust); border-style: dashed; }
+.chip.tools { color: var(--brass); }
+.chip.sealed { color: var(--muted); background: repeating-linear-gradient(45deg, transparent 0 4px, var(--line) 4px 5px); }
+.mm3tag { margin-left: auto; font: 400 var(--t-xs)/1 var(--f-mono); color: var(--muted); text-decoration: none; }
+.mm3tag:hover { color: var(--brass); }
+.floor h2 { font-size: var(--t-xl); font-weight: 700; }
+.floor .oneliner { font-size: var(--t-lg); line-height: 1.45; color: var(--ink-2); max-width: 34em; }
+.prose { display: grid; gap: 14px; }
+
+.steps { counter-reset: s; list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; max-width: var(--measure); }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 2.2em 1fr; gap: 10px; font-size: var(--t-sm); color: var(--ink-2); }
+.steps li::before { content: counter(s, decimal-leading-zero); font: 500 var(--t-xs)/1.9 var(--f-mono); color: var(--brass); }
+.label { font: 500 var(--t-xs)/1.3 var(--f-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.block { display: grid; gap: 10px; }
+
+.files { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
+.files li { display: grid; grid-template-columns: minmax(0, 15rem) minmax(0, 1fr); gap: 16px; padding: 10px 14px; background: var(--surface); font-size: var(--t-sm); }
+.files .p { font-family: var(--f-mono); font-size: 0.8125rem; color: var(--ink); overflow-wrap: anywhere; }
+.files .r { color: var(--ink-2); }
+
+.words { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 16px 24px; margin: 0; }
+.words div { display: grid; gap: 4px; align-content: start; }
+.words dt { font: 500 var(--t-sm)/1.3 var(--f-mono); color: var(--brass); }
+.words dd { margin: 0; font-size: var(--t-sm); color: var(--ink-2); }
+
+.aside { border-left: 2px solid var(--brass); padding: 4px 0 4px 16px; color: var(--ink-2); font-size: var(--t-sm); max-width: var(--measure); }
+.aside strong { color: var(--ink); }
+
+/* rarity chart */
+.chart { display: grid; gap: 14px; padding: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+.chart h3 { font-size: var(--t-md); font-weight: 600; }
+.chart .sub { font-size: var(--t-sm); color: var(--muted); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font: 400 var(--t-xs)/1.4 var(--f-mono); color: var(--ink-2); }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.bars { display: grid; gap: 12px; }
+.bar-row { display: grid; grid-template-columns: 5.5rem 1fr; gap: 12px; align-items: center; font: 400 var(--t-xs)/1 var(--f-mono); color: var(--ink-2); }
+.bar { display: flex; gap: 2px; height: 26px; }
+.seg { height: 100%; min-width: 0; cursor: default; }
+.seg:first-child { border-radius: 4px 0 0 4px; }
+.seg:last-child { border-radius: 0 4px 4px 0; }
+.seg:hover { outline: 2px solid var(--ink); outline-offset: -2px; }
+.tbl-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: var(--t-sm); font-variant-numeric: tabular-nums; }
+th, td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+thead th { font: 500 var(--t-xs)/1.3 var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+td { color: var(--ink-2); }
+
+.split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.split > div { display: grid; gap: 8px; align-content: start; padding: 16px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+.split h3 { font: 500 var(--t-sm)/1.3 var(--f-mono); color: var(--brass); }
+.split p { font-size: var(--t-sm); color: var(--ink-2); }
+
+.games { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.games > div { background: var(--surface); padding: 16px; display: grid; gap: 6px; align-content: start; }
+.games h3 { font-size: var(--t-md); font-weight: 600; }
+.games .where { font: 400 var(--t-xs)/1.3 var(--f-mono); color: var(--muted); }
+.games p { font-size: var(--t-sm); color: var(--ink-2); }
+
+.term { background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; font: 400 0.875rem/1.7 var(--f-mono); color: var(--ink); overflow-x: auto; white-space: pre; }
+.term .c { color: var(--muted); }
+
+.menu { display: grid; grid-template-columns: max-content 1fr; gap: 8px 18px; margin: 0; font-size: var(--t-sm); max-width: var(--measure); }
+.menu dt { font: 500 var(--t-sm)/1.5 var(--f-mono); color: var(--brass); }
+.menu dd { margin: 0; color: var(--ink-2); }
+
+.checklist { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; max-width: var(--measure); }
+.checklist li { display: grid; grid-template-columns: 1.4em 1fr; gap: 8px; font-size: var(--t-sm); color: var(--ink-2); }
+.checklist li::before { content: ""; width: 12px; height: 12px; margin-top: 5px; border: 1.5px solid var(--muted); border-radius: 2px; }
+
+/* field kit lists */
+.issues { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.issue { background: var(--surface); padding: 18px; display: grid; gap: 10px; }
+.issue-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; }
+.issue h3 { font-size: var(--t-md); font-weight: 600; }
+.impact { font: 500 0.6875rem/1 var(--f-mono); letter-spacing: 0.1em; text-transform: uppercase; padding: 4px 7px 3px; border-radius: 3px; }
+.impact.med { color: var(--ground); background: var(--brass); }
+.impact.low { color: var(--muted); border: 1px solid var(--line-strong); }
+.impact.later { color: var(--rust); border: 1px dashed var(--rust); }
+.issue .feel { font-size: var(--t-sm); color: var(--ink-2); }
+.issue .meta { font: 400 var(--t-xs)/1.5 var(--f-mono); color: var(--muted); overflow-wrap: anywhere; }
+
+.prompt { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: start; background: var(--code-bg); border: 1px solid var(--line); border-radius: 5px; padding: 10px 10px 10px 14px; }
+.prompt p { font: 400 0.84rem/1.6 var(--f-mono); color: var(--ink); max-width: none; }
+.prompt p::before { content: "› "; color: var(--brass); }
+.copy { font: 500 var(--t-xs)/1 var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-2); background: var(--raise); border: 1px solid var(--line-strong); border-radius: 4px; padding: 7px 10px; cursor: pointer; }
+.copy:hover { color: var(--ink); border-color: var(--brass); }
+.copy.done { color: var(--signal); border-color: var(--signal); }
+
+.tiers { display: grid; gap: 28px; }
+.tier { display: grid; gap: 12px; }
+.tier > h3 { font: 500 var(--t-sm)/1.3 var(--f-mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--brass); }
+.ideas-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.ideas-list li { display: grid; gap: 8px; padding-left: 14px; border-left: 1px solid var(--line-strong); }
+.ideas-list h4 { margin: 0; font-size: var(--t-md); font-weight: 600; }
+.ideas-list .why { font-size: var(--t-sm); color: var(--ink-2); }
+.ideas-list .floorref { font: 400 var(--t-xs)/1 var(--f-mono); color: var(--muted); }
+
+.habits { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
+.habits ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.habits li { display: grid; gap: 3px; font-size: var(--t-sm); color: var(--ink-2); }
+.habits li strong { color: var(--ink); font-weight: 600; font-size: var(--t-md); }
+.habits .ref { font: 400 var(--t-xs)/1.4 var(--f-mono); color: var(--muted); overflow-wrap: anywhere; }
+.habits h3 { font: 500 var(--t-sm)/1.3 var(--f-mono); letter-spacing: 0.12em; text-transform: uppercase; padding-bottom: 10px; border-bottom: 1px solid var(--line-strong); margin-bottom: 4px; }
+.habits .keep h3 { color: var(--signal); }
+.habits .tidy h3 { color: var(--rust); }
+
+.recipe { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.recipe li { display: grid; gap: 6px; align-content: start; padding: 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); font-size: var(--t-sm); color: var(--ink-2); }
+.recipe b { font: 500 var(--t-xs)/1.3 var(--f-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--brass); }
+.compare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.compare > div { display: grid; gap: 8px; align-content: start; }
+
+/* waffle */
+.waffle-wrap { display: grid; grid-template-columns: auto 1fr; gap: 24px; align-items: start; }
+.waffle { display: grid; grid-template-columns: repeat(7, 26px); gap: 4px; }
+.cell { width: 26px; height: 26px; border-radius: 4px; }
+.cell.live { background: var(--cat-live); }
+.cell.tools { background: var(--cat-tools); }
+.cell.hidden { background: var(--cat-hidden); }
+.cell.unused { border: 1.5px solid var(--line-strong); background: transparent; }
+.cell:hover { outline: 2px solid var(--ink); outline-offset: 1px; }
+.groups { display: grid; gap: 14px; }
+.group { display: grid; grid-template-columns: 14px 1fr; gap: 4px 10px; }
+.group i { width: 14px; height: 14px; border-radius: 3px; margin-top: 4px; }
+.group .n { font: 500 var(--t-sm)/1.4 var(--f-mono); color: var(--ink); }
+.group .n span { color: var(--muted); font-weight: 400; }
+.group p { grid-column: 2; font-size: var(--t-sm); color: var(--ink-2); }
+.group .pk { grid-column: 2; font: 400 var(--t-xs)/1.6 var(--f-mono); color: var(--muted); }
+
+.tip { position: fixed; z-index: 20; pointer-events: none; background: var(--raise); color: var(--ink); border: 1px solid var(--line-strong); border-radius: 4px; padding: 6px 9px; font: 400 var(--t-xs)/1.4 var(--f-mono); box-shadow: 0 4px 14px rgb(0 0 0 / 0.25); }
+
+.foot { color: var(--muted); font-size: var(--t-sm); border-top: 1px solid var(--line); padding-top: 18px; }
+
+@media (max-width: 960px) {
+  .page { grid-template-columns: minmax(0, 1fr); gap: 40px; }
+  .elevator { position: static; }
+  .elevator ol { grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); border-left: 0; }
+  .elevator a { border-left: 1px solid var(--line); }
+  .recipe { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .ideas, .split, .games, .habits, .compare, .recipe { grid-template-columns: minmax(0, 1fr); }
+  .files li { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .waffle-wrap { grid-template-columns: minmax(0, 1fr); }
+  .menu { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .menu dd { margin-bottom: 10px; }
+  .main { gap: 64px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .copy, .elevator a { transition: color .15s, border-color .15s; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<nav class="elevator" aria-label="Floors">
+  <div class="eyebrow">Elevator</div>
+  <ol>
+    <li><a href="#front-door"><span class="d">000</span>The front door</a></li>
+    <li><a href="#screen"><span class="d">012</span>The screen</a></li>
+    <li><a href="#heartbeat"><span class="d">024</span>The heartbeat</a></li>
+    <li><a href="#world"><span class="d">036</span>The world builder</a></li>
+    <li><a href="#memory"><span class="d">048</span>The memory</a></li>
+    <li><a href="#paint"><span class="d">060</span>The paint closet</a></li>
+    <li><a href="#vault"><span class="d">072</span>The vault</a></li>
+    <li><a href="#range"><span class="d">084</span>The night range</a></li>
+    <li><a href="#workshop"><span class="d">096</span>The workshop</a></li>
+    <li class="sealed-link"><a href="#kitchen"><span class="d">184</span>The kitchen</a></li>
+  </ol>
+  <div class="eyebrow">Field kit</div>
+  <ol>
+    <li><a href="#fix"><span class="d">01</span>Fix these first</a></li>
+    <li><a href="#faster"><span class="d">02</span>Make it faster</a></li>
+    <li><a href="#better"><span class="d">03</span>Make it better</a></li>
+    <li><a href="#habits"><span class="d">04</span>Your habits</a></li>
+    <li><a href="#claude"><span class="d">05</span>Talking to Claude</a></li>
+    <li><a href="#parts"><span class="d">06</span>Borrowed parts</a></li>
+    <li><a href="#checked"><span class="d">07</span>How this was checked</a></li>
+  </ol>
+</nav>
+
+<main class="main">
+
+<header class="hero">
+  <div class="eyebrow">JB Playnet Beta · Field manual 01</div>
+  <h1>You built an arcade.<br><em>Here's what's inside it.</em></h1>
+  <p class="lede">Your game sends players down through a buried complex, one floor at a time. This manual does the same with your code. Each floor is one part of the project: what it does, where it lives, and what you could change next.</p>
+  <div class="stamp"><span>Code read <b>2,770 lines</b></span><span>Floors <b>10</b></span><span>Survey date <b>16 Nov 2026</b></span></div>
+</header>
+
+<section class="section" id="before">
+  <h2>Three ideas before you go down</h2>
+  <div class="ideas">
+    <div><h3>Code is a list of instructions</h3><p>The computer does exactly what the file says, top to bottom, very fast. A <b>function</b> is a named recipe it can run again and again, like <code>rollRarity</code> for loot.</p></div>
+    <div><h3>Files are rooms, folders are floors</h3><p>Everything that runs in the game is in the <code>src/</code> folder. The other folders are tools, old copies, and a server that isn't plugged in yet.</p></div>
+    <div><h3>A game is a loop</h3><p>Read the buttons, update the world a tiny bit, draw it, repeat about 60 times a second. Once you see that loop, the rest of the code makes sense.</p></div>
+  </div>
+</section>
+
+<section class="section" id="map">
+  <h2>The map</h2>
+  <p class="intro">Here's the whole project on one page. You come in at the top. The arrows show who talks to whom.</p>
+  <div class="map-wrap">
+    <svg viewBox="0 0 760 532" role="img" aria-labelledby="map-title map-desc">
+      <title id="map-title">Architecture map of JB Playnet</title>
+      <desc id="map-desc">The player enters through the front door, which routes to the lobby pages or The Signal Below screen. The screen trades input and frames with the engine. Pages and the screen save to the memory. Five hidden games have no route. A workshop builds everything, a paint closet styles everything, and a sealed kitchen sits below, not connected.</desc>
+      <defs>
+        <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="m-head"/></marker>
+        <marker id="ahr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="m-head-rust"/></marker>
+        <pattern id="hatch" patternUnits="userSpaceOnUse" width="7" height="7" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" class="m-hatch"/></pattern>
+      </defs>
+
+      <rect x="320" y="10" width="120" height="30" rx="15" class="m-you"/>
+      <text x="380" y="29.5" text-anchor="middle" class="m-you-t">YOU</text>
+      <path d="M380,40 V80" class="m-arrow" marker-end="url(#ah)"/>
+
+      <rect x="60" y="84" width="26" height="362" class="m-band"/>
+      <text transform="translate(77,265) rotate(-90)" text-anchor="middle" class="m-s">096 · WORKSHOP · VITE BUILDS ALL OF THIS</text>
+      <rect x="722" y="84" width="26" height="362" class="m-band"/>
+      <text transform="translate(739,265) rotate(-90)" text-anchor="middle" class="m-s">060 · PAINT CLOSET · STYLES ALL OF THIS</text>
+
+      <rect x="250" y="84" width="260" height="58" rx="4" class="m-box m-live"/>
+      <text x="380" y="108" text-anchor="middle" class="m-t">000 · THE FRONT DOOR</text>
+      <text x="380" y="127" text-anchor="middle" class="m-s">main.tsx · router in App.tsx</text>
+
+      <path d="M300,142 V168 H190 V192" class="m-arrow" marker-end="url(#ah)"/>
+      <path d="M380,142 V192" class="m-arrow" marker-end="url(#ah)"/>
+      <path d="M460,142 V168 H615 V192" class="m-arrow-hidden" marker-end="url(#ahr)"/>
+      <text x="624" y="163" class="m-rust">no route</text>
+
+      <rect x="100" y="196" width="180" height="58" rx="4" class="m-box m-live"/>
+      <text x="190" y="220" text-anchor="middle" class="m-t">LOBBY + PAGES</text>
+      <text x="190" y="239" text-anchor="middle" class="m-s">friends · profile</text>
+
+      <rect x="300" y="196" width="200" height="58" rx="4" class="m-box m-live"/>
+      <text x="400" y="220" text-anchor="middle" class="m-t">012 · THE SCREEN</text>
+      <text x="400" y="239" text-anchor="middle" class="m-s">BuriedComplexGame.tsx</text>
+
+      <rect x="520" y="196" width="190" height="58" rx="4" class="m-box m-hidden"/>
+      <text x="615" y="220" text-anchor="middle" class="m-t">072–084 · THE VAULT</text>
+      <text x="615" y="239" text-anchor="middle" class="m-s">5 games, switched off</text>
+
+      <path d="M370,254 V288" class="m-arrow" marker-end="url(#ah)"/>
+      <text x="363" y="276" text-anchor="end" class="m-s">your keys</text>
+      <path d="M430,288 V256" class="m-arrow" marker-end="url(#ah)"/>
+      <text x="437" y="276" class="m-s">next frame</text>
+
+      <rect x="300" y="290" width="200" height="58" rx="4" class="m-box m-live"/>
+      <text x="400" y="314" text-anchor="middle" class="m-t">024–036 · THE ENGINE</text>
+      <text x="400" y="333" text-anchor="middle" class="m-s">deep-signal-engine.ts</text>
+
+      <path d="M190,254 V382" class="m-arrow" marker-end="url(#ah)"/>
+      <path d="M500,225 H514 V382" class="m-arrow" marker-end="url(#ah)"/>
+      <text x="196" y="372" class="m-s">saves</text>
+      <text x="508" y="372" text-anchor="end" class="m-s">banks gear</text>
+
+      <rect x="100" y="386" width="420" height="58" rx="4" class="m-box m-live"/>
+      <text x="310" y="410" text-anchor="middle" class="m-t">048 · THE MEMORY</text>
+      <text x="310" y="429" text-anchor="middle" class="m-s">localStorage · arcade-store.ts · deep-signal-store.ts</text>
+
+      <line x1="60" y1="468" x2="748" y2="468" class="m-rule"/>
+      <text x="60" y="461" class="m-s">184 M · SEALED</text>
+      <rect x="100" y="478" width="610" height="44" rx="4" class="m-sealed"/>
+      <rect x="248" y="489" width="314" height="22" rx="3" style="fill: var(--surface)"/>
+      <text x="405" y="504" text-anchor="middle" class="m-t">THE KITCHEN · server, database, API</text>
+    </svg>
+  </div>
+  <div class="map-key"><span><i class="k-live"></i>Live: runs when you play</span><span><i class="k-hidden"></i>Built, but nothing leads to it</span><span><i class="k-sealed"></i>Sealed: not connected</span></div>
+</section>
+
+<!-- ============ FLOOR 000 ============ -->
+<section class="floor" id="front-door">
+  <div class="plate"><span class="depth">000 M</span><span class="chip live">Live</span><a class="mm3tag" href="#checked">MM3-0007</a></div>
+  <h2>The front door</h2>
+  <p class="oneliner">Where the arcade starts, and how it picks which screen you see.</p>
+  <div class="prose">
+    <p>When someone opens the arcade, the browser runs <code>src/main.tsx</code> first. It wraps the whole app in a safety net called an error boundary. If one screen crashes, players get a "Something went wrong" box with a Try again button instead of a blank white page.</p>
+    <p>Then <code>src/App.tsx</code> takes over. It's the map of the arcade. A small package called <b>wouter</b> reads the web address, like <code>/friends</code>, and shows the matching page. Every page sits inside <code>AppShell</code>, which draws the top bar and footer so they stay put while the middle changes. All the addresses are listed in one place, the <code>Router</code> function at <code>src/App.tsx:357</code>. When you wonder where a page comes from, look there first.</p>
+    <p>That list holds a surprise. It has only four addresses: the lobby, friends, profile, and <code>/play/deep-signal</code>. Snake, Memory, Tic-Tac-Toe, 2048 and Zombie Sniper are all still in the code, but no address leads to them. Your design notes say to focus on one flagship game first, so this may be on purpose. Either way, they're one route away from coming back.</p>
+  </div>
+  <div class="block">
+    <div class="label">One visit, step by step</div>
+    <ol class="steps">
+      <li>The browser loads <code>index.html</code>, which loads <code>src/main.tsx</code>.</li>
+      <li><code>main.tsx</code> starts React inside the error boundary.</li>
+      <li>The router compares the address with its list of four.</li>
+      <li><code>AppShell</code> draws the header, then the page, then the footer.</li>
+      <li>The page reads your saved name and scores from the browser (floor 048).</li>
+    </ol>
+  </div>
+  <div class="block">
+    <div class="label">Where it lives</div>
+    <ul class="files">
+      <li><span class="p">src/main.tsx</span><span class="r">The starting point and the safety net.</span></li>
+      <li><span class="p">src/App.tsx</span><span class="r">Header, lobby, friends, profile, the Deep Signal page, the router, and the hidden games. 370 lines.</span></li>
+      <li><span class="p">src/components/error-boundary.tsx</span><span class="r">The crash screen.</span></li>
+      <li><span class="p">src/pages/not-found.tsx</span><span class="r">An old "page not found" screen that nothing uses. The real one is inside App.tsx.</span></li>
+    </ul>
+  </div>
+  <dl class="words">
+    <div><dt>component</dt><dd>A function that returns one piece of the screen, like the header or a page.</dd></div>
+    <div><dt>router</dt><dd>The part that reads the web address and decides which screen to show.</dd></div>
+    <div><dt>error boundary</dt><dd>A safety net that catches a crashing screen and shows a friendly message instead.</dd></div>
+  </dl>
+</section>
+
+<!-- ============ FLOOR 012 ============ -->
+<section class="floor" id="screen">
+  <div class="plate"><span class="depth">012 M</span><span class="chip live">Live</span><a class="mm3tag" href="#checked">MM3-0003</a></div>
+  <h2>The screen</h2>
+  <p class="oneliner">Draws The Signal Below about 60 times a second and listens to your keyboard and mouse.</p>
+  <div class="prose">
+    <p><code>BuriedComplexGame.tsx</code> has three jobs. It <b>draws</b>: every frame it paints the floor, walls, enemies, loot and you onto a canvas. It <b>listens</b>: WASD, J, K, Space, E and the mouse are all caught here. And it <b>shows the words</b>: health and stamina bars, floor messages, and the Begin, Continue and Extract panels.</p>
+    <p>It never decides what happens. Each frame it hands your buttons to the engine on the next floor down and gets the new world back. The screen is the eyes and hands. The engine is the brain.</p>
+    <p>There's a smart trick in here that real game developers use. React redraws part of the page whenever its <b>state</b> changes, and doing that 60 times a second would be slow. So this file keeps the live game in a <b>ref</b>, a sticky note that doesn't trigger a redraw, and copies it into React state only every 40 milliseconds (line 317). The canvas still moves every frame. Only the bars and text catch up 25 times a second.</p>
+  </div>
+  <div class="block">
+    <div class="label">One frame, step by step</div>
+    <ol class="steps">
+      <li>You press a key. A listener writes it onto a sticky note (lines 262–285).</li>
+      <li>The browser calls the loop just before it shows the next picture (lines 297–330).</li>
+      <li>The loop sends your buttons and the time that passed to the engine.</li>
+      <li><code>render3DComplex</code> paints the backdrop, sorts everything by depth, and draws it back to front so near things cover far things (lines 79–238).</li>
+      <li>When a run ends, your score goes up to the front door to be saved.</li>
+    </ol>
+  </div>
+  <div class="block">
+    <div class="label">Where it lives</div>
+    <ul class="files">
+      <li><span class="p">src/components/BuriedComplexGame.tsx</span><span class="r">The drawing, the input, the loop, and the panels. 508 lines.</span></li>
+      <li><span class="p">src/components/BuriedComplexGame.css</span><span class="r">How the HUD, panels and buttons look, including phone layouts.</span></li>
+    </ul>
+  </div>
+  <dl class="words">
+    <div><dt>canvas</dt><dd>A blank rectangle on the page that code paints pixels onto, like a digital whiteboard.</dd></div>
+    <div><dt>requestAnimationFrame</dt><dd>A browser helper that runs your function right before each new picture.</dd></div>
+    <div><dt>ref</dt><dd>A sticky note that holds a value without making React redraw.</dd></div>
+  </dl>
+</section>
+
+<!-- ============ FLOOR 024 ============ -->
+<section class="floor" id="heartbeat">
+  <div class="plate"><span class="depth">024 M</span><span class="chip live">Live</span><a class="mm3tag" href="#checked">MM3-0002</a></div>
+  <h2>The heartbeat</h2>
+  <p class="oneliner">The rules for one tiny slice of time: moving, swinging, guarding, dodging, getting hit, levelling up, and picking up loot.</p>
+  <div class="prose">
+    <p>Every frame, the screen calls one function: <code>stepDeepSignalRun</code> in <code>src/lib/deep-signal-engine.ts</code> (line 363). It gets three things. The <b>state</b> is everything the game remembers right now: your health, every enemy's position, what's in your bag. The <b>input</b> is which buttons are held. And <b>deltaMs</b> is how many milliseconds passed since the last frame. It returns a brand-new state, one slice of time later.</p>
+    <p>Delta time is the clever bit. Computers don't run at a perfectly steady speed, so every movement is multiplied by the time that actually passed. A fast laptop and a slow one move you the same distance per second. Line 365 also caps a frame at 50 milliseconds, so if you switch tabs and come back, enemies don't teleport ten seconds forward.</p>
+    <p>The function never changes the old state. It copies what it needs, changes the copies, and hands back a fresh one at the end. That makes bugs much easier to track down. The downside is size: it's one 320-line function, so you can't test the guard rule on its own without running a whole frame.</p>
+  </div>
+  <div class="block">
+    <div class="label">Inside one heartbeat</div>
+    <ol class="steps">
+      <li>Cap the time and tick down cooldowns: attack, dodge, and the short moment you can't be hurt.</li>
+      <li>Move you. If you're swinging, hit enemies in reach and knock them back. Your weapon's bonus is added here (line 428).</li>
+      <li>Enemies chase you, wind up, and strike. Your guard blocks if you have stamina and you're facing them.</li>
+      <li>Defeated enemies give XP and score and may drop loot. Walk over loot to pick it up.</li>
+      <li>Room empty? Walk to the relay door. Every 5th floor is a safe room, where you bank your loot or risk it deeper. Floor 100 holds the final boss.</li>
+    </ol>
+  </div>
+  <dl class="words">
+    <div><dt>game loop</dt><dd>Read buttons, update the world a little, draw it, repeat.</dd></div>
+    <div><dt>delta time</dt><dd>How long the last frame took. Multiplying speeds by it keeps movement fair on any computer.</dd></div>
+    <div><dt>state</dt><dd>The game's memory at one moment: every number it needs to draw the next picture.</dd></div>
+  </dl>
+</section>
+
+<!-- ============ FLOOR 036 ============ -->
+<section class="floor" id="world">
+  <div class="plate"><span class="depth">036 M</span><span class="chip live">Live</span><a class="mm3tag" href="#checked">MM3-0008</a></div>
+  <h2>The world builder</h2>
+  <p class="oneliner">Builds every run: the random rooms, the enemies inside them, your starting stats, and how lucky your loot is.</p>
+  <div class="prose">
+    <p>Every run gets a new dungeon built from dice rolls instead of by hand. That's called <b>procedural generation</b>. Each floor drops 3 to 5 blockers (pillars, crates, consoles) in random spots. Every 10th floor is a boss floor with just 2. Rooms start with about 3 enemies and climb to 8, and every third one is a tougher Warden. Enemy health grows 14% per floor, so a floor-50 monster has about 7.9 times the health of a floor-1 one.</p>
+    <p>Loot luck lives in <code>rollRarity</code> (line 326). It rolls a number from 0 to 100, adds a depth bonus of 0.45 per floor (never more than 35), and checks the total against fixed lines. The deeper you go, the more often you cross the high ones. Legendary can't drop at all before floor 41.</p>
+  </div>
+  <figure class="chart" style="margin:0">
+    <h3>Loot odds by floor</h3>
+    <p class="sub">Share of drops at each rarity. Bars are to scale. Hover a segment for the exact number.</p>
+    <div class="legend" aria-hidden="true">
+      <span><i style="background:var(--r1)"></i>Common</span><span><i style="background:var(--r2)"></i>Uncommon</span><span><i style="background:var(--r3)"></i>Rare</span><span><i style="background:var(--r4)"></i>Epic</span><span><i style="background:var(--r5)"></i>Legendary</span>
+    </div>
+    <div class="bars" id="rarity-bars" aria-hidden="true"></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Floor</th><th>Common</th><th>Uncommon</th><th>Rare</th><th>Epic</th><th>Legendary</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>47.6%</td><td>28%</td><td>22%</td><td>2.5%</td><td>0%</td></tr>
+          <tr><td>50</td><td>25.5%</td><td>28%</td><td>22%</td><td>20%</td><td>4.5%</td></tr>
+          <tr><td>78 and deeper</td><td>13%</td><td>28%</td><td>22%</td><td>20%</td><td>17%</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </figure>
+  <div class="prose">
+    <p>Gear power is the rarity rank times 3, plus 1 for every 3 floors, so a floor-1 Legendary has power 15 and a floor-100 one has 48. You start each run with 110 health and 100 stamina, plus the best shell and module you've banked. Notice the middle three columns never change. Only Common and the top two trade places as you go deeper.</p>
+  </div>
+  <dl class="words">
+    <div><dt>procedural generation</dt><dd>Letting code build levels with random rolls instead of drawing each one by hand.</dd></div>
+    <div><dt>rarity roll</dt><dd>A random number, plus a bonus, compared against fixed lines to pick how rare a drop is.</dd></div>
+    <div><dt>seed</dt><dd>A starting number for the dice. The same seed always gives the same rolls, so everyone can play the same dungeon.</dd></div>
+  </dl>
+</section>
+
+<!-- ============ FLOOR 048 ============ -->
+<section class="floor" id="memory">
+  <div class="plate"><span class="depth">048 M</span><span class="chip live">Live</span><a class="mm3tag" href="#checked">MM3-0004</a></div>
+  <h2>The memory</h2>
+  <p class="oneliner">Remembers your name, friends, best scores and banked gear between visits.</p>
+  <div class="prose">
+    <p>When you finish a game or add a friend, the code packs everything into text and puts it in <b>localStorage</b>, a small notebook the browser keeps for each website. There are two notebooks. <code>src/lib/arcade-store.ts</code> holds your profile, friends and scores. <code>src/lib/deep-signal-store.ts</code> holds your banked gear.</p>
+    <p>That notebook lives in one browser on one computer. A friend's computer starts blank. Clearing browser data wipes it. And anyone can open the browser's developer tools and change what's written, so these are honest-player scores. A leaderboard nobody can fake needs the kitchen at the bottom of this manual.</p>
+    <p>This floor is careful work. Before trusting the notebook, <code>isArcadeState</code> (lines 31–46) checks that everything has the right shape. If the save is broken, the game quietly starts fresh instead of crashing. It also only writes when something changes, never every frame.</p>
+  </div>
+  <div class="block">
+    <div class="label">One save, step by step</div>
+    <ol class="steps">
+      <li>A game ends and calls <code>recordGameResult</code>.</li>
+      <li>The code reads the notebook and turns the text back into data with <code>JSON.parse</code>.</li>
+      <li>It keeps the higher of your old and new score.</li>
+      <li><code>JSON.stringify</code> turns it back into text, and it's written to the notebook.</li>
+      <li>Next visit: read, check, and use it, or reset if it's damaged.</li>
+    </ol>
+  </div>
+  <dl class="words">
+    <div><dt>localStorage</dt><dd>A small per-website notebook the browser keeps on this computer.</dd></div>
+    <div><dt>JSON</dt><dd>A text format for writing data down, like <code>{"score": 10}</code>.</dd></div>
+    <div><dt>validation</dt><dd>Checking data before you trust it, like a bouncer checking an ID.</dd></div>
+  </dl>
+</section>
+
+<!-- ============ FLOOR 060 ============ -->
+<section class="floor" id="paint">
+  <div class="plate"><span class="depth">060 M</span><span class="chip live">Live</span><a class="mm3tag" href="#checked">MM3-0011</a></div>
+  <h2>The paint closet</h2>
+  <p class="oneliner">Colours, fonts and spacing for the whole arcade, plus a box of ready-made parts nobody has opened.</p>
+  <div class="prose">
+    <p>Almost everything you see is styled by one file, <code>src/index.css</code>, written in <b>CSS</b>. The best idea in it is the <b>theme variables</b>: named paint tubes like <code>--primary</code>, mixed once at the top and used everywhere else. Change one tube and every button that uses it changes too.</p>
+  </div>
+  <div class="term" aria-label="Two real lines from src/index.css"><span class="c">/* src/index.css:98, the gold paint tube, mixed once */</span>
+--primary: 42 91% 60%;
+
+<span class="c">/* src/index.css:22, handed to Tailwind so any button can use it */</span>
+--color-primary: hsl(var(--primary));</div>
+  <div class="prose">
+    <p>Tailwind adds tiny one-job class names like <code>flex</code> or <code>mt-4</code>. The last 300 or so lines are hand-written rules that give the arcade its look and style each game's pieces.</p>
+    <p>Then there's <code>src/components/ui/</code>: 55 ready-made parts (buttons, dialogs, menus) from a kit called shadcn/ui. The live arcade uses none of them. The build leaves unused code out of the download, so players don't pay for it. You do, though: 27 extra packages to install and 55 files to wade past.</p>
+  </div>
+  <dl class="words">
+    <div><dt>CSS</dt><dd>The rules for how things look: colour, size, spacing, position.</dd></div>
+    <div><dt>theme variable</dt><dd>A named colour or size. Change it in one place and it changes everywhere.</dd></div>
+    <div><dt>Tailwind class</dt><dd>A tiny class name that does one styling job, like <code>flex</code>.</dd></div>
+  </dl>
+</section>
+
+<!-- ============ FLOOR 072 ============ -->
+<section class="floor" id="vault">
+  <div class="plate"><span class="depth">072 M</span><span class="chip hidden">Hidden</span><a class="mm3tag" href="#checked">MM3-0009</a></div>
+  <h2>The vault</h2>
+  <p class="oneliner">Snake, Memory, Tic-Tac-Toe and 2048. Finished, playable, and switched off.</p>
+  <p>All four live in <code>src/App.tsx</code>, lines 155 to 301. Each game is a single function. Each one reports its score once through <code>finish()</code>, and <code>GamePage</code> (line 302) saves it. The only missing piece is an address in the router.</p>
+  <div class="games">
+    <div><h3>Snake</h3><span class="where">App.tsx:162</span><p>The snake is a list of squares on an 18×18 board. Every 145 ms a timer adds a new head and drops the tail, unless the snake just ate.</p></div>
+    <div><h3>Memory</h3><span class="where">App.tsx:219</span><p>16 cards, 8 pairs. Flip two. A lock ignores extra clicks during the 0.7 second pause.</p></div>
+    <div><h3>Tic-Tac-Toe</h3><span class="where">App.tsx:240</span><p>Nine squares. After each move it checks the 8 lines that can win.</p></div>
+    <div><h3>2048</h3><span class="where">App.tsx:273</span><p>The cleverest trick in the project. To slide any direction it rotates the board so that direction becomes "left", slides left, then rotates back. One rule covers all four directions.</p></div>
+  </div>
+  <p class="aside"><strong>Two bugs are waiting in here.</strong> In Snake, two quick key presses in one tick can turn the snake back into its own neck. And Memory's shuffle isn't fair: some card layouts come up more often than others. Both are in <a href="#fix">Fix these first</a>.</p>
+  <dl class="words">
+    <div><dt>interval</dt><dd>A timer that runs the same function over and over, every so many milliseconds.</dd></div>
+    <div><dt>listener</dt><dd>A function the browser calls when something happens, like a key press.</dd></div>
+  </dl>
+</section>
+
+<!-- ============ FLOOR 084 ============ -->
+<section class="floor" id="range">
+  <div class="plate"><span class="depth">084 M</span><span class="chip hidden">Hidden</span><a class="mm3tag" href="#checked">MM3-0005</a></div>
+  <h2>The night range</h2>
+  <p class="oneliner">Zombie Sniper, a 3D shooting gallery. Its rules and its picture live in two separate files.</p>
+  <div class="split">
+    <div><h3>The rulebook</h3><span class="mono" style="font-size:var(--t-xs);color:var(--muted)">src/lib/zombie-sniper-engine.ts</span><p>5-round magazine, 0.95 second reload, 3 lives. 100 points for a body shot, 250 for a headshot. A zombie that reaches the far edge costs a life. Plain functions, no drawing at all.</p></div>
+    <div><h3>The picture</h3><span class="mono" style="font-size:var(--t-xs);color:var(--muted)">src/components/ZombieSniperGame.tsx</span><p>A 3D scene built with three.js. Each zombie is about eleven simple shapes (meshes) stuck together. The camera sits just behind the rifle, looking down the field.</p></div>
+  </div>
+  <div class="prose">
+    <p>That split is the best habit in the whole project. MM3 confirmed that the rulebook never touches drawing code and runs without any screen. You could test every score and reload with no graphics at all, and you could redraw the whole game without breaking the rules.</p>
+    <p>The weak spot is timing. The rules update 60 times a second, but the picture only refreshes every 90 milliseconds, so zombies hop about 11 times a second instead of gliding.</p>
+  </div>
+  <dl class="words">
+    <div><dt>3D scene</dt><dd>Shapes placed in an invisible 3D space and drawn as a picture every frame.</dd></div>
+    <div><dt>mesh</dt><dd>One visible shape, like a box or sphere, with a colour.</dd></div>
+    <div><dt>camera</dt><dd>The viewpoint that decides which part of the 3D space you see.</dd></div>
+  </dl>
+</section>
+
+<!-- ============ FLOOR 096 ============ -->
+<section class="floor" id="workshop">
+  <div class="plate"><span class="depth">096 M</span><span class="chip tools">Tools</span><a class="mm3tag" href="#checked">MM3-0010</a></div>
+  <h2>The workshop</h2>
+  <p class="oneliner">The tools that turn your code into a website.</p>
+  <div class="prose">
+    <p><b>npm</b> downloads <b>packages</b>, which are ready-made code other people wrote. <code>package.json</code> is your shopping list. <code>package-lock.json</code> is the exact receipt, so every install gets identical versions. <b>Vite</b> is the kitchen. It serves the game on your computer while you work, and it packs everything into a few small files when you're ready to put it online.</p>
+  </div>
+  <div class="term" aria-label="Commands to run the arcade"><span class="c"># once, to download the packages</span>
+npm install
+
+<span class="c"># play it on your computer; it reloads when you save a file</span>
+npm run dev
+
+<span class="c"># build the final website into the dist/ folder</span>
+npm run build</div>
+  <div class="prose">
+    <p>Here's what a real build of your arcade produced: one JavaScript file of 276 kB (87 kB once compressed for download) and one stylesheet of 129 kB (25 kB compressed). That's small for a game with this much in it.</p>
+    <p>A few things to tidy. <code>react</code> and <code>react-dom</code> aren't on the shopping list even though everything needs them; they only arrive because other packages pull them in. <code>lucide-react</code> is set to "latest", so a reinstall can quietly change your icons. The project mixes two package managers: npm at the top, pnpm settings in <code>.replit</code>, <code>scripts/</code>, <code>artifacts/</code> and <code>lib/</code>. And <code>artifacts/global-arcade/</code> is an older copy of the arcade that has drifted away from <code>src/</code>. Only <code>src/</code> is the real one.</p>
+    <p>The earlier problem file is already handled. Someone had pasted instructions aimed at AI tools into <code>.npmrc</code>, a settings file. It's now <code>.npmrc.txt</code>, which npm ignores.</p>
+  </div>
+  <dl class="words">
+    <div><dt>package</dt><dd>Ready-made code someone else wrote, downloaded by npm.</dd></div>
+    <div><dt>lockfile</dt><dd>The receipt of exact versions, so every install matches.</dd></div>
+    <div><dt>bundle</dt><dd>Your many files squeezed into a few, so the browser downloads less.</dd></div>
+  </dl>
+</section>
+
+<!-- ============ FLOOR 184 ============ -->
+<section class="floor" id="kitchen">
+  <div class="plate"><span class="depth">184 M</span><span class="chip sealed">Sealed</span><a class="mm3tag" href="#checked">MM3-0006</a></div>
+  <h2>The kitchen</h2>
+  <p class="oneliner">A server, a database and an API. Built, but not plugged into the games.</p>
+  <p>Everything above this line is the <b>front end</b>, the part you see and touch. The <b>back end</b> runs somewhere else. Think of a restaurant:</p>
+  <dl class="menu">
+    <dt>dining room</dt><dd>The arcade in your browser.</dd>
+    <dt>kitchen</dt><dd>The server, <code>artifacts/api-server/</code>. It waits for orders and sends back answers.</dd>
+    <dt>menu</dt><dd>The API, <code>lib/api-spec/openapi.yaml</code>: the exact list of things you can order.</dd>
+    <dt>pantry</dt><dd>The database, <code>lib/db/</code>. It keeps data after everything shuts down.</dd>
+    <dt>printer</dt><dd>Code generation prints matching code for the kitchen and the dining room from one menu, so they always agree.</dd>
+  </dl>
+  <div class="prose">
+    <p>Right now the kitchen serves one dish. <code>/api/healthz</code> answers "ok", like a chef calling out "we're open". The database has no tables yet, and nothing in <code>src/</code> talks to any of it.</p>
+    <p>This is where your biggest ideas would live: a leaderboard friends can see from any computer, cloud saves, real friend lists. It comes with real responsibility, because other people's data would be in your hands. MM3 was asked "is this ready for real player data?" and the answer was no. Before inviting friends, you'd need:</p>
+  </div>
+  <ul class="checklist">
+    <li>Routes that check who is asking before they answer.</li>
+    <li>Calls allowed only from your arcade. Right now any website could call it (<code>app.ts:53</code>).</li>
+    <li>An encrypted connection to the database.</li>
+    <li>An owner column on each table, so the server knows whose row is whose.</li>
+    <li>Score checks on the server, because anyone can send any number to an API.</li>
+  </ul>
+  <dl class="words">
+    <div><dt>API</dt><dd>A fixed list of requests a server accepts, and the answers it promises.</dd></div>
+    <div><dt>endpoint</dt><dd>One address on the server that does one job, like <code>/api/healthz</code>.</dd></div>
+    <div><dt>schema</dt><dd>The plan for a database table: which columns it has.</dd></div>
+  </dl>
+</section>
+
+<!-- ============ FIELD KIT ============ -->
+<section class="section" id="fix">
+  <div class="eyebrow">Field kit 01</div>
+  <h2>Fix these first</h2>
+  <p class="intro">Bugs a player could actually notice, most noticeable first. Each one comes with a message you can paste straight into Claude Code.</p>
+  <ol class="issues">
+    <li class="issue">
+      <div class="issue-head"><h3>Keys get stuck after switching windows</h3></div>
+      <p class="feel">Hold W, alt-tab away, come back: your explorer keeps walking. The game never hears the key come back up.</p>
+      <p class="meta">BuriedComplexGame.tsx:262–285 · MM3-0003, 84% sure</p>
+      <div class="prompt"><p>In src/components/BuriedComplexGame.tsx, add a window blur listener in the keyboard useEffect that clears keysRef and resets the attack, guard, dodge and interact flags, so a held key can't get stuck when I switch windows. Show me the change before you apply it.</p><button class="copy" type="button">Copy</button></div>
+    </li>
+    <li class="issue">
+      <div class="issue-head"><h3>Enemies can spawn inside crates</h3></div>
+      <p class="feel">Enemy spawn spots are rolled without checking where the blockers went, so a monster can start stuck in a wall.</p>
+      <p class="meta">deep-signal-engine.ts:209–210 · MM3-0008, about 96% sure</p>
+      <div class="prompt"><p>In src/lib/deep-signal-engine.ts, createEnemiesForRoom picks random spawn spots that can land inside a blocker. Can you re-roll a spawn spot if it overlaps any blocker in the room, and explain how the check works?</p><button class="copy" type="button">Copy</button></div>
+    </li>
+    <li class="issue">
+      <div class="issue-head"><h3>A held dodge can fire twice after a floor change</h3></div>
+      <p class="feel">When the floor advances, the game forgets that dodge was already held down, so it can dodge again on its own.</p>
+      <p class="meta">deep-signal-engine.ts:585–597 · found by reading the code</p>
+      <div class="prompt"><p>In src/lib/deep-signal-engine.ts, the early return near line 585 that advances the floor doesn't update dodgeWasDown. Can you fix it so a held dodge button can't trigger a second dodge right after a floor change?</p><button class="copy" type="button">Copy</button></div>
+    </li>
+    <li class="issue">
+      <div class="issue-head"><h3>Gear can get duplicate IDs after a reload</h3></div>
+      <p class="feel">The counter that names new gear starts again at 1 every time the page loads, but your banked gear already uses those names. The gear list can then mix items up.</p>
+      <p class="meta">deep-signal-engine.ts:126, used as a list key at BuriedComplexGame.tsx:492 · checked by hand</p>
+      <div class="prompt"><p>In src/lib/deep-signal-engine.ts, nextGearId starts at 1 on every page load, so new gear can reuse ids that banked gear already has. Can you make gear ids unique across reloads, for example with crypto.randomUUID(), and check nothing else depends on the old format?</p><button class="copy" type="button">Copy</button></div>
+    </li>
+    <li class="issue">
+      <div class="issue-head"><h3>Saves can fail without telling you</h3></div>
+      <p class="feel">If the browser's notebook is full, an arcade save just doesn't happen and nobody is told. Deep Signal already shows a message for this. The rest of the arcade doesn't.</p>
+      <p class="meta">arcade-store.ts:60–69 · MM3-0004, 92% sure</p>
+      <div class="prompt"><p>In src/lib/arcade-store.ts, saveArcadeState silently ignores errors. Can you make it return whether the save worked, and show a short message in src/App.tsx when it fails, like the Deep Signal save note does?</p><button class="copy" type="button">Copy</button></div>
+    </li>
+    <li class="issue">
+      <div class="issue-head"><h3>Snake can turn into its own neck</h3><span class="impact later">Hidden game</span></div>
+      <p class="feel">Press two directions fast enough inside one 145 ms tick and the snake can reverse into itself.</p>
+      <p class="meta">App.tsx:172 and :184 · found by reading the code; MM3 was unsure (41%)</p>
+      <div class="prompt"><p>In src/App.tsx, SnakeGame checks a new turn against dir.current instead of the pending nextDir, so two quick key presses can reverse the snake into its own neck. Can you fix the turn check?</p><button class="copy" type="button">Copy</button></div>
+    </li>
+    <li class="issue">
+      <div class="issue-head"><h3>Memory's shuffle isn't fair</h3><span class="impact later">Hidden game</span></div>
+      <p class="feel">Shuffling with <code>sort</code> and a random comparison makes some layouts more likely than others.</p>
+      <p class="meta">App.tsx:220 · MM3-0009, 91% sure</p>
+      <div class="prompt"><p>In src/App.tsx, the Memory game shuffles with sort and Math.random. Can you replace it with a Fisher-Yates shuffle so every card layout is equally likely, and explain why the old way was biased?</p><button class="copy" type="button">Copy</button></div>
+    </li>
+  </ol>
+</section>
+
+<section class="section" id="faster">
+  <div class="eyebrow">Field kit 02</div>
+  <h2>Make it faster</h2>
+  <p class="intro">Speeding up a game starts with measuring, not guessing. In Chrome, open DevTools (F12), go to the Performance tab, press record, and play for five seconds. Long blocks in the chart show where time goes. Change one thing, then measure again.</p>
+  <ol class="issues">
+    <li class="issue">
+      <div class="issue-head"><h3>Paint the background once, not every frame</h3><span class="impact med">Medium</span></div>
+      <p class="feel">The backdrop, wall, floor and about 20 grid lines are redrawn 60 times a second, even though they never move. On a slow laptop that's where frames get dropped.</p>
+      <p class="meta">BuriedComplexGame.tsx:82–120 · MM3-0003, 95% sure</p>
+      <div class="prompt"><p>In src/components/BuriedComplexGame.tsx, render3DComplex rebuilds the backdrop gradient and the floor grid every frame. Can you draw those still parts once onto an offscreen canvas and copy it each frame? Tell me how to measure the difference in Chrome DevTools.</p><button class="copy" type="button">Copy</button></div>
+    </li>
+    <li class="issue">
+      <div class="issue-head"><h3>Make the canvas sharp on phones</h3><span class="impact med">Medium</span></div>
+      <p class="feel">The canvas is drawn at a fixed size and stretched, so it looks blurry on phones and high-resolution screens. This is about looks rather than speed, and a sharper canvas costs a little more drawing.</p>
+      <p class="meta">BuriedComplexGame.tsx:424–427</p>
+      <div class="prompt"><p>In src/components/BuriedComplexGame.tsx, the canvas uses WORLD_WIDTH and WORLD_HEIGHT directly. Can you size it by window.devicePixelRatio so it stays sharp on high-density screens, and scale the drawing context to match?</p><button class="copy" type="button">Copy</button></div>
+    </li>
+    <li class="issue">
+      <div class="issue-head"><h3>Let the zombies glide</h3><span class="impact med">Medium</span><span class="impact later">Hidden game</span></div>
+      <p class="feel">Zombies only move when the picture refreshes every 90 ms, so they hop about 11 times a second.</p>
+      <p class="meta">ZombieSniperGame.tsx:103 · MM3-0005, 79% sure</p>
+      <div class="prompt"><p>In src/components/ZombieSniperGame.tsx, the zombies only redraw on the 90 millisecond refresh at line 103. Can you move their positions inside the useFrame ticker so they glide every frame?</p><button class="copy" type="button">Copy</button></div>
+    </li>
+    <li class="issue">
+      <div class="issue-head"><h3>Keep Snake's timer steady</h3><span class="impact med">Medium</span><span class="impact later">Hidden game</span></div>
+      <p class="feel">The Snake timer is torn down and rebuilt on every single tick, because it restarts whenever the snake changes. On a slow phone the speed can wobble.</p>
+      <p class="meta">App.tsx:181–206 · found by reading the code, checked by hand; MM3 disagreed (17%)</p>
+      <div class="prompt"><p>In src/App.tsx, the SnakeGame interval restarts every tick because its effect depends on snake. Can you keep the snake in a ref and run one steady setInterval for the whole round?</p><button class="copy" type="button">Copy</button></div>
+    </li>
+    <li class="issue">
+      <div class="issue-head"><h3>Load the fonts from index.html</h3><span class="impact low">Low</span></div>
+      <p class="feel">The fonts are requested from inside the stylesheet, so the browser finds them a moment later than it could.</p>
+      <p class="meta">index.css:1 · from reading the code; MM3 passed this check</p>
+      <div class="prompt"><p>In src/index.css, the first line loads Google Fonts with @import. Can you move it into index.html as a link tag next to the preconnect lines, and tell me if anything looks different?</p><button class="copy" type="button">Copy</button></div>
+    </li>
+    <li class="issue">
+      <div class="issue-head"><h3>Copy less every heartbeat</h3><span class="impact low">Low</span></div>
+      <p class="feel">Each frame copies every enemy twice and walks the enemy list several times. Fine with 8 enemies. It'll matter if you ever pack rooms with far more.</p>
+      <p class="meta">deep-signal-engine.ts:369, 445 · MM3-0002</p>
+      <div class="prompt"><p>In src/lib/deep-signal-engine.ts, stepDeepSignalRun copies every enemy at line 369 and again at line 445. Can you copy only the enemies that actually change, and explain the before and after in plain words?</p><button class="copy" type="button">Copy</button></div>
+    </li>
+    <li class="issue">
+      <div class="issue-head"><h3>Read the save once</h3><span class="impact low">Low</span></div>
+      <p class="feel">The header and lobby each reread and decode the whole save every time they redraw. Too small to feel today.</p>
+      <p class="meta">App.tsx:20 and :36 · MM3-0007</p>
+      <div class="prompt"><p>In src/App.tsx, AppShell and Lobby call getArcadeState on every render. Can you read the saved state once and pass it to the parts that need it?</p><button class="copy" type="button">Copy</button></div>
+    </li>
+    <li class="issue">
+      <div class="issue-head"><h3>Before you switch the vault on: load the 3D only when needed</h3><span class="impact later">Later</span></div>
+      <p class="feel">Today the build leaves the 3D library out, because nothing can reach Zombie Sniper. Give it a route and the whole 3D library joins the first download, slowing the lobby for everyone. Loading it only when someone opens that game avoids that.</p>
+      <p class="meta">App.tsx:5 · checked with a real build</p>
+      <div class="prompt"><p>In src/App.tsx, line 5 imports ZombieSniperGame at the top. When I add a route for it, can you load it with React.lazy and Suspense so the 3D code only downloads when that game opens? Run npm run build before and after and show me the file sizes.</p><button class="copy" type="button">Copy</button></div>
+    </li>
+  </ol>
+</section>
+
+<section class="section" id="better">
+  <div class="eyebrow">Field kit 03</div>
+  <h2>Make it better</h2>
+  <p class="intro">Game ideas that fit the code you already have, sorted by how much work they take.</p>
+  <div class="tiers">
+    <div class="tier">
+      <h3>Easy · an evening</h3>
+      <ul class="ideas-list">
+        <li><h4>Open the vault</h4><p class="why">Five finished games come back to life. Add one route and put them on the lobby.</p><span class="floorref">Floors 000 and 072</span><div class="prompt"><p>In src/App.tsx, add a /play/:id route that uses the existing GamePage function, check the id against the list of games, and add cards for Snake, Memory, Tic-Tac-Toe, 2048 and Zombie Sniper to the Lobby.</p><button class="copy" type="button">Copy</button></div></li>
+        <li><h4>Feel every hit</h4><p class="why">A quick screen shake and red flash when you take damage. The fight tells its own story.</p><span class="floorref">Floor 012</span><div class="prompt"><p>In src/components/BuriedComplexGame.tsx, add a short screen shake and red edge flash when the player takes damage. Keep it under 200 ms and skip the shake if the player prefers reduced motion.</p><button class="copy" type="button">Copy</button></div></li>
+        <li><h4>Perfect dodge</h4><p class="why">Dodge during an enemy's wind-up and get a bonus. Your existing timers become a skill to chase.</p><span class="floorref">Floor 024</span><div class="prompt"><p>In src/lib/deep-signal-engine.ts, if the player starts a dodge while an enemy in reach is winding up, award bonus score and show a "PERFECT" message. Explain which lines you changed.</p><button class="copy" type="button">Copy</button></div></li>
+        <li><h4>Boss rage</h4><p class="why">Under half health, bosses wind up faster. The last few hits feel dangerous.</p><span class="floorref">Floor 024</span><div class="prompt"><p>In src/lib/deep-signal-engine.ts, make boss enemies use a shorter wind-up once they drop below half health. Show me the numbers before and after.</p><button class="copy" type="button">Copy</button></div></li>
+        <li><h4>Lucky streak protection</h4><p class="why">Go 15 floors without an Epic and the next drop is guaranteed Epic. Dry spells hurt less.</p><span class="floorref">Floor 036</span><div class="prompt"><p>In src/lib/deep-signal-engine.ts, add a pity rule to rollRarity: after 15 floors without an Epic or better drop, the next drop is at least Epic. Show me the change before you apply it.</p><button class="copy" type="button">Copy</button></div></li>
+        <li><h4>Fix the lobby's promise</h4><p class="why">The lobby still says "three rooms", but the game now goes to floor 100 with a final boss. New players should know what they're in for.</p><span class="floorref">Floor 000</span><div class="prompt"><p>In src/App.tsx, the Lobby text says "One signal. Three rooms." and "Fight through three small spaces", but the game now has 100 floors with a safe room every 5 floors. Can you suggest new lobby text that matches the real game?</p><button class="copy" type="button">Copy</button></div></li>
+      </ul>
+    </div>
+    <div class="tier">
+      <h3>Medium · a weekend</h3>
+      <ul class="ideas-list">
+        <li><h4>Daily dungeon</h4><p class="why">One seed per day, so everyone plays the same rooms and can compare runs.</p><span class="floorref">Floor 036</span><div class="prompt"><p>In src/lib/deep-signal-engine.ts, room generation calls Math.random directly. Can you pass in a seeded random function, and add a "Daily dungeon" mode that uses today's date as the seed?</p><button class="copy" type="button">Copy</button></div></li>
+        <li><h4>Mini-map</h4><p class="why">A small corner map of the room and the relay door. Wandering turns into planning.</p><span class="floorref">Floor 012</span><div class="prompt"><p>In src/components/BuriedComplexGame.tsx, add a small mini-map in a corner that shows blockers, enemies, loot and the relay door as simple dots and boxes.</p><button class="copy" type="button">Copy</button></div></li>
+        <li><h4>A Tic-Tac-Toe opponent</h4><p class="why">A computer player using minimax, a method that tries every reply. Easy, medium and unbeatable.</p><span class="floorref">Floor 072</span><div class="prompt"><p>In src/App.tsx, add a computer opponent to TicTacToeGame using minimax, with an easy mode that picks a random square half the time. Explain minimax to me simply.</p><button class="copy" type="button">Copy</button></div></li>
+        <li><h4>Share your save</h4><p class="why">Turn your save into a short code a friend can paste into their arcade. No server needed.</p><span class="floorref">Floor 048</span><div class="prompt"><p>In src/lib/arcade-store.ts, add exportSave and importSave functions that turn the saved state into a short text code and back, with validation, and add buttons for them on the profile page.</p><button class="copy" type="button">Copy</button></div></li>
+      </ul>
+    </div>
+    <div class="tier">
+      <h3>Hard · a project</h3>
+      <ul class="ideas-list">
+        <li><h4>A real online leaderboard</h4><p class="why">Scores friends can see from any computer. This means opening the kitchen, and taking on its safety checklist first.</p><span class="floorref">Floor 184</span><div class="prompt"><p>I want an online leaderboard for my arcade. Read artifacts/api-server and lib/db and explain, step by step, what I'd need to build and what safety checks I need before real players use it. Don't change any files yet.</p><button class="copy" type="button">Copy</button></div></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="habits">
+  <div class="eyebrow">Field kit 04</div>
+  <h2>Your habits</h2>
+  <p class="intro">Patterns are habits in code. Good ones make a project easy to change. Here's what your code already does well, and what's worth tidying.</p>
+  <div class="habits">
+    <div class="keep">
+      <h3>Keep doing</h3>
+      <ul>
+        <li><strong>Rules apart from drawing</strong>Zombie Sniper and Deep Signal both keep the game rules in one file and the picture in another. This is the habit that matters most.<span class="ref">zombie-sniper-engine.ts · deep-signal-engine.ts</span></li>
+        <li><strong>A new state, never an edited one</strong>Each heartbeat returns a fresh copy, so nothing changes behind your back.<span class="ref">deep-signal-engine.ts:368–373, 601–618</span></li>
+        <li><strong>Time is capped</strong>Switching tabs can't make enemies teleport.<span class="ref">deep-signal-engine.ts:365 · zombie-sniper-engine.ts:86</span></li>
+        <li><strong>Saves are checked before they're trusted</strong>A broken save never crashes the lobby.<span class="ref">arcade-store.ts:31–58</span></li>
+        <li><strong>Things get cleaned up</strong>Listeners and the animation loop are removed when a screen closes.<span class="ref">BuriedComplexGame.tsx:286–290, 333</span></li>
+        <li><strong>Tuning numbers are easy to find</strong>Balance changes are usually a one-line edit.<span class="ref">deep-signal-engine.ts:178, 327</span></li>
+      </ul>
+    </div>
+    <div class="tidy">
+      <h3>Worth tidying</h3>
+      <ul>
+        <li><strong>Giant functions</strong>The heartbeat is one 320-line function. Splitting it into move, attack, enemies and loot would let you test each part.<span class="ref">deep-signal-engine.ts:363–619</span></li>
+        <li><strong>Copy-paste twins</strong>The loot pickup is written twice, and the copies have already drifted. The 3D tilt number 0.72 appears in seven places.<span class="ref">deep-signal-engine.ts:526, 552 · BuriedComplexGame.tsx:48, 81…</span></li>
+        <li><strong>Dice you can't replay</strong><code>Math.random</code> is baked into the rules, so you can't replay a room or test a drop. A seed fixes both.<span class="ref">deep-signal-engine.ts:137, 209, 514</span></li>
+        <li><strong>Leftovers</strong>55 unused kit files, 40 unused packages, an old 404 page, an unused dark theme, and an old copy of the whole arcade.<span class="ref">src/components/ui · artifacts/global-arcade</span></li>
+        <li><strong>An incomplete shopping list</strong><code>react</code> and <code>react-dom</code> aren't listed, and <code>lucide-react</code> floats on "latest".<span class="ref">package.json</span></li>
+        <li><strong>Styles said twice</strong>The page background is set in three places, and several rules appear twice with different values.<span class="ref">index.css:265, 384, 477 · .topbar at 388 and 485</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="claude">
+  <div class="eyebrow">Field kit 05</div>
+  <h2>Talking to Claude</h2>
+  <p class="intro">Claude Code can read and change your project. It works best when you ask like you're briefing a teammate.</p>
+  <ol class="recipe">
+    <li><b>1 · Point</b>Name the file, and the function or line if you know it.</li>
+    <li><b>2 · Describe</b>Say what happens now, as a player sees it.</li>
+    <li><b>3 · Ask</b>Say what you want to happen instead.</li>
+    <li><b>4 · Check</b>Ask to see the change before it's applied, and to explain it simply.</li>
+  </ol>
+  <div class="compare">
+    <div><div class="label">Vague</div><div class="prompt"><p>make the game faster</p><button class="copy" type="button">Copy</button></div></div>
+    <div><div class="label">Clear</div><div class="prompt"><p>In src/components/BuriedComplexGame.tsx, the background is redrawn every frame. Can you draw it once and reuse it? Show me the change first.</p><button class="copy" type="button">Copy</button></div></div>
+  </div>
+  <div class="block">
+    <div class="label">A safe loop for every change</div>
+    <div class="term"><span class="c"># 1. save a checkpoint before asking for a change</span>
+git add -A
+git commit -m "before fixing stuck keys"
+
+<span class="c"># 2. ask Claude for one change, read what it did, then play it</span>
+npm run dev
+
+<span class="c"># 3a. happy with it? save it</span>
+git commit -am "fix stuck keys"
+
+<span class="c"># 3b. not happy? throw the change away and go back to the checkpoint</span>
+git restore .</div>
+  </div>
+  <div class="block">
+    <div class="label">Prompts for learning, not changing</div>
+    <div class="prompt"><p>Explain src/lib/deep-signal-engine.ts lines 363 to 420 like I've never coded. Go line by line and don't change anything.</p><button class="copy" type="button">Copy</button></div>
+    <div class="prompt"><p>Draw me a simple diagram of how src/components/BuriedComplexGame.tsx and src/lib/deep-signal-engine.ts talk to each other each frame.</p><button class="copy" type="button">Copy</button></div>
+    <div class="prompt"><p>Quiz me with five questions about how the game loop in my project works, one at a time, and tell me if I got each one right.</p><button class="copy" type="button">Copy</button></div>
+  </div>
+</section>
+
+<section class="section" id="parts">
+  <div class="eyebrow">Field kit 06</div>
+  <h2>Borrowed parts</h2>
+  <p class="intro">Your <code>package.json</code> lists 49 packages. Each square below is one of them. Hover a square to see its name.</p>
+  <div class="waffle-wrap">
+    <div class="waffle" id="waffle" role="img" aria-label="49 packages: 2 used by the live game, 5 build tools, 2 for the hidden Zombie Sniper, 40 unused"></div>
+    <div class="groups">
+      <div class="group"><i style="background:var(--cat-live)"></i><span class="n">2 <span>used by the live game</span></span><p>An address router and the icons. The live game uses <code>react</code> and <code>react-dom</code> too, but they aren't on the list.</p><span class="pk">wouter · lucide-react</span></div>
+      <div class="group"><i style="background:var(--cat-tools)"></i><span class="n">5 <span>build tools</span></span><p>They run in the workshop and never reach a player.</p><span class="pk">vite · @vitejs/plugin-react · tailwindcss · @tailwindcss/vite · tw-animate-css</span></div>
+      <div class="group"><i style="background:var(--cat-hidden)"></i><span class="n">2 <span>for the hidden Zombie Sniper</span></span><p>The 3D library. Left out of today's build because nothing reaches it.</p><span class="pk">three · @react-three/fiber</span></div>
+      <div class="group"><i style="border:1.5px solid var(--line-strong)"></i><span class="n">40 <span>not used at all</span></span><p>Mostly the UI kit from the paint closet. Safe to remove once you've checked, one group at a time.</p><span class="pk">27 × @radix-ui/* · recharts · sonner · vaul · cmdk · react-day-picker · react-hook-form · @hookform/resolvers · embla-carousel-react · input-otp · react-icons · react-resizable-panels · next-themes · date-fns</span></div>
+    </div>
+  </div>
+  <div class="prompt"><p>In package.json, list every package that nothing in src/ imports (ignore src/components/ui). Remove them in small groups, running npm run build after each group, and add react and react-dom at the versions package-lock.json already uses.</p><button class="copy" type="button">Copy</button></div>
+</section>
+
+<section class="section" id="checked">
+  <div class="eyebrow">Field kit 07</div>
+  <h2>How this was checked</h2>
+  <p class="intro">Ten AI helpers each read one part of the code. Every claim they made about speed or structure was then put to <b>MM3</b>, a checker that answers precise yes/no questions about specific lines. Its percentage is how sure it is that a problem is real. Every run below says "fail", which is normal: a run fails if any single check finds anything. The details are what count.</p>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>Run</th><th>Floor</th><th>Question asked</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">MM3-0007</td><td>000</td><td style="white-space:normal">Does the app shell read saved data only when it needs to?</td><td>fail</td></tr>
+        <tr><td class="mono">MM3-0003</td><td>012</td><td style="white-space:normal">Does the frame loop do no unnecessary work each frame?</td><td>fail</td></tr>
+        <tr><td class="mono">MM3-0002</td><td>024</td><td style="white-space:normal">Is the heartbeat free of wasted work, with correct combat rules?</td><td>fail</td></tr>
+        <tr><td class="mono">MM3-0008</td><td>036</td><td style="white-space:normal">Does run setup build valid rooms, enemies and gear?</td><td>fail</td></tr>
+        <tr><td class="mono">MM3-0004</td><td>048</td><td style="white-space:normal">Does saving restore good data and survive damaged data?</td><td>fail</td></tr>
+        <tr><td class="mono">MM3-0011</td><td>060</td><td style="white-space:normal">Does the stylesheet load fast, with one home per rule?</td><td>fail</td></tr>
+        <tr><td class="mono">MM3-0009</td><td>072</td><td style="white-space:normal">Do the classic games avoid wasted work each tick?</td><td>fail</td></tr>
+        <tr><td class="mono">MM3-0005</td><td>084</td><td style="white-space:normal">Do Zombie Sniper's rules and scene avoid waste and score correctly?</td><td>fail</td></tr>
+        <tr><td class="mono">MM3-0010</td><td>096</td><td style="white-space:normal">Does every install build the same app?</td><td>fail</td></tr>
+        <tr><td class="mono">MM3-0006</td><td>184</td><td style="white-space:normal">Is the back end ready to store real player data safely?</td><td>fail</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="prose">
+    <p>Checking the checkers mattered. One helper claimed your weapon does nothing at the start of a run. The code adds it on every swing, so that claim was dropped. Another said the 3D library slows the lobby for everyone. A real build showed it isn't in the download yet. And where a helper and MM3 disagreed, like the Snake timer, the code was read by hand to settle it. All eleven checks together, including one on an earlier fix, cost less than one cent.</p>
+  </div>
+</section>
+
+<p class="foot">Playnet Field Manual · surveyed 16 Nov 2026 from the code in <code>src/</code>. Line numbers drift as you edit, so if one looks wrong, search for the function name instead.</p>
+
+</main>
+</div>
+
+<div class="tip" id="tip" hidden></div>
+
+<script>
+(function () {
+  // copy buttons
+  function copyText(text) {
+    if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
+    return new Promise(function (resolve, reject) {
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy') ? resolve() : reject(); } catch (e) { reject(e); }
+      document.body.removeChild(ta);
+    });
+  }
+  document.querySelectorAll('.copy').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var p = btn.parentElement.querySelector('p');
+      copyText(p.textContent.trim()).then(function () {
+        btn.textContent = 'Copied'; btn.classList.add('done');
+        setTimeout(function () { btn.textContent = 'Copy'; btn.classList.remove('done'); }, 1600);
+      }, function () { btn.textContent = 'Select & copy'; });
+    });
+  });
+
+  // tooltip
+  var tip = document.getElementById('tip');
+  function showTip(e, text) { tip.textContent = text; tip.hidden = false; moveTip(e); }
+  function moveTip(e) {
+    var x = e.clientX + 14, y = e.clientY + 14;
+    var w = tip.offsetWidth, h = tip.offsetHeight;
+    if (x + w > window.innerWidth - 8) x = e.clientX - w - 14;
+    if (y + h > window.innerHeight - 8) y = e.clientY - h - 14;
+    tip.style.left = x + 'px'; tip.style.top = y + 'px';
+  }
+  function bindTip(el, text) {
+    el.addEventListener('mouseenter', function (e) { showTip(e, text); });
+    el.addEventListener('mousemove', moveTip);
+    el.addEventListener('mouseleave', function () { tip.hidden = true; });
+  }
+
+  // rarity bars (values from rollRarity, deep-signal-engine.ts:326)
+  var rarities = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'];
+  var rows = [
+    ['Floor 1', [47.55, 28, 22, 2.45, 0]],
+    ['Floor 50', [25.5, 28, 22, 20, 4.5]],
+    ['Floor 78+', [13, 28, 22, 20, 17]]
+  ];
+  var bars = document.getElementById('rarity-bars');
+  rows.forEach(function (row) {
+    var r = document.createElement('div'); r.className = 'bar-row';
+    var lab = document.createElement('span'); lab.textContent = row[0]; r.appendChild(lab);
+    var bar = document.createElement('div'); bar.className = 'bar';
+    row[1].forEach(function (v, i) {
+      if (v <= 0) return;
+      var s = document.createElement('div'); s.className = 'seg';
+      s.style.flex = v + ' 0 0'; s.style.background = 'var(--r' + (i + 1) + ')';
+      bindTip(s, row[0] + ' · ' + rarities[i] + ' · ' + (Math.round(v * 10) / 10) + '%');
+      bar.appendChild(s);
+    });
+    r.appendChild(bar); bars.appendChild(r);
+  });
+
+  // package waffle
+  var groups = [
+    ['live', ['wouter', 'lucide-react']],
+    ['tools', ['vite', '@vitejs/plugin-react', 'tailwindcss', '@tailwindcss/vite', 'tw-animate-css']],
+    ['hidden', ['three', '@react-three/fiber']],
+    ['unused', ['@radix-ui/react-accordion', '@radix-ui/react-alert-dialog', '@radix-ui/react-aspect-ratio', '@radix-ui/react-avatar', '@radix-ui/react-checkbox', '@radix-ui/react-collapsible', '@radix-ui/react-context-menu', '@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-hover-card', '@radix-ui/react-label', '@radix-ui/react-menubar', '@radix-ui/react-navigation-menu', '@radix-ui/react-popover', '@radix-ui/react-progress', '@radix-ui/react-radio-group', '@radix-ui/react-scroll-area', '@radix-ui/react-select', '@radix-ui/react-separator', '@radix-ui/react-slider', '@radix-ui/react-slot', '@radix-ui/react-switch', '@radix-ui/react-tabs', '@radix-ui/react-toast', '@radix-ui/react-toggle', '@radix-ui/react-toggle-group', '@radix-ui/react-tooltip', 'recharts', 'sonner', 'vaul', 'cmdk', 'react-day-picker', 'react-hook-form', '@hookform/resolvers', 'embla-carousel-react', 'input-otp', 'react-icons', 'react-resizable-panels', 'next-themes', 'date-fns']]
+  ];
+  var labels = { live: 'used by the live game', tools: 'build tool', hidden: 'hidden Zombie Sniper', unused: 'not used' };
+  var waffle = document.getElementById('waffle');
+  groups.forEach(function (g) {
+    g[1].forEach(function (name) {
+      var c = document.createElement('div'); c.className = 'cell ' + g[0];
+      bindTip(c, name + ' · ' + labels[g[0]]);
+      waffle.appendChild(c);
+    });
+  });
+
+  // elevator: mark the floor in view
+  var links = Array.prototype.slice.call(document.querySelectorAll('.elevator a'));
+  var byId = {}; links.forEach(function (a) { byId[a.getAttribute('href').slice(1)] = a; });
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting && byId[en.target.id]) {
+          links.forEach(function (a) { a.classList.remove('here'); });
+          byId[en.target.id].classList.add('here');
+        }
+      });
+    }, { rootMargin: '-30% 0px -60% 0px' });
+    Object.keys(byId).forEach(function (id) { var el = document.getElementById(id); if (el) io.observe(el); });
+  }
+})();
+</script>
+</body>
+</html>
