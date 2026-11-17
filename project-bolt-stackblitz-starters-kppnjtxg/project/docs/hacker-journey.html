@@ -707,7 +707,7 @@ td.mono { white-space: nowrap; color: var(--ink); }
     <h2>Your dungeon rolls dice. Here are the real odds.</h2>
     <p>Every loot drop runs <code>rollRarity</code>: a roll from 0 to 100, plus a bonus of 0.45 per floor, up to a cap of 35. The deeper you go, the luckier the roll.</p>
     <p><b>Drag the floor slider.</b> Then roll a drop, or generate a room. These use your game's real formulas.</p>
-    <div class="call tip"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z"/></svg><span class="lab">Hacker tip</span><p>Legendary is impossible above floor 41, and odds stop improving at floor 78. Change one number in <code>rollRarity</code> and you rebalance the whole game.</p></div>
+    <div class="call tip"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z"/></svg><span class="lab">Hacker tip</span><p>Legendary can't drop until floor 41, and the odds stop improving at floor 78. Change one number in <code>rollRarity</code> and you rebalance the whole game.</p></div>
     <div class="call watch"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/></svg><span class="lab">Bug spotted</span><p>The teal enemy zone overlaps where crates can land, and nothing checks. Generate a few rooms and watch for rust-colored stuck enemies.</p></div>
   </div>
   <div class="visual">
