@@ -1,0 +1,1 @@
+- [Flagship game direction](flagship-game-direction.md) — focus on one approachable action-adventure/RPG and confirm its loop before expanding the catalog.

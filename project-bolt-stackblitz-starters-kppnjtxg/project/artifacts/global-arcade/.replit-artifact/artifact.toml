@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "JB PLAYNET BETA"
+description = "JB PLAYNET BETA is a free-to-play browser arcade with casual games, personal bests, and profile customization."
+version = "1.0.0"
+id = "artifacts/global-arcade"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21995
+
+[services.development]
+run = "pnpm --filter @workspace/global-arcade run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/global-arcade", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/global-arcade/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21995"
+BASE_PATH = "/"
