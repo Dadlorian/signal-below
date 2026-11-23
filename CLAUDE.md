@@ -58,6 +58,21 @@ docker run -d --name signal-below --restart unless-stopped -p 5173:8080 --read-o
   --cap-drop ALL --security-opt no-new-privileges --pids-limit 100 --memory 256m --user 101 signal-below:new
 ```
 Then check `https://signal.gamelab.link/` and `/docs/` return 200. Ask Corey before swapping.
+Then **pre-warm** Cloudflare so the first friend doesn't get a cold load (the slow "glitch"): request
+the new `/assets/index-*.js` and `/assets/index-*.css` once through the public URL and expect
+`cf-cache-status: HIT` on the second request. Test on a staging port (`-p 127.0.0.1:5175:8080`) before
+swapping. The tunnel reaches the container on the LAN address, so the live container must publish on
+all interfaces (`-p 5173:8080`), never `127.0.0.1` only.
+
+What `deploy/nginx.conf` and the build do for the son's frequent updates (none of it edits his code):
+- Hashed files in `/assets/` are cached for a year (`immutable`). A new build means new file names, so
+  updates show up immediately.
+- The game page and guides send `no-cache`, so friends revalidate and get the new version right away.
+- Text is gzip-compressed on the way through the tunnel. `/api/*` and unknown files return a real 404.
+  `/favicon.ico` returns 204. The game's own routes (`/play/...`) still fall back to `index.html`.
+- `deploy/inject-fonts.js` runs after `vite build` and copies the Google Fonts URL from his
+  `src/index.css` into the built `index.html` as a `<link>`, so fonts start loading early. It skips
+  quietly if his CSS changes. His source is never modified.
 Docs pages (`docs/`) are copied in as plain files, so they don't depend on his vite config.
 
 ## Things to check on every update

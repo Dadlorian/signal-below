@@ -7,6 +7,9 @@ COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts --no-audit --no-fund
 COPY . .
 RUN npx vite build
+# Start the font download earlier (see inject-fonts.js). Skips quietly if his CSS changes.
+COPY --from=deploy inject-fonts.js /tmp/inject-fonts.js
+RUN node /tmp/inject-fonts.js
 
 FROM nginxinc/nginx-unprivileged:stable-alpine
 COPY --from=build /app/dist /usr/share/nginx/html
