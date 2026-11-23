@@ -1,0 +1,77 @@
+# Accepted risks for security-scan.sh.  One entry per line:
+#
+#   kind|pattern|reason|YYYY-MM-DD
+#
+# Patterns are globs (* within a path segment or name, ** across segments). Every entry is
+# listed in the report's "Allowlist / accepted risk" section, with whether it matched anything.
+# Add a line only after a human has read the hit and written down why it is acceptable.
+#
+# kinds
+#   install-script  package name whose lifecycle (postinstall etc.) script is expected
+#   pkg-ioc         node_modules static scan: "name" (all WARN-level rules) or "name:RULE_ID" (that rule, incl. FAIL-level)
+#   pkg-name        skip lookalike-name check for this exact package name
+#   bin             "package:binname" allowed to declare a bin that looks like a system command
+#   code            repo path glob whose WARN/INFO code-pattern hits are accepted (FAIL-level hits are never allowlisted here; use path:RULE_ID)
+#   host            external hostname the code is expected to talk to
+#   injection       repo path glob excluded from the prompt-injection text check
+#   secret          repo path glob excluded from the hard-coded-secret check (use sparingly; only for fixtures)
+#   spec            dependency name whose floating spec ("latest", "*") in the installable package.json is accepted
+#   npmrc           "<file>:<key or free-text line>" in .npmrc accepted as harmless (never registry=, auth, strict-ssl)
+#   automation      path of a .replit / hook / CI script whose presence is understood (never one with curl|sh in it)
+#   advisory        npm audit advisory accepted by package name or GHSA id (moderate/low only; high/critical never)
+#   file            repo path glob excluded from the binary/executable and sensitive-file checks
+#
+# ---- packages that legitimately run install scripts ------------------------------------------------
+install-script|esbuild|esbuild's postinstall only validates/optimises its own prebuilt binary (@esbuild/<platform>); core build tool used by vite|2026-11-22
+install-script|fsevents|macOS-only file watcher, optional dependency; never installed on Linux|2026-11-22
+# ---- build tools that legitimately spawn processes / touch the environment ------------------------
+pkg-ioc|esbuild|bundler; spawns its own native binary via child_process and reads env for ESBUILD_BINARY_PATH|2026-11-22
+pkg-ioc|@esbuild/*|platform-specific esbuild binaries|2026-11-22
+pkg-ioc|rollup|bundler; loads native binding via child_process fallback|2026-11-22
+pkg-ioc|@rollup/*|rollup platform bindings and official plugins|2026-11-22
+pkg-ioc|rolldown|rust-based bundler used by vite 7+/8 (rolldown-vite); spawns workers|2026-11-22
+pkg-ioc|@rolldown/*|rolldown platform bindings|2026-11-22
+pkg-ioc|vite|dev server: opens the browser (child_process), reads env for config, spawns worker threads|2026-11-22
+pkg-ioc|lightningcss*|native CSS transformer used by tailwind v4|2026-11-22
+pkg-ioc|@tailwindcss/oxide*|native tailwind v4 engine|2026-11-22
+pkg-ioc|fsevents|macOS native watcher|2026-11-22
+pkg-ioc|@vitejs/plugin-react|uses child_process to resolve babel/oxc tooling paths|2026-11-22
+pkg-ioc|tsx|TypeScript runner; spawns node (unused by the game; leftover devDependency of scripts/)|2026-11-22
+pkg-ioc|jiti|TypeScript loader used by tailwind config loading; evaluates transpiled config code (new Function)|2026-11-22
+pkg-ioc|@oxc-project/*|oxc parser bindings used by rolldown|2026-11-22
+pkg-ioc|three|large 3D library; its examples/ folder contains wasm decoders and long hex tables|2026-11-22
+# ---- repo source paths with accepted hits -----------------------------------------------------------
+code|**/components/ui/*.tsx|shadcn/ui generated components, vendored three times (chart.tsx injects a constant-shaped <style> string via dangerouslySetInnerHTML)|2026-11-22
+code|scan/**:*|the scanner itself contains the signatures it looks for (path:* form also covers FAIL-level rules)|2026-11-22
+code|security-scan.sh:*|the scanner itself contains the signatures it looks for|2026-11-22
+pkg-ioc|@emnapi/*|wasm N-API runtime shim bundled under @tailwindcss/oxide-wasm32-wasi; builds functions dynamically|2026-11-22
+pkg-ioc|@napi-rs/*|wasm runtime helper for @tailwindcss/oxide-wasm32-wasi; builds a matcher with new Function|2026-11-22
+pkg-ioc|@tybys/*|wasm-util helper used by the same wasm runtime|2026-11-22
+pkg-ioc|detect-libc|asks "ldd --version" via child_process to choose glibc vs musl native binary (used by lightningcss / tailwind oxide)|2026-11-22
+pkg-ioc|tapable|webpack hook library (dependency of enhanced-resolve/tailwind); compiles hook chains with new Function|2026-11-22
+pkg-ioc|source-map-js|postcss dependency; builds a comparator with new Function|2026-11-22
+pkg-ioc|react-smooth|recharts animation dependency; its umd/ bundle is a webpack "eval" devtool build that vite never loads (ESM entry is used)|2026-11-22
+pkg-ioc|recharts-scale|recharts dependency; same webpack eval-devtool umd/ build, unused by vite|2026-11-22
+pkg-name|update-browserslist-db|well-known browserslist companion package; "update" in its name is its purpose|2026-11-22
+pkg-ioc|update-browserslist-db|CLI that runs "npm/yarn/pnpm info caniuse-lite" via child_process; only acts when a human runs npx update-browserslist-db|2026-11-22
+# ---- items the owner has accepted (see CLAUDE.md "Known accepted items", 2026-11-22) ------------------------
+spec|lucide-react|"latest" in package.json; the lockfile pins the real version and installs always use npm ci|2026-11-22
+npmrc|project-bolt-stackblitz-starters-kppnjtxg/project/.npmrc:**|the son's pasted start-up notes; npm only prints "Unknown project config" warnings; no key changes registry, auth or scripts|2026-11-22
+automation|project-bolt-stackblitz-starters-kppnjtxg/project/.replit|Replit template leftover; [postMerge] only runs inside Replit, never on this host|2026-11-22
+automation|project-bolt-stackblitz-starters-kppnjtxg/project/scripts/post-merge.sh|Replit template leftover (pnpm install + db push); not invoked by anything on this host|2026-11-22
+advisory|GHSA-rj75-hqrm-r3gf|postcss-selector-parser CPU exhaustion via @tailwindcss/typography; build-time only, on the son's own CSS; do not npm audit fix --force|2026-11-22
+advisory|@tailwindcss/typography|same advisory surfaced on the direct dependency|2026-11-22
+file|**/.mm3/*|MM3 run ledger (sqlite + jsonl); not a credential store|2026-11-22
+injection|scan/**|scanner sources and README describe injection phrases|2026-11-22
+secret|scan/selftest.sh|self-test generator contains fake credential strings (AKIA..., npm_000...) that build the fixture|2026-11-22
+injection|CLAUDE.md|owner-written agent instructions (mentions commands by name)|2026-11-22
+code|project-bolt-stackblitz-starters-kppnjtxg/project/artifacts/*/vite.config.ts:VITE_ALLOWED_HOSTS_TRUE|Replit template leftovers (artifacts/global-arcade, artifacts/mockup-sandbox) that are never started on this host (CLAUDE.md); allowedHosts true would be unsafe if they were. Remove this line if they are ever used|2026-11-22
+# ---- external hosts the game is expected to reference ------------------------------------------------
+host|fonts.googleapis.com|Google Fonts stylesheet|2026-11-22
+host|fonts.gstatic.com|Google Fonts font files|2026-11-22
+host|www.w3.org|SVG/XHTML namespace URLs in markup, not fetched|2026-11-22
+host|localhost|local dev URLs in docs|2026-11-22
+host|127.0.0.1|URL-parsing base in mockup-sandbox dev plugin|2026-11-22
+host|signal.gamelab.link|the family's own Cloudflare tunnel hostname|2026-11-22
+host|github.com|links to source repos in docs|2026-11-22
+host|registry.npmjs.org|the scanner's own registry URLs|2026-11-22

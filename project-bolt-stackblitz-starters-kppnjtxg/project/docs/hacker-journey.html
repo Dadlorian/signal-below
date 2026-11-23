@@ -112,8 +112,8 @@ code { font-family: var(--f-mono); font-size: 0.88em; background: var(--code-bg)
 .route a span { font: 500 var(--t-xs)/1 var(--f-mono); color: var(--brass); }
 
 /* ---------- stages ---------- */
-.stage { display: grid; grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.22fr); gap: 44px; padding-block: 80px; border-bottom: 1px solid var(--line); scroll-margin-top: 60px; }
-.stage > * { min-width: 0; }
+.stage, .bonus { display: grid; grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.22fr); gap: 44px; padding-block: 80px; border-bottom: 1px solid var(--line); scroll-margin-top: 60px; }
+.stage > *, .bonus > * { min-width: 0; }
 .stage-text { display: grid; gap: 16px; align-content: start; align-self: start; }
 .stage-text h2 { font-size: var(--t-xl); font-weight: 700; }
 .stage-text p { color: var(--ink-2); max-width: 34em; }
@@ -209,7 +209,7 @@ code { font-family: var(--f-mono); font-size: 0.88em; background: var(--code-bg)
 .info p { font-size: var(--t-sm); color: var(--ink-2); }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font: 400 var(--t-xs)/1.4 var(--f-mono); color: var(--muted); }
 .legend span { display: inline-flex; align-items: center; gap: 7px; }
-.legend i { width: 18px; height: 11px; border-radius: 2px; display: inline-block; }
+.legend code { margin-right: 6px; padding: 1px 6px; }
 
 /* stage 3: heartbeat */
 .beat { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); gap: 20px; align-items: center; }
@@ -387,6 +387,37 @@ input[type=range] { width: 100%; accent-color: var(--brass); }
 .copy:hover { border-color: var(--brass); color: var(--ink); }
 .copy.done { color: var(--signal); border-color: var(--signal); }
 
+/* bonus: think like a hacker */
+.bonus { scroll-margin-top: 60px; }
+.bonus .kicker { color: var(--rust); }
+.bonus ol { margin: 0; padding-left: 1.3em; color: var(--ink-2); display: grid; gap: 6px; }
+.bonus ol b, .bonus ol code { color: var(--ink); }
+.cmds { display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); gap: 8px; }
+.cmds div { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; font-size: var(--t-sm); color: var(--ink-2); }
+.cmds code { color: var(--brass); display: block; margin-bottom: 2px; }
+.kit p { white-space: pre; overflow: auto; max-height: 18rem; font-size: 0.8rem; line-height: 1.75; tab-size: 2; }
+.kit p::before { content: none; }
+.tok-c { color: var(--muted); font-style: italic; }
+.tok-h { color: var(--ink); font-style: normal; font-weight: 600; }
+.tok-k { color: var(--rust); }
+.tok-s { color: var(--signal); }
+.tok-n { color: var(--brass); }
+.tok-f { color: var(--teal); font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font: 400 0.78rem/1.5 var(--f-mono); color: var(--ink-2); }
+.legend i { font-style: normal; margin-right: 6px; padding: 1px 6px; border-radius: 3px; background: var(--code-bg); border: 1px solid var(--line); }
+.bonus .muted { color: var(--muted); font-size: 0.85em; }
+.words { display: grid; gap: 8px; margin: 0; }
+.words div { display: grid; gap: 2px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); font-size: var(--t-sm); color: var(--ink-2); }
+.words dt { font: 600 var(--t-xs)/1.3 var(--f-mono); color: var(--brass); letter-spacing: 0.08em; text-transform: uppercase; }
+.words dd { margin: 0; line-height: 1.5; }
+.part { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.part > summary { cursor: pointer; padding: 12px 14px; display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-weight: 600; color: var(--ink); list-style: none; }
+.part > summary::-webkit-details-marker { display: none; }
+.part > summary::before { content: "▸"; color: var(--brass); }
+.part[open] > summary::before { content: "▾"; }
+.part-body { padding: 0 14px 14px; display: grid; gap: 12px; }
+.part-body > p { color: var(--ink-2); font-size: var(--t-sm); line-height: 1.6; max-width: 38em; }
+.code-snip { background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; overflow: auto; max-height: 22rem; font: 400 0.8rem/1.75 var(--f-mono); color: var(--ink); white-space: pre; tab-size: 2; }
 /* stage 11: co-op */
 .chat { display: grid; gap: 10px; }
 .msg { max-width: 92%; padding: 12px 14px; border-radius: 10px; font-size: var(--t-sm); line-height: 1.55; }
@@ -450,7 +481,7 @@ td.mono { white-space: nowrap; color: var(--ink); }
 
 @media (max-width: 960px) {
   .hero { grid-template-columns: minmax(0, 1fr); padding-top: 40px; }
-  .stage { grid-template-columns: minmax(0, 1fr); gap: 24px; padding-block: 56px; }
+  .stage, .bonus { grid-template-columns: minmax(0, 1fr); gap: 24px; padding-block: 56px; }
   .stage-text { position: static; }
   .hud .next { display: none; }
   .reality { grid-template-columns: minmax(0, 1fr); }
@@ -489,7 +520,7 @@ td.mono { white-space: nowrap; color: var(--ink); }
   <div>
     <div class="kicker">JB Playnet · hacker mode</div>
     <h1>You built a game.<br><em>Now learn to hack it.</em></h1>
-    <p class="lede">Every game developer started exactly where you are now: staring at code they didn't fully understand yet. This is your code, played like a level. Eleven stages. Each one unlocks a skill.</p>
+    <p class="lede">Every game developer started exactly where you are now: staring at code they didn't fully understand yet. This is your code, played like a level. Eleven stages, plus one secret bonus. Each one unlocks a skill.</p>
     <a class="start" href="#s1">Press start ▸</a>
   </div>
   <div class="boot" aria-label="Project scan"><span class="hi">&gt; scanning jb-playnet …</span>
@@ -513,6 +544,7 @@ td.mono { white-space: nowrap; color: var(--ink); }
   <a href="#s9"><span>09</span>Bug hunt</a>
   <a href="#s10"><span>10</span>Level up</a>
   <a href="#s11"><span>11</span>Co-op</a>
+  <a href="#bonus"><span>★</span>Bonus</a>
 </nav>
 
 <!-- ===================== 1 · YOU ===================== -->
@@ -597,7 +629,7 @@ td.mono { white-space: nowrap; color: var(--ink); }
           <g class="room island" tabindex="0" role="button" data-room="ut"><rect x="626" y="448" width="150" height="44" rx="5"/><text x="701" y="467" text-anchor="middle" class="t1">use-toast.ts</text><text x="701" y="483" text-anchor="middle" class="t2">187 lines</text></g>
         </svg>
       </div>
-      <div class="legend" style="margin-top:10px"><span><i style="border:1.5px solid var(--signal);background:var(--raise)"></i>live room</span><span><i style="border:1.5px dashed var(--rust)"></i>hidden game</span><span><i style="border:1.5px dotted var(--line-strong)"></i>island</span><span><i style="height:2px;background:var(--muted)"></i>door = import</span></div>
+      <div class="legend" aria-label="Color key"><span><code class="tok-c">// gray</code>notes for humans</span><span><code class="tok-k">const</code>code words</span><span><code class="tok-s">'text'</code>words in quotes</span><span><code class="tok-n">100</code>numbers</span><span><code class="tok-f">heal()</code>things that do stuff</span></div>
     </div>
     <div class="panel info" id="room-info" aria-live="polite"></div>
   </div>
@@ -891,6 +923,435 @@ npm run dev
 git commit -am "fix stuck keys"
 <span class="c"># … OR UNDO: load your last save</span>
 git restore .</div>
+  </div>
+</section>
+
+<!-- ===================== BONUS · THINK LIKE A HACKER ===================== -->
+<section class="bonus" id="bonus">
+  <div class="stage-text">
+    <div class="kicker">★ Bonus · Think like a hacker</div>
+    <h2>Your game is a locked room. You're holding the key.</h2>
+    <p>Hackers ask one question: <b>"What is this game trusting me with?"</b></p>
+    <p>The Signal Below runs on <b>your</b> computer, so you can talk to it. This kit is how. Four steps, no experience needed:</p>
+    <ol>
+      <li>Open the game and <b>start a run</b> (press Start Descent).</li>
+      <li>Press <code>F12</code> and click the <b>Console</b> tab. <span class="muted">(Mac: Option + Command + J)</span></li>
+      <li>Click <b>Copy</b> on the kit, paste it into the console with <code>Ctrl + V</code>, press <code>Enter</code>.</li>
+      <li>Type <code>jb.god()</code> and press <code>Enter</code>. Walk into the enemies. Laugh.</li>
+    </ol>
+    <dl class="words" aria-label="New words">
+      <div><dt>Console</dt><dd>A text box in your browser where you can type code and run it right now.</dd></div>
+      <div><dt>State</dt><dd>The box where the game keeps your health, your gold and the enemies.</dd></div>
+      <div><dt>Function</dt><dd>A little machine. You say its name, like <code>heal()</code>, and it does one job.</dd></div>
+      <div><dt>Comment</dt><dd>A note for humans. It starts with <code>//</code> and the computer skips it.</dd></div>
+    </dl>
+    <div class="call watch"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/></svg><span class="lab">Hacker rule #1</span><p>Only paste code you can read. Scammers say "paste this in the console for free skins" and steal accounts. This kit only touches the game tab on your own screen. Never paste code from strangers, Discord DMs, or any site where you're logged in. If you can't read it, don't run it.</p></div>
+    <div class="call key"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="12" r="4"/><path d="M12 12h9M18 12v4"/></svg><span class="lab">Why it matters</span><p>Anything running on the player's computer can be changed by the player. That's why real games keep scores and prizes on a server and check them there. When you build a leaderboard, remember this page.</p></div>
+    <div class="call tip"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0-3 11v3h6v-3a6 6 0 0 0-3-11zM9.5 20h5"/></svg><span class="lab">Hacker challenge</span><p>Ask Claude to explain the kit like you're 14, then build your own command.</p></div>
+    <div class="prompt"><p>Explain this console cheat kit line by line like I'm 14: how does it find the game's state, and why can't a game that keeps scores on a server be cheated this way? Then help me add a jb.speed() command that makes my player faster.</p><button class="copy" type="button">Copy</button></div>
+  </div>
+  <div class="visual">
+    <div class="term"><span class="c">// F12 › Console. After you paste the kit (example):</span>
+<span class="hi">&gt; jb.god()</span>
+<span class="ok">GOD MODE ON</span>
+<span class="hi">&gt; jb.gold(5000)</span>   <span class="c">// instant loot</span>
+<span class="hi">&gt; jb.freeze()</span>     <span class="c">// enemies stop dead</span>
+<span class="hi">&gt; jb.nuke()</span>      <span class="c">// zap every enemy</span></div>
+    <div class="cmds">
+      <div><code>jb.me()</code>see your stats</div>
+      <div><code>jb.heal()</code>full HP + stamina</div>
+      <div><code>jb.god()</code>never die (jb.god(false) = off)</div>
+      <div><code>jb.tank(9999)</code>huge max HP</div>
+      <div><code>jb.gold(1000)</code>add run gold</div>
+      <div><code>jb.gems(10)</code>add run gems</div>
+      <div><code>jb.enemies()</code>table of every enemy</div>
+      <div><code>jb.freeze()</code>freeze enemies solid</div>
+      <div><code>jb.slowmo()</code>slow enemies down</div>
+      <div><code>jb.weak()</code>enemies drop to 1 HP</div>
+      <div><code>jb.nuke()</code>zap every enemy</div>
+    </div>
+    <div class="kicker">Step 1 · Copy the kit</div>
+    <div class="legend" aria-label="Color key"><span><code class="tok-c">// gray</code>notes for humans</span><span><code class="tok-k">const</code>code words</span><span><code class="tok-s">'text'</code>words in quotes</span><span><code class="tok-n">100</code>numbers</span><span><code class="tok-f">heal()</code>things that do stuff</span></div>
+    <div class="prompt kit"><p><span class="tok-c">// =============================================================</span>
+<span class="tok-c">//  JB PLAYNET  ·  "The Signal Below"  ·  console cheat kit</span>
+<span class="tok-c">//</span>
+<span class="tok-c">//  1. Start a run in the game.</span>
+<span class="tok-c">//  2. Press F12 and open the Console tab.</span>
+<span class="tok-c">//  3. Paste all of this, then press Enter.</span>
+<span class="tok-c">//  4. Type jb.help() to see every cheat.</span>
+<span class="tok-c">//</span>
+<span class="tok-c">//  Gray lines starting with // are notes for humans.</span>
+<span class="tok-c">//  The computer skips them, so read them first!</span>
+<span class="tok-c">// =============================================================</span>
+
+window.jb = (() <span class="tok-k">=&gt;</span> {
+
+  <span class="tok-c tok-h">// ---------- PART 1 · Find the game's brain ----------</span>
+  <span class="tok-c">// The game keeps everything in one object called the</span>
+  <span class="tok-c">// "state": your health, your gold, the enemies...</span>
+  <span class="tok-c">// React hides it from us, so we go hunting for it.</span>
+  <span class="tok-k">const</span> findGameBrain = () <span class="tok-k">=&gt;</span> {
+
+    <span class="tok-c">// Step A: find the page element React draws the game into.</span>
+    <span class="tok-k">const</span> rootElement = [...document.<span class="tok-f">querySelectorAll</span>(<span class="tok-s">'*'</span>)]
+      .<span class="tok-f">find</span>(element <span class="tok-k">=&gt;</span> Object.<span class="tok-f">keys</span>(element)
+        .<span class="tok-f">some</span>(key <span class="tok-k">=&gt;</span> key.<span class="tok-f">startsWith</span>(<span class="tok-s">'__reactContainer'</span>)));
+    <span class="tok-k">const</span> rootKey = Object.<span class="tok-f">keys</span>(rootElement)
+      .<span class="tok-f">find</span>(key <span class="tok-k">=&gt;</span> key.<span class="tok-f">startsWith</span>(<span class="tok-s">'__reactContainer'</span>));
+
+    <span class="tok-c">// Step B: walk through React's pieces until we meet the</span>
+    <span class="tok-c">// one that holds a player AND enemies. That piece is</span>
+    <span class="tok-c">// the game's brain.</span>
+    <span class="tok-k">let</span> found = <span class="tok-k">null</span>;
+    <span class="tok-k">const</span> search = (piece) <span class="tok-k">=&gt;</span> {
+      <span class="tok-k">while</span> (piece &amp;&amp; !found) {
+        <span class="tok-k">if</span> (<span class="tok-k">typeof</span> piece.type === <span class="tok-s">'function'</span> &amp;&amp; piece.memoizedState) {
+          <span class="tok-k">const</span> state = piece.memoizedState.memoizedState;
+          <span class="tok-k">if</span> (state &amp;&amp; state.player &amp;&amp; state.enemies) {
+            found = piece;
+          }
+        }
+        <span class="tok-k">if</span> (piece.child) <span class="tok-f">search</span>(piece.child);
+        piece = piece.sibling;
+      }
+    };
+    <span class="tok-f">search</span>(rootElement[rootKey]);
+
+    <span class="tok-k">if</span> (!found) {
+      <span class="tok-k">throw</span> <span class="tok-k">new</span> <span class="tok-f">Error</span>(<span class="tok-s">'Start a run first. No game state found.'</span>);
+    }
+    <span class="tok-k">return</span> found;
+  };
+
+
+  <span class="tok-c tok-h">// ---------- PART 2 · Read it and change it ----------</span>
+  <span class="tok-c">// Look at the state without changing anything.</span>
+  <span class="tok-k">const</span> readState = () <span class="tok-k">=&gt;</span>
+    <span class="tok-f">findGameBrain</span>().memoizedState.memoizedState;
+
+  <span class="tok-c">// Give the game a new version of its state. This is the</span>
+  <span class="tok-c">// game's own setState, so the screen updates normally.</span>
+  <span class="tok-k">const</span> changeState = (makeNewState) <span class="tok-k">=&gt;</span>
+    <span class="tok-f">findGameBrain</span>().memoizedState.queue.<span class="tok-f">dispatch</span>(makeNewState);
+
+  <span class="tok-c">// Change only the player (health, stamina...), keep the rest.</span>
+  <span class="tok-k">const</span> changePlayer = (makeChanges) <span class="tok-k">=&gt;</span>
+    <span class="tok-f">changeState</span>(state <span class="tok-k">=&gt;</span> ({
+      ...state,
+      player: { ...state.player, ...<span class="tok-f">makeChanges</span>(state.player) },
+    }));
+
+  <span class="tok-c">// Change every enemy at once.</span>
+  <span class="tok-k">const</span> changeEnemies = (makeChanges) <span class="tok-k">=&gt;</span>
+    <span class="tok-f">changeState</span>(state <span class="tok-k">=&gt;</span> ({
+      ...state,
+      enemies: state.enemies.<span class="tok-f">map</span>(enemy <span class="tok-k">=&gt;</span> ({
+        ...enemy,
+        ...<span class="tok-f">makeChanges</span>(enemy),
+      })),
+    }));
+
+  <span class="tok-c">// Used by god mode below so it can be switched off again.</span>
+  <span class="tok-k">let</span> godModeTimer = <span class="tok-k">null</span>;
+
+
+  <span class="tok-c tok-h">// ---------- PART 3 · The cheats ----------</span>
+  <span class="tok-c">// Each one is a little function you call: jb.heal()</span>
+  <span class="tok-k">return</span> {
+
+    <span class="tok-c tok-h">// ----- Look at things -----</span>
+    state: readState,
+
+    me: () <span class="tok-k">=&gt;</span> {
+      <span class="tok-k">const</span> state = <span class="tok-f">readState</span>();
+      <span class="tok-k">const</span> player = state.player;
+      <span class="tok-k">return</span> {
+        hp: player.health + <span class="tok-s">'/'</span> + player.maxHealth,
+        lvl: player.level,
+        xp: player.xp,
+        gold: state.carriedGold,
+        gems: state.carriedDiamonds,
+        kills: state.kills,
+      };
+    },
+
+    enemies: () <span class="tok-k">=&gt;</span> console.<span class="tok-f">table</span>(
+      <span class="tok-f">readState</span>().enemies.<span class="tok-f">map</span>(enemy <span class="tok-k">=&gt;</span> ({
+        kind: enemy.kind,
+        weapon: enemy.weapon,
+        hp: enemy.health,
+        dmg: enemy.damage,
+        speed: enemy.speed,
+      }))
+    ),
+
+    <span class="tok-c tok-h">// ----- Help yourself -----</span>
+    heal: () <span class="tok-k">=&gt;</span> <span class="tok-f">changePlayer</span>(player <span class="tok-k">=&gt;</span> ({
+      health: player.maxHealth,
+      stamina: player.maxStamina,
+    })),
+
+    <span class="tok-c">// God mode refills your health ten times a second,</span>
+    <span class="tok-c">// so you never die.</span>
+    god: (on = <span class="tok-k">true</span>) <span class="tok-k">=&gt;</span> {
+      <span class="tok-f">clearInterval</span>(godModeTimer);
+      godModeTimer = on
+        ? <span class="tok-f">setInterval</span>(() <span class="tok-k">=&gt;</span> <span class="tok-f">changePlayer</span>(player <span class="tok-k">=&gt;</span> ({
+            health: player.maxHealth,
+            stamina: player.maxStamina,
+          })), <span class="tok-n">100</span>)
+        : <span class="tok-k">null</span>;
+      <span class="tok-k">return</span> on ? <span class="tok-s">'GOD MODE ON'</span> : <span class="tok-s">'god mode off'</span>;
+    },
+
+    tank: (hp = <span class="tok-n">9999</span>) <span class="tok-k">=&gt;</span> <span class="tok-f">changePlayer</span>(() <span class="tok-k">=&gt;</span> ({
+      maxHealth: hp,
+      health: hp,
+    })),
+
+    gold: (amount = <span class="tok-n">1000</span>) <span class="tok-k">=&gt;</span> <span class="tok-f">changeState</span>(state <span class="tok-k">=&gt;</span> ({
+      ...state,
+      carriedGold: state.carriedGold + amount,
+    })),
+
+    gems: (amount = <span class="tok-n">10</span>) <span class="tok-k">=&gt;</span> <span class="tok-f">changeState</span>(state <span class="tok-k">=&gt;</span> ({
+      ...state,
+      carriedDiamonds: state.carriedDiamonds + amount,
+    })),
+
+    <span class="tok-c tok-h">// ----- Mess with the enemies -----</span>
+    <span class="tok-c">// Freezing remembers each enemy's speed to put it back.</span>
+    freeze: (on = <span class="tok-k">true</span>) <span class="tok-k">=&gt;</span> <span class="tok-f">changeEnemies</span>(enemy <span class="tok-k">=&gt;</span> on
+      ? {
+          savedSpeed: enemy.savedSpeed ?? enemy.speed,
+          speed: <span class="tok-n">0</span>,
+          stunMs: <span class="tok-n">999999</span>,
+        }
+      : {
+          speed: enemy.savedSpeed ?? enemy.speed,
+          stunMs: <span class="tok-n">0</span>,
+        }),
+
+    slowmo: () <span class="tok-k">=&gt;</span> <span class="tok-f">changeEnemies</span>(enemy <span class="tok-k">=&gt;</span> ({
+      speed: enemy.speed * <span class="tok-n">0.3</span>,
+    })),
+
+    weak: () <span class="tok-k">=&gt;</span> <span class="tok-f">changeEnemies</span>(() <span class="tok-k">=&gt;</span> ({ health: <span class="tok-n">1</span>, maxHealth: <span class="tok-n">1</span> })),
+    nuke: () <span class="tok-k">=&gt;</span> <span class="tok-f">changeEnemies</span>(() <span class="tok-k">=&gt;</span> ({ health: <span class="tok-n">0</span> })),
+
+    <span class="tok-c tok-h">// ----- The menu -----</span>
+    help: () <span class="tok-k">=&gt;</span> console.<span class="tok-f">log</span>(
+      <span class="tok-s">'%cJB CHEATS'</span>,
+      <span class="tok-s">'font-size:18px;color:#4fd'</span>,
+      <span class="tok-s">`
+jb.me()        your stats
+jb.heal()      full HP + stamina
+jb.god()       never die  (jb.god(false) = off)
+jb.tank(9999)  huge max HP
+jb.gold(1000)  add run gold
+jb.gems(10)    add run gems
+jb.enemies()   table of enemies
+jb.freeze()    freeze enemies (jb.freeze(false) = unfreeze)
+jb.slowmo()    slow enemies down
+jb.weak()      enemies at 1 HP
+jb.nuke()      zap every enemy`</span>
+    ),
+  };
+})();
+
+jb.<span class="tok-f">help</span>();</p><button class="copy" type="button">Copy</button></div>
+    <p class="cap">That's the whole kit. You don't have to understand it to use it. Nothing is downloaded and nothing leaves your browser. It only changes your own game on your own computer, but gold you bank stays in your save. If the console says "Start a run first", start a run and paste it again.</p>
+    <div class="kicker">Step 2 · Read it like a story (optional)</div>
+    <p class="cap">The kit has three parts. Open them one at a time. Start with the easiest.</p>
+    <details class="part" open>
+      <summary><span>1 · Start here: the cheats</span><span class="tag live">easiest</span></summary>
+      <div class="part-body">
+        <p>Every cheat is a tiny recipe. <b>heal</b> means "set health to the maximum". <b>gold</b> means "add this much gold". Read the names out loud and you can already guess what they do. This is Part 3 of the kit.</p>
+        <div class="code-snip">  <span class="tok-c tok-h">// ---------- PART 3 · The cheats ----------</span>
+  <span class="tok-c">// Each one is a little function you call: jb.heal()</span>
+  <span class="tok-k">return</span> {
+
+    <span class="tok-c tok-h">// ----- Look at things -----</span>
+    state: readState,
+
+    me: () <span class="tok-k">=&gt;</span> {
+      <span class="tok-k">const</span> state = <span class="tok-f">readState</span>();
+      <span class="tok-k">const</span> player = state.player;
+      <span class="tok-k">return</span> {
+        hp: player.health + <span class="tok-s">'/'</span> + player.maxHealth,
+        lvl: player.level,
+        xp: player.xp,
+        gold: state.carriedGold,
+        gems: state.carriedDiamonds,
+        kills: state.kills,
+      };
+    },
+
+    enemies: () <span class="tok-k">=&gt;</span> console.<span class="tok-f">table</span>(
+      <span class="tok-f">readState</span>().enemies.<span class="tok-f">map</span>(enemy <span class="tok-k">=&gt;</span> ({
+        kind: enemy.kind,
+        weapon: enemy.weapon,
+        hp: enemy.health,
+        dmg: enemy.damage,
+        speed: enemy.speed,
+      }))
+    ),
+
+    <span class="tok-c tok-h">// ----- Help yourself -----</span>
+    heal: () <span class="tok-k">=&gt;</span> <span class="tok-f">changePlayer</span>(player <span class="tok-k">=&gt;</span> ({
+      health: player.maxHealth,
+      stamina: player.maxStamina,
+    })),
+
+    <span class="tok-c">// God mode refills your health ten times a second,</span>
+    <span class="tok-c">// so you never die.</span>
+    god: (on = <span class="tok-k">true</span>) <span class="tok-k">=&gt;</span> {
+      <span class="tok-f">clearInterval</span>(godModeTimer);
+      godModeTimer = on
+        ? <span class="tok-f">setInterval</span>(() <span class="tok-k">=&gt;</span> <span class="tok-f">changePlayer</span>(player <span class="tok-k">=&gt;</span> ({
+            health: player.maxHealth,
+            stamina: player.maxStamina,
+          })), <span class="tok-n">100</span>)
+        : <span class="tok-k">null</span>;
+      <span class="tok-k">return</span> on ? <span class="tok-s">'GOD MODE ON'</span> : <span class="tok-s">'god mode off'</span>;
+    },
+
+    tank: (hp = <span class="tok-n">9999</span>) <span class="tok-k">=&gt;</span> <span class="tok-f">changePlayer</span>(() <span class="tok-k">=&gt;</span> ({
+      maxHealth: hp,
+      health: hp,
+    })),
+
+    gold: (amount = <span class="tok-n">1000</span>) <span class="tok-k">=&gt;</span> <span class="tok-f">changeState</span>(state <span class="tok-k">=&gt;</span> ({
+      ...state,
+      carriedGold: state.carriedGold + amount,
+    })),
+
+    gems: (amount = <span class="tok-n">10</span>) <span class="tok-k">=&gt;</span> <span class="tok-f">changeState</span>(state <span class="tok-k">=&gt;</span> ({
+      ...state,
+      carriedDiamonds: state.carriedDiamonds + amount,
+    })),
+
+    <span class="tok-c tok-h">// ----- Mess with the enemies -----</span>
+    <span class="tok-c">// Freezing remembers each enemy's speed to put it back.</span>
+    freeze: (on = <span class="tok-k">true</span>) <span class="tok-k">=&gt;</span> <span class="tok-f">changeEnemies</span>(enemy <span class="tok-k">=&gt;</span> on
+      ? {
+          savedSpeed: enemy.savedSpeed ?? enemy.speed,
+          speed: <span class="tok-n">0</span>,
+          stunMs: <span class="tok-n">999999</span>,
+        }
+      : {
+          speed: enemy.savedSpeed ?? enemy.speed,
+          stunMs: <span class="tok-n">0</span>,
+        }),
+
+    slowmo: () <span class="tok-k">=&gt;</span> <span class="tok-f">changeEnemies</span>(enemy <span class="tok-k">=&gt;</span> ({
+      speed: enemy.speed * <span class="tok-n">0.3</span>,
+    })),
+
+    weak: () <span class="tok-k">=&gt;</span> <span class="tok-f">changeEnemies</span>(() <span class="tok-k">=&gt;</span> ({ health: <span class="tok-n">1</span>, maxHealth: <span class="tok-n">1</span> })),
+    nuke: () <span class="tok-k">=&gt;</span> <span class="tok-f">changeEnemies</span>(() <span class="tok-k">=&gt;</span> ({ health: <span class="tok-n">0</span> })),
+
+    <span class="tok-c tok-h">// ----- The menu -----</span>
+    help: () <span class="tok-k">=&gt;</span> console.<span class="tok-f">log</span>(
+      <span class="tok-s">'%cJB CHEATS'</span>,
+      <span class="tok-s">'font-size:18px;color:#4fd'</span>,
+      <span class="tok-s">`
+jb.me()        your stats
+jb.heal()      full HP + stamina
+jb.god()       never die  (jb.god(false) = off)
+jb.tank(9999)  huge max HP
+jb.gold(1000)  add run gold
+jb.gems(10)    add run gems
+jb.enemies()   table of enemies
+jb.freeze()    freeze enemies (jb.freeze(false) = unfreeze)
+jb.slowmo()    slow enemies down
+jb.weak()      enemies at 1 HP
+jb.nuke()      zap every enemy`</span>
+    ),
+  };
+})();
+
+jb.<span class="tok-f">help</span>();</div>
+        <div class="call tip"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0-3 11v3h6v-3a6 6 0 0 0-3-11zM9.5 20h5"/></svg><span class="lab">Try it</span><p>Find <code>amount = 1000</code>, change it to <code>5000</code>, paste the kit again, then type <code>jb.gold()</code>.</p></div>
+      </div>
+    </details>
+    <details class="part">
+      <summary><span>2 · The tools</span><span class="tag ">medium</span></summary>
+      <div class="part-body">
+        <p>These are the kit's hands. <b>readState</b> looks at the game's brain. <b>changeState</b> swaps what is inside. <b>changePlayer</b> and <b>changeEnemies</b> are shortcuts, so the cheats don't repeat themselves. This is Part 2 of the kit.</p>
+        <div class="code-snip"><span class="tok-c tok-h">// ---------- PART 2 · Read it and change it ----------</span>
+<span class="tok-c">// Look at the state without changing anything.</span>
+<span class="tok-k">const</span> readState = () <span class="tok-k">=&gt;</span>
+  <span class="tok-f">findGameBrain</span>().memoizedState.memoizedState;
+
+<span class="tok-c">// Give the game a new version of its state. This is the</span>
+<span class="tok-c">// game's own setState, so the screen updates normally.</span>
+<span class="tok-k">const</span> changeState = (makeNewState) <span class="tok-k">=&gt;</span>
+  <span class="tok-f">findGameBrain</span>().memoizedState.queue.<span class="tok-f">dispatch</span>(makeNewState);
+
+<span class="tok-c">// Change only the player (health, stamina...), keep the rest.</span>
+<span class="tok-k">const</span> changePlayer = (makeChanges) <span class="tok-k">=&gt;</span>
+  <span class="tok-f">changeState</span>(state <span class="tok-k">=&gt;</span> ({
+    ...state,
+    player: { ...state.player, ...<span class="tok-f">makeChanges</span>(state.player) },
+  }));
+
+<span class="tok-c">// Change every enemy at once.</span>
+<span class="tok-k">const</span> changeEnemies = (makeChanges) <span class="tok-k">=&gt;</span>
+  <span class="tok-f">changeState</span>(state <span class="tok-k">=&gt;</span> ({
+    ...state,
+    enemies: state.enemies.<span class="tok-f">map</span>(enemy <span class="tok-k">=&gt;</span> ({
+      ...enemy,
+      ...<span class="tok-f">makeChanges</span>(enemy),
+    })),
+  }));
+
+<span class="tok-c">// Used by god mode below so it can be switched off again.</span>
+<span class="tok-k">let</span> godModeTimer = <span class="tok-k">null</span>;</div>
+      </div>
+    </details>
+    <details class="part">
+      <summary><span>3 · Find the brain</span><span class="tag hidden">boss level</span></summary>
+      <div class="part-body">
+        <p>The game hides its brain inside React. This part searches the page until it finds the piece that has a <b>player</b> and <b>enemies</b>. Think of it as finding the fuse box in a house. It looks scary, and that's okay: real hackers copy this part all the time. This is Part 1 of the kit.</p>
+        <div class="code-snip"><span class="tok-c tok-h">// ---------- PART 1 · Find the game's brain ----------</span>
+<span class="tok-c">// The game keeps everything in one object called the</span>
+<span class="tok-c">// "state": your health, your gold, the enemies...</span>
+<span class="tok-c">// React hides it from us, so we go hunting for it.</span>
+<span class="tok-k">const</span> findGameBrain = () <span class="tok-k">=&gt;</span> {
+
+  <span class="tok-c">// Step A: find the page element React draws the game into.</span>
+  <span class="tok-k">const</span> rootElement = [...document.<span class="tok-f">querySelectorAll</span>(<span class="tok-s">'*'</span>)]
+    .<span class="tok-f">find</span>(element <span class="tok-k">=&gt;</span> Object.<span class="tok-f">keys</span>(element)
+      .<span class="tok-f">some</span>(key <span class="tok-k">=&gt;</span> key.<span class="tok-f">startsWith</span>(<span class="tok-s">'__reactContainer'</span>)));
+  <span class="tok-k">const</span> rootKey = Object.<span class="tok-f">keys</span>(rootElement)
+    .<span class="tok-f">find</span>(key <span class="tok-k">=&gt;</span> key.<span class="tok-f">startsWith</span>(<span class="tok-s">'__reactContainer'</span>));
+
+  <span class="tok-c">// Step B: walk through React's pieces until we meet the</span>
+  <span class="tok-c">// one that holds a player AND enemies. That piece is</span>
+  <span class="tok-c">// the game's brain.</span>
+  <span class="tok-k">let</span> found = <span class="tok-k">null</span>;
+  <span class="tok-k">const</span> search = (piece) <span class="tok-k">=&gt;</span> {
+    <span class="tok-k">while</span> (piece &amp;&amp; !found) {
+      <span class="tok-k">if</span> (<span class="tok-k">typeof</span> piece.type === <span class="tok-s">'function'</span> &amp;&amp; piece.memoizedState) {
+        <span class="tok-k">const</span> state = piece.memoizedState.memoizedState;
+        <span class="tok-k">if</span> (state &amp;&amp; state.player &amp;&amp; state.enemies) {
+          found = piece;
+        }
+      }
+      <span class="tok-k">if</span> (piece.child) <span class="tok-f">search</span>(piece.child);
+      piece = piece.sibling;
+    }
+  };
+  <span class="tok-f">search</span>(rootElement[rootKey]);
+
+  <span class="tok-k">if</span> (!found) {
+    <span class="tok-k">throw</span> <span class="tok-k">new</span> <span class="tok-f">Error</span>(<span class="tok-s">'Start a run first. No game state found.'</span>);
+  }
+  <span class="tok-k">return</span> found;
+};</div>
+      </div>
+    </details>
   </div>
 </section>
 

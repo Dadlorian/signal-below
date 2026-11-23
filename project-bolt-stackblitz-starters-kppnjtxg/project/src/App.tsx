@@ -1,370 +1,895 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode, type TouchEvent } from 'react';
-import { Link, Route, Router as WouterRouter, Switch, useLocation } from 'wouter';
-import { ArrowLeft, ArrowRight, ArrowUp, ArrowDown, CircleHelp, Gamepad2, RotateCcw, Trash2, UserRound, Users } from 'lucide-react';
-import { addFriend, getArcadeState, recordGameResult, removeFriend, saveArcadeState, updateProfile, type ArcadeProfile, type ArcadeState, type GameId } from './lib/arcade-store';
-import { ZombieSniperGame } from './components/ZombieSniperGame';
-import { BuriedComplexGame } from './components/BuriedComplexGame';
+import { useEffect, useRef, useState } from "react";
+import BuriedComplexGame, {
+  SURVEYOR_SKINS,
+  drawPixelSurveyorSprite,
+} from "./components/BuriedComplexGame";
+import { FULL_ITEM_CATALOG, computePlayerMaxStats } from "./lib/deep-signal-engine";
+import { loadSurveyorProfile, type SurveyorProfile } from "./lib/deep-signal-store";
 
-const titles: Record<GameId, string> = { snake: 'Snake', memory: 'Memory Match', tictactoe: 'Tic-Tac-Toe', '2048': '2048', sniper: 'Zombie Sniper', 'deep-signal': 'The Signal Below' };
-const descriptions: Record<GameId, string> = { snake: 'A little loop around the garden.', memory: 'Flip, remember, find the pair.', tictactoe: 'A classic, best played side by side.', '2048': 'Slide the tiles. Make a big number.', sniper: 'Hold your breath. Defend the night.', 'deep-signal': 'A missing surveyor. A sealed entrance. Three rooms below.' };
-const avatars = ['SUN', 'ARC', 'DOT', 'ORB', 'FOX', 'BEE'];
-const themes = ['cosmic', 'citrus', 'sunset', 'ocean'];
-const frames = ['neon', 'classic', 'soft'];
-
-function initials(name: string) {
-  return name.trim().split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'P';
-}
-
-function AppShell({ children }: { children: ReactNode }) {
-  const [path] = useLocation();
-  const state = getArcadeState();
-  return <div className="arcade-shell">
-    <header className="topbar">
-      <Link href="/" className="brand" data-testid="link-home"><span className="brand-mark"><Gamepad2 size={20} /></span><span>JB PLAYNET BETA</span></Link>
-      <nav className="nav-links" aria-label="Main navigation">
-        <Link href="/" className={`nav-link ${path === '/' ? 'active' : ''}`} data-testid="link-arcade">Arcade</Link>
-        <Link href="/friends" className={`nav-link ${path === '/friends' ? 'active' : ''}`} data-testid="link-friends">Friends</Link>
-      </nav>
-      <Link href="/profile" className="profile-link" data-testid="link-profile"><span className="avatar">{initials(state.profile.displayName)}</span><span>{state.profile.displayName}</span></Link>
-    </header>
-    {children}
-    <footer className="footer"><span>JB PLAYNET BETA · A little play goes a long way.</span><span>Free to play · Saved only on this device</span></footer>
-  </div>;
-}
-
-function Lobby() {
-  const state = getArcadeState();
-  return <main className="content fade-in">
-    <section className="hero signal-home-hero">
-      <div className="hero-copy">
-        <div className="eyebrow">JB PLAYNET BETA · FIRST FIELD TEST</div>
-        <h1>Something is<br />still transmitting.</h1>
-        <p>A surveyor went missing beneath the ridge. Enter the buried complex, follow their distress signal, and decide what is worth carrying back.</p>
-        <Link href="/play/deep-signal" className="button" data-testid="button-start-playing">Enter the complex <ArrowRight size={17} /></Link>
-      </div>
-      <div className="signal-hero-art" aria-hidden="true"><span className="signal-ring ring-one" /><span className="signal-ring ring-two" /><span className="signal-core" /><i className="signal-axis" /></div>
-    </section>
-    <div className="section-heading"><div><div className="eyebrow">One signal. Three rooms.</div><h2>THE SIGNAL BELOW</h2></div><p>A compact keyboard-and-mouse expedition. Free, solo, saved on this device.</p></div>
-    <section className="signal-feature" data-testid="card-game-deep-signal">
-      <div className="signal-feature-art" aria-hidden="true">
-        <div className="feature-grid" /><div className="feature-door"><span /><span /><span /></div>
-        <div className="feature-explorer"><i /></div>
-        <div className="feature-stamp">FIELD<br />RECORD<br /><b>01</b></div>
-        <div className="feature-coord">184 M / BELOW GRADE</div>
-      </div>
-      <div className="signal-feature-copy">
-        <div className="eyebrow">First playable · single player</div>
-        <h3>The entrance sealed.<br /><em>The signal did not.</em></h3>
-        <p>Fight through three small spaces, read enemy wind-ups, and gather equipment from the floor. Bank it at a relay door—or carry your haul deeper and risk losing it.</p>
-        <div className="feature-facts"><span>03 <small>ROOMS</small></span><span>LOCAL <small>GEAR SAVE</small></span><span>NO <small>ACCOUNT</small></span></div>
-        <Link href="/play/deep-signal" className="button" data-testid="link-open-deep-signal">Play The Signal Below <ArrowRight size={16} /></Link>
-      </div>
-    </section>
-    <div className="section-heading"><div><div className="eyebrow">Your corner of the arcade</div><h2>Small wins, kept close</h2></div><p>Personal bests stay in this browser.</p></div>
-    <section className="mini-score">
-      <div className="score-chip"><strong>{state.totalGamesPlayed}</strong> games played here</div>
-      <div className="score-chip" data-testid="text-best-deep-signal"><strong>{state.highScores['deep-signal'] ?? '—'}</strong> best run</div>
-      <Link href="/profile" className="button outline small" data-testid="button-customize-profile"><UserRound size={15} /> Make it yours</Link>
-    </section>
-    <section className="field-note" data-testid="status-game-promise">
-      <span className="eyebrow">Field note</span><p>This is an early single-player test, not an online dungeon. Friends can each take a run and compare their personal best from the same browser.</p>
-      <Link href="/friends" className="button light small" data-testid="link-friends-lobby"><Users size={15} /> Your friends list</Link>
-    </section>
-  </main>;
-}
-
-function FriendsPage() {
-  const [state, setState] = useState<ArcadeState>(() => getArcadeState());
-  const [name, setName] = useState('');
-  const [message, setMessage] = useState('');
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    if (!name.trim()) { setMessage('Add a name to save a friend.'); return; }
-    const before = state.friends.length;
-    const next = addFriend(name);
-    setState(next);
-    setMessage(next.friends.length === before ? 'That name is already on your list.' : `${name.trim()} added to your local list.`);
-    if (next.friends.length !== before) setName('');
+function getSkinPalette(skinId: string) {
+  const skin = SURVEYOR_SKINS.find((s) => s.id === skinId) ?? SURVEYOR_SKINS.at(0)!;
+  return {
+    name: skin.name,
+    suit: skin.body,
+    trim: skin.trim,
+    visor: skin.visor,
   };
-  const remove = (friend: string) => { setState(removeFriend(friend)); setMessage(`${friend} removed.`); };
-  return <main className="content fade-in">
-    <div className="eyebrow">Your people, your device</div><h1 className="page-title">Friends list</h1>
-    <p className="page-intro">Keep names close, then compare your runs through the buried complex. This list is saved locally and never sends invites or connection requests.</p>
-    <div className="game-layout">
-      <section className="panel">
-        <div className="eyebrow">Add someone</div><h2 style={{ margin: '7px 0 4px', letterSpacing: '-.05em' }}>Who’s taking the signal?</h2>
-        <p className="notice">Just a name for your own list — no account needed.</p>
-        <form onSubmit={submit} style={{ marginTop: 18 }}>
-          <label className="field-label" htmlFor="friend-name">Friend’s display name</label>
-          <div className="form-row"><input id="friend-name" className="text-field" value={name} onChange={(e) => setName(e.target.value)} maxLength={32} placeholder="e.g. Sam" data-testid="input-friend-name" /><button className="button" type="submit" data-testid="button-add-friend">Add friend <ArrowRight size={15} /></button></div>
-        </form>
-        {message && <p className="notice" role="status" data-testid="status-friend-message">{message}</p>}
-      </section>
-      <aside className="panel" style={{ background: '#e7e3d2' }}>
-        <div className="eyebrow">One explorer at a time</div><h3 style={{ fontSize: 22, letterSpacing: '-.05em', margin: '8px 0' }}>Compare who comes back.</h3>
-        <p className="notice">Each run is solo. Friends can try the same three-room descent and compare personal bests saved in this browser.</p>
-        <Link href="/play/deep-signal" className="button light small" style={{ marginTop: 12 }} data-testid="button-open-deep-signal">Enter the complex <ArrowRight size={15} /></Link>
-      </aside>
-    </div>
-    <div className="section-heading"><div><div className="eyebrow">Saved on this device</div><h2>Your friends</h2></div><p>{state.friends.length} {state.friends.length === 1 ? 'name' : 'names'}</p></div>
-    {state.friends.length ? <div className="friend-list">{state.friends.map((friend) => <div className="friend-row" key={friend} data-testid={`row-friend-${friend}`}><div className="friend-person"><span className="friend-avatar">{initials(friend)}</span>{friend}</div><button className="button outline small" onClick={() => remove(friend)} aria-label={`Remove ${friend}`} data-testid={`button-remove-${friend}`}><Trash2 size={14} /> Remove</button></div>)}</div> : <div className="empty-state"><Users size={26} /><strong>Your list starts with a name.</strong><p>Add a friend above, then compare local runs through The Signal Below.</p></div>}
-  </main>;
+}
+function drawPixelLegendaryItemDrop(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  slot: "weapon" | "helmet" | "chestplate" | "pants" | "shoes" | "necklace" | "ring",
+) {
+  ctx.save();
+  ctx.translate(cx, cy);
+
+  ctx.fillStyle = "rgba(255, 207, 86, 0.28)";
+  ctx.fillRect(-9, -9, 18, 18);
+
+  const gold = "#ffe082";
+  const bright = "#fff8db";
+  const trim = "#a66c14";
+
+  if (slot === "weapon") {
+    ctx.fillStyle = gold;
+    ctx.fillRect(2, -7, 5, 5);
+    ctx.fillRect(0, -5, 4, 4);
+    ctx.fillRect(-2, -3, 4, 4);
+    ctx.fillStyle = bright;
+    ctx.fillRect(4, -7, 3, 3);
+    ctx.fillStyle = "#ffcf56";
+    ctx.fillRect(-5, 0, 5, 2);
+    ctx.fillRect(-2, 2, 2, 4);
+    ctx.fillStyle = trim;
+    ctx.fillRect(-6, 4, 3, 3);
+  } else if (slot === "helmet") {
+    ctx.fillStyle = gold;
+    ctx.fillRect(-5, -5, 10, 8);
+    ctx.fillStyle = bright;
+    ctx.fillRect(-3, -6, 6, 2);
+    ctx.fillStyle = "#0d1715";
+    ctx.fillRect(-4, -2, 8, 3);
+    ctx.fillStyle = bright;
+    ctx.fillRect(-3, -1, 6, 1);
+  } else if (slot === "chestplate") {
+    ctx.fillStyle = bright;
+    ctx.fillRect(-6, -5, 3, 3);
+    ctx.fillRect(3, -5, 3, 3);
+    ctx.fillStyle = gold;
+    ctx.fillRect(-4, -4, 8, 8);
+    ctx.fillStyle = trim;
+    ctx.fillRect(-2, -2, 4, 3);
+    ctx.fillStyle = bright;
+    ctx.fillRect(-1, -1, 2, 2);
+  } else if (slot === "pants") {
+    ctx.fillStyle = trim;
+    ctx.fillRect(-4, -6, 8, 3);
+    ctx.fillStyle = gold;
+    ctx.fillRect(-4, -3, 3, 9);
+    ctx.fillRect(1, -3, 3, 9);
+    ctx.fillStyle = bright;
+    ctx.fillRect(-4, 0, 3, 2);
+    ctx.fillRect(1, 0, 3, 2);
+  } else if (slot === "shoes") {
+    ctx.fillStyle = gold;
+    ctx.fillRect(-6, -3, 4, 7);
+    ctx.fillRect(-6, 2, 6, 3);
+    ctx.fillRect(1, -3, 4, 7);
+    ctx.fillRect(1, 2, 6, 3);
+    ctx.fillStyle = trim;
+    ctx.fillRect(-6, 5, 6, 2);
+    ctx.fillRect(1, 5, 6, 2);
+  } else if (slot === "necklace") {
+    ctx.fillStyle = "#e8f2ee";
+    ctx.fillRect(-3, -6, 6, 1);
+    ctx.fillRect(-4, -5, 1, 5);
+    ctx.fillRect(3, -5, 1, 5);
+    ctx.fillStyle = trim;
+    ctx.fillRect(-2, 0, 4, 5);
+    ctx.fillStyle = bright;
+    ctx.fillRect(-1, 1, 2, 3);
+  } else {
+    ctx.fillStyle = bright;
+    ctx.fillRect(-2, -6, 4, 3);
+    ctx.fillStyle = gold;
+    ctx.fillRect(-4, -3, 8, 2);
+    ctx.fillRect(-5, -1, 2, 4);
+    ctx.fillRect(3, -1, 2, 4);
+    ctx.fillStyle = trim;
+    ctx.fillRect(-4, 3, 8, 2);
+  }
+
+  ctx.restore();
 }
 
-function ProfilePage() {
-  const [state, setState] = useState<ArcadeState>(() => getArcadeState());
-  const [saved, setSaved] = useState(false);
-  const [draftName, setDraftName] = useState(state.profile.displayName);
-  const update = (patch: Partial<ArcadeProfile>) => { const next = updateProfile(patch); setState(saveArcadeState(next)); setSaved(false); };
-  const saveName = (event: FormEvent) => {
-    event.preventDefault();
-    const clean = draftName.trim().replace(/\s+/g, ' ').slice(0, 24);
-    if (!clean) { setDraftName(state.profile.displayName); return; }
-    const next = updateProfile({ displayName: clean }); setState(next); setDraftName(clean); setSaved(true);
-  };
-  const profile = state.profile;
-  const safeAvatar = avatars.includes(profile.avatar) ? profile.avatar : 'ARC';
-  return <main className="content fade-in">
-    <div className="eyebrow">Your player card</div><h1 className="page-title">Make it yours.</h1>
-    <p className="page-intro">Choose a name and look that feel like you. Your profile stays in this browser, on this device.</p>
-    <div className="game-layout">
-      <section className="panel">
-        <div className="eyebrow">The basics</div>
-        <form onSubmit={saveName}>
-          <label className="field-label" htmlFor="display-name">Display name</label>
-          <div className="form-row"><input id="display-name" className="text-field" value={draftName} onChange={(e) => { setDraftName(e.target.value); setSaved(false); }} maxLength={24} data-testid="input-display-name" /><button className="button" type="submit" data-testid="button-save-name">Save name</button></div>
-        </form>
-        {saved && <p className="notice" role="status" data-testid="status-profile-saved">Your name is saved on this device.</p>}
-        <div className="field-label">Choose an avatar mark</div>
-        <div className="choice-row">{avatars.map((avatar) => <button key={avatar} className={`choice ${profile.avatar === avatar ? 'selected' : ''}`} onClick={() => update({ avatar })} data-testid={`button-avatar-${avatar.toLowerCase()}`}>{avatar}</button>)}</div>
-        <div className="field-label">Pick a colorway</div>
-        <div className="choice-row">{themes.map((theme) => <button key={theme} className={`choice ${profile.theme === theme ? 'selected' : ''}`} onClick={() => update({ theme })} data-testid={`button-theme-${theme}`}>{theme[0].toUpperCase() + theme.slice(1)}</button>)}</div>
-        <div className="field-label">Choose a frame</div>
-        <div className="choice-row">{frames.map((frame) => <button key={frame} className={`choice ${profile.frame === frame ? 'selected' : ''}`} onClick={() => update({ frame })} data-testid={`button-frame-${frame}`}>{frame[0].toUpperCase() + frame.slice(1)}</button>)}</div>
-      </section>
-      <aside className="panel" style={{ background: '#e7e3d2', alignSelf: 'start' }}>
-        <div className="eyebrow">Preview</div>
-        <div className={`theme-preview theme-${themes.includes(profile.theme) ? profile.theme : 'cosmic'}`}><span className={`avatar frame-${frames.includes(profile.frame) ? profile.frame : 'classic'}`}>{safeAvatar}</span><div><strong style={{ fontSize: 20, letterSpacing: '-.04em' }}>{profile.displayName}</strong><div className="notice">Player · local profile</div></div></div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 13 }}><CircleHelp size={16} /><span className="notice">Free choices. No unlocks, purchases, or sign-in.</span></div>
-        <div style={{ borderTop: '1px solid #d0cbbb', marginTop: 20, paddingTop: 17 }}><div className="eyebrow">Your play so far</div><div style={{ fontSize: 26, fontWeight: 700, marginTop: 5 }}>{state.totalGamesPlayed} <span style={{ fontSize: 14, fontWeight: 500 }}>games completed</span></div></div>
-      </aside>
-    </div>
-  </main>;
-}
+function SurveyorWorkoutCanvas({ profile }: { profile: SurveyorProfile }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-function randCell(exclude: number[] = []) {
-  const open = Array.from({ length: 324 }, (_, i) => i).filter((i) => !exclude.includes(i));
-  return open[Math.floor(Math.random() * open.length)] ?? 0;
-}
-type Dir = 'up' | 'down' | 'left' | 'right';
-const vectors: Record<Dir, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
-
-function SnakeGame({ finish, onRestart }: { finish: (score: number) => void; onRestart: () => void }) {
-  const [snake, setSnake] = useState([151, 150, 149]);
-  const [food, setFood] = useState(170);
-  const [score, setScore] = useState(0);
-  const [running, setRunning] = useState(false);
-  const [over, setOver] = useState(false);
-  const dir = useRef<Dir>('right'); const nextDir = useRef<Dir>('right');
-  const start = () => { setSnake([151, 150, 149]); setFood(170); setScore(0); setOver(false); setRunning(true); dir.current = 'right'; nextDir.current = 'right'; };
-  const turn = useCallback((d: Dir) => {
-    const reverse: Record<Dir, Dir> = { up: 'down', down: 'up', left: 'right', right: 'left' };
-    if (reverse[dir.current] !== d) nextDir.current = d;
-  }, []);
   useEffect(() => {
-    const handle = (event: KeyboardEvent) => {
-      const map: Record<string, Dir> = { ArrowUp: 'up', w: 'up', ArrowDown: 'down', s: 'down', ArrowLeft: 'left', a: 'left', ArrowRight: 'right', d: 'right' };
-      const found = map[event.key]; if (found) { event.preventDefault(); turn(found); }
+    let raf = 0;
+    let lastTime = performance.now();
+
+    let attackMs = 0;
+    let cooldownMs = 0;
+    let bossFlashMs = 0;
+    let bossRecoilX = 0;
+    let hitCount = 0;
+    let dropIndex = 0;
+
+    type LegendarySlotKind = "weapon" | "helmet" | "chestplate" | "pants" | "shoes" | "necklace" | "ring";
+    const LEGENDARY_SLOTS: LegendarySlotKind[] = [
+      "weapon",
+      "helmet",
+      "chestplate",
+      "pants",
+      "shoes",
+      "necklace",
+      "ring",
+    ];
+
+    const FULL_LEGENDARY_PREVIEW = {
+      weapon: {
+        id: "prev-w",
+        baseKey: "weapon:Legendary:sovereign executioner",
+        name: "Sovereign Executioner",
+        rarity: "Legendary" as const,
+        slot: "weapon" as const,
+        count: 1,
+        power: 22,
+        attackBonus: 52,
+        healthBonus: 0,
+        guardBonus: 0,
+        agilityBonus: 0,
+        weaponType: "Executioner" as const,
+        ascensionRank: 3,
+      },
+      helmet: {
+        id: "prev-h",
+        baseKey: "helmet:Legendary:sovereign crown",
+        name: "Sovereign Crown",
+        rarity: "Legendary" as const,
+        slot: "helmet" as const,
+        count: 1,
+        power: 20,
+        attackBonus: 0,
+        healthBonus: 92,
+        guardBonus: 88,
+        agilityBonus: 0,
+        ascensionRank: 3,
+      },
+      chestplate: {
+        id: "prev-c",
+        baseKey: "chestplate:Legendary:core exo",
+        name: "Core Exo",
+        rarity: "Legendary" as const,
+        slot: "chestplate" as const,
+        count: 1,
+        power: 20,
+        attackBonus: 0,
+        healthBonus: 158,
+        guardBonus: 0,
+        agilityBonus: 0,
+        ascensionRank: 3,
+      },
+      pants: {
+        id: "prev-p",
+        baseKey: "pants:Legendary:void striders",
+        name: "Void Striders",
+        rarity: "Legendary" as const,
+        slot: "pants" as const,
+        count: 1,
+        power: 20,
+        attackBonus: 0,
+        healthBonus: 114,
+        guardBonus: 90,
+        agilityBonus: 0,
+        ascensionRank: 3,
+      },
+      shoes: {
+        id: "prev-s",
+        baseKey: "shoes:Legendary:apex thrusters",
+        name: "Apex Thrusters",
+        rarity: "Legendary" as const,
+        slot: "shoes" as const,
+        count: 1,
+        power: 20,
+        attackBonus: 0,
+        healthBonus: 0,
+        guardBonus: 0,
+        agilityBonus: 12,
+        ascensionRank: 3,
+      },
+      necklace: {
+        id: "prev-n",
+        baseKey: "necklace:Legendary:signal pendulum",
+        name: "Signal Pendulum",
+        rarity: "Legendary" as const,
+        slot: "necklace" as const,
+        count: 1,
+        power: 20,
+        attackBonus: 40,
+        healthBonus: 80,
+        guardBonus: 0,
+        agilityBonus: 5,
+        ascensionRank: 3,
+      },
+      ring: {
+        id: "prev-r",
+        baseKey: "ring:Legendary:sovereign seal",
+        name: "Sovereign Seal",
+        rarity: "Legendary" as const,
+        slot: "ring" as const,
+        count: 1,
+        power: 20,
+        attackBonus: 20,
+        healthBonus: 0,
+        guardBonus: 100,
+        agilityBonus: 10,
+        ascensionRank: 3,
+      },
     };
-    window.addEventListener('keydown', handle); return () => window.removeEventListener('keydown', handle);
-  }, [turn]);
-  useEffect(() => {
-    if (!running) return;
-    const timer = window.setInterval(() => {
-      dir.current = nextDir.current;
-      const [dx, dy] = vectors[dir.current];
-      const head = snake[0];
-      const x = head % 18 + dx;
-      const y = Math.floor(head / 18) + dy;
-      const nextHead = y * 18 + x;
-      const eating = nextHead === food;
-      const body = eating ? snake : snake.slice(0, -1);
-      if (x < 0 || x > 17 || y < 0 || y > 17 || body.includes(nextHead)) {
-        setRunning(false);
-        setOver(true);
-        finish(score);
-        return;
+
+    const drops: Array<{
+      x: number;
+      y: number;
+      z: number;
+      vx: number;
+      vz: number;
+      kind: "gold" | "gem" | "legendary";
+      slot?: LegendarySlotKind;
+      label: string;
+    }> = [];
+    const sparks: Array<{ x: number; y: number; vx: number; vy: number; color: string; life: number }> = [];
+    const popups: Array<{ x: number; y: number; text: string; color: string; life: number }> = [];
+
+    const render = (now: number) => {
+      const dt = Math.min(0.05, (now - lastTime) / 1000);
+      lastTime = now;
+
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.imageSmoothingEnabled = false;
+          const W = canvas.width;
+          const H = canvas.height;
+          const groundY = 154;
+          const playerX = 148;
+          const bossX = 272;
+          const palette = getSkinPalette(profile.activeSkin);
+
+          attackMs = Math.max(0, attackMs - dt * 1000);
+          cooldownMs = Math.max(0, cooldownMs - dt * 1000);
+          bossFlashMs = Math.max(0, bossFlashMs - dt * 1000);
+          bossRecoilX = Math.max(0, bossRecoilX - 60 * dt);
+
+          // Continuous slash loop against the stationary Boss Dummy
+          if (cooldownMs <= 0) {
+            attackMs = 190;
+            cooldownMs = 430;
+            bossFlashMs = 100;
+            bossRecoilX = 9;
+            hitCount += 1;
+
+            for (let s = 0; s < 8; s++) {
+              const ang = (Math.PI * 2 * s) / 8 + Math.random() * 0.4;
+              sparks.push({
+                x: bossX - 10,
+                y: groundY - 12,
+                vx: Math.cos(ang) * (55 + Math.random() * 65),
+                vy: Math.sin(ang) * (45 + Math.random() * 55) - 35,
+                color: hitCount % 3 === 0 ? "#ffcf56" : "#6fe3c1",
+                life: 0.42,
+              });
+            }
+
+            // Spawn Gold every hit
+            drops.push({
+              x: bossX - 12,
+              y: groundY,
+              z: 14,
+              vx: -25 - Math.random() * 45,
+              vz: 110 + Math.random() * 45,
+              kind: "gold",
+              label: "+50G",
+            });
+
+            // Every 2nd hit drops a Gem; every 3rd hit drops a Legendary Item icon
+            if (hitCount % 2 === 0) {
+              drops.push({
+                x: bossX - 10,
+                y: groundY,
+                z: 16,
+                vx: -35 - Math.random() * 40,
+                vz: 130,
+                kind: "gem",
+                label: "+2 GEMS",
+              });
+            }
+            if (hitCount % 3 === 0) {
+              const nextSlot = LEGENDARY_SLOTS[dropIndex % LEGENDARY_SLOTS.length];
+              dropIndex += 1;
+              drops.push({
+                x: bossX - 8,
+                y: groundY,
+                z: 18,
+                vx: -40 - Math.random() * 35,
+                vz: 150,
+                kind: "legendary",
+                slot: nextSlot,
+                label: "★ LEGENDARY",
+              });
+            }
+          }
+
+          // Background & static grid
+          ctx.fillStyle = "#09110e";
+          ctx.fillRect(0, 0, W, H);
+
+          ctx.strokeStyle = "#162620";
+          ctx.lineWidth = 1;
+          for (let gx = 0; gx <= W; gx += 24) {
+            ctx.beginPath();
+            ctx.moveTo(gx, 0);
+            ctx.lineTo(gx, H);
+            ctx.stroke();
+          }
+          for (let gy = 0; gy <= H; gy += 24) {
+            ctx.beginPath();
+            ctx.moveTo(0, gy);
+            ctx.lineTo(W, gy);
+            ctx.stroke();
+          }
+
+          // 2.6V Training Platform Deck
+          ctx.fillStyle = "#14241e";
+          ctx.fillRect(24, groundY + 24, W - 48, 24);
+          ctx.strokeStyle = "#2d4d41";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(24, groundY + 24, W - 48, 24);
+
+          // Draw Stationary Armored Boss Dummy on the Right
+          const bx = Math.round(bossX + bossRecoilX);
+          const by = groundY;
+          const bBob = Math.abs(Math.sin(now * 0.006)) * 2;
+          const flash = bossFlashMs > 0;
+
+          ctx.fillStyle = "rgba(0,0,0,0.5)";
+          ctx.beginPath();
+          ctx.ellipse(bx, by + 24, 24, 7, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          const bDark = flash ? "#ffffff" : "#3d2805";
+          const bMain = flash ? "#ffffff" : "#d99b1e";
+          const bGlow = flash ? "#ffffff" : "#ffe082";
+
+          // Pedestal post & heavy boss torso
+          ctx.fillStyle = "#2b3833";
+          ctx.fillRect(bx - 6, by + 6, 12, 18);
+          ctx.fillStyle = bDark;
+          ctx.fillRect(bx - 18, Math.round(by - 22 - bBob), 36, 28);
+          ctx.fillStyle = bMain;
+          ctx.fillRect(bx - 16, Math.round(by - 20 - bBob), 32, 24);
+          // Chest core
+          ctx.fillStyle = bDark;
+          ctx.fillRect(bx - 6, Math.round(by - 12 - bBob), 12, 10);
+          ctx.fillStyle = bGlow;
+          ctx.fillRect(bx - 4, Math.round(by - 10 - bBob), 8, 6);
+          // Boss helm & horns
+          ctx.fillStyle = bDark;
+          ctx.fillRect(bx - 14, Math.round(by - 42 - bBob), 28, 20);
+          ctx.fillStyle = bMain;
+          ctx.fillRect(bx - 12, Math.round(by - 40 - bBob), 24, 16);
+          ctx.fillStyle = bGlow;
+          ctx.fillRect(bx - 14, Math.round(by - 50 - bBob), 5, 9);
+          ctx.fillRect(bx + 9, Math.round(by - 50 - bBob), 5, 9);
+          ctx.fillRect(bx - 3, Math.round(by - 53 - bBob), 6, 11);
+          // Visor
+          ctx.fillStyle = "#080b0d";
+          ctx.fillRect(bx - 10, Math.round(by - 33 - bBob), 14, 5);
+          ctx.fillStyle = bGlow;
+          ctx.fillRect(bx - 9, Math.round(by - 32 - bBob), 11, 3);
+
+          // Bouncing Gold, Gems & Legendary Item Icons magnetized to Surveyor
+          for (let i = drops.length - 1; i >= 0; i--) {
+            const d = drops.at(i)!;
+            d.x += d.vx * dt;
+            d.vx *= 0.9;
+            d.z += d.vz * dt;
+            d.vz -= 360 * dt;
+            if (d.z <= 0) {
+              d.z = 0;
+              d.vz = Math.abs(d.vz) > 35 ? -d.vz * 0.45 : 0;
+            }
+
+            // Magnetize back to stationary Surveyor once past apex
+            if (d.vz <= 40) {
+              const pullDir = playerX - d.x;
+              d.x += Math.sign(pullDir) * 230 * dt;
+            }
+
+            const cy = Math.round(d.y + 12 - d.z);
+            const cx = Math.round(d.x);
+            if (d.kind === "legendary" && d.slot) {
+              drawPixelLegendaryItemDrop(ctx, cx, cy - 2, d.slot);
+            } else if (d.kind === "gem") {
+              ctx.fillStyle = "#5ec8ff";
+              ctx.fillRect(cx - 5, cy - 5, 10, 10);
+              ctx.fillStyle = "#ffffff";
+              ctx.fillRect(cx - 2, cy - 3, 3, 3);
+            } else {
+              ctx.fillStyle = "#d99b1e";
+              ctx.fillRect(cx - 5, cy - 4, 10, 8);
+              ctx.fillStyle = "#ffdf5e";
+              ctx.fillRect(cx - 4, cy - 5, 8, 8);
+            }
+
+            if (Math.abs(playerX - d.x) < 18 && d.vz <= 40) {
+              popups.push({
+                x: playerX,
+                y: d.kind === "legendary" ? groundY - 44 : groundY - 30,
+                text: d.label,
+                color: d.kind === "legendary" ? "#ffe082" : d.kind === "gem" ? "#5ec8ff" : "#ffcf4d",
+                life: d.kind === "legendary" ? 0.75 : 0.65,
+              });
+              drops.splice(i, 1);
+            }
+          }
+
+          const lungeX = attackMs > 0 ? 12 : 0;
+          ctx.save();
+          ctx.translate(Math.round(playerX + lungeX), groundY);
+          ctx.scale(2.25, 2.25);
+          drawPixelSurveyorSprite(
+            ctx,
+            0,
+            0,
+            1,
+            0,
+            profile.activeSkin,
+            FULL_LEGENDARY_PREVIEW,
+            { attacking: attackMs > 0 },
+          );
+          if (attackMs > 0) {
+            ctx.strokeStyle = "#ffcf56";
+            ctx.lineWidth = 2.4;
+            ctx.beginPath();
+            ctx.arc(0, -3, 24, -0.85, 0.85);
+            ctx.stroke();
+          }
+          ctx.restore();
+
+          for (let i = sparks.length - 1; i >= 0; i--) {
+            const sp = sparks.at(i)!;
+            sp.x += sp.vx * dt;
+            sp.y += sp.vy * dt;
+            sp.vy += 190 * dt;
+            sp.life -= dt;
+            if (sp.life <= 0) {
+              sparks.splice(i, 1);
+              continue;
+            }
+            ctx.fillStyle = sp.color;
+            ctx.fillRect(Math.round(sp.x), Math.round(sp.y), 3, 3);
+          }
+
+          ctx.font = "bold 10px monospace";
+          ctx.textAlign = "center";
+          for (let i = popups.length - 1; i >= 0; i--) {
+            const p = popups.at(i)!;
+            p.y -= 28 * dt;
+            p.life -= dt;
+            if (p.life <= 0) {
+              popups.splice(i, 1);
+              continue;
+            }
+            ctx.fillStyle = p.color;
+            ctx.fillText(p.text, Math.round(p.x), Math.round(p.y));
+          }
+
+          ctx.fillStyle = "#ffcf56";
+          ctx.font = "bold 11px monospace";
+          ctx.textAlign = "left";
+          ctx.fillText("BOSS DUMMY // LEGENDARY LOOT DRILL", 18, 22);
+
+          ctx.fillStyle = "#8ab5a4";
+          ctx.textAlign = "right";
+          ctx.fillText(`SKIN: ${palette.name}`, W - 18, 22);
+        }
       }
-      const nextSnake = [nextHead, ...snake.slice(0, eating ? snake.length : -1)];
-      setSnake(nextSnake);
-      if (eating) {
-        setScore((n) => n + 1);
-        setFood(randCell(nextSnake));
-      }
-    }, 145);
-    return () => window.clearInterval(timer);
-  }, [running, snake, food, score, finish]);
-  const cells = Array.from({ length: 324 }, (_, i) => i);
-  return <><div className="snake-board" aria-label="Snake game board" data-testid="game-board-snake">{cells.map((cell) => {
-    const head = snake[0] === cell; const body = snake.includes(cell);
-    return <div key={cell} className={`snake-cell ${body ? 'snake' : ''} ${head ? 'head' : ''} ${food === cell ? 'food' : ''}`} />;
-  })}</div><div className="mobile-controls">
-    <span /><button onClick={() => turn('up')} aria-label="Move up" data-testid="button-snake-up"><ArrowUp size={20} /></button><span />
-    <button onClick={() => turn('left')} aria-label="Move left" data-testid="button-snake-left"><ArrowLeft size={20} /></button><button onClick={() => turn('down')} aria-label="Move down" data-testid="button-snake-down"><ArrowDown size={20} /></button><button onClick={() => turn('right')} aria-label="Move right" data-testid="button-snake-right"><ArrowRight size={20} /></button>
-  </div><div className="game-actions"><button className="button" onClick={() => running ? setRunning(false) : over ? onRestart() : start()} data-testid="button-snake-start">{running ? 'Pause' : over ? 'Play again' : 'Start playing'} <ArrowRight size={15} /></button>{running && <button className="button outline small" onClick={() => setRunning(false)} data-testid="button-snake-pause">Pause</button>}</div>
-  <p className="notice" style={{ textAlign: 'center', marginTop: 12 }}>{over ? 'Round over. Your score has been saved.' : running ? 'Use arrow keys or WASD. On touch, use the direction pad.' : 'Collect the coral dot. Don’t run into the edges or yourself.'}</p></>;
+      raf = window.requestAnimationFrame(render);
+    };
+
+    raf = window.requestAnimationFrame(render);
+    return () => window.cancelAnimationFrame(raf);
+  }, [profile]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={420}
+      height={220}
+      style={{
+        width: "100%",
+        maxWidth: 460,
+        height: "auto",
+        borderRadius: 12,
+        border: "2px solid #243d34",
+        imageRendering: "pixelated",
+        boxShadow: "0 16px 40px rgba(0, 0, 0, 0.55)",
+      }}
+    />
+  );
 }
 
-const matchMarks = ['●', '▲', '■', '◆', '✚', '✦', '⬟', '✿'];
-function MemoryGame({ finish, onRestart }: { finish: (score: number) => void; onRestart: () => void }) {
-  const [deck, setDeck] = useState(() => [...matchMarks, ...matchMarks].sort(() => Math.random() - .5));
-  const [open, setOpen] = useState<number[]>([]); const [matched, setMatched] = useState<number[]>([]); const [moves, setMoves] = useState(0);
-  const lock = useRef(false); const done = useRef(false);
-  const flip = (index: number) => {
-    if (lock.current || open.includes(index) || matched.includes(index)) return;
-    const next = [...open, index]; setOpen(next);
-    if (next.length === 2) {
-      setMoves((n) => n + 1); lock.current = true;
-      if (deck[next[0]] === deck[next[1]]) {
-        const pairs = [...matched, ...next]; setMatched(pairs); setOpen([]); lock.current = false;
-        if (pairs.length === deck.length && !done.current) { done.current = true; finish(Math.max(1, 1000 - (moves + 1) * 12)); }
-      } else window.setTimeout(() => { setOpen([]); lock.current = false; }, 720);
-    }
-  };
-  return <><div className="memory-grid" data-testid="game-board-memory">{deck.map((mark, index) => {
-    const shown = open.includes(index) || matched.includes(index);
-    return <button key={index} className={`memory-card ${shown ? 'open' : ''} ${matched.includes(index) ? 'matched' : ''}`} onClick={() => flip(index)} aria-label={shown ? `Card ${mark}` : 'Turn over card'} data-testid={`button-memory-card-${index}`}>{shown ? mark : '·'}</button>;
-  })}</div><div className="game-actions"><button className="button outline small" onClick={onRestart} data-testid="button-memory-restart"><RotateCcw size={15} /> New round</button></div><p className="notice" style={{ textAlign: 'center' }}>{matched.length === 16 ? `All pairs found in ${moves} moves. Lovely work.` : `${matched.length / 2} of 8 pairs found · ${moves} ${moves === 1 ? 'move' : 'moves'}`}</p></>;
-}
+function SignalAppLogoTile() {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-function TicTacToeGame({ state, finish, onRestart }: { state: ArcadeState; finish: (score: number) => void; onRestart: () => void }) {
-  const [board, setBoard] = useState<(string | null)[]>(Array(9).fill(null)); const [turn, setTurn] = useState('X'); const [winner, setWinner] = useState<string | null>(null);
-  const done = useRef(false);
-  const friend = state.friends[0] || 'Friend';
-  const play = (index: number) => {
-    if (board[index] || winner) return;
-    const next = [...board]; next[index] = turn; setBoard(next);
-    const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-    const line = wins.find(([a,b,c]) => next[a] && next[a] === next[b] && next[b] === next[c]);
-    if (line) {
-      setWinner(turn);
-      if (!done.current) { done.current = true; finish(turn === 'X' ? 1 : 0); }
-    } else if (next.every(Boolean)) { setWinner('draw'); if (!done.current) { done.current = true; finish(0); } }
-    else setTurn(turn === 'X' ? 'O' : 'X');
-  };
-  const status = winner === 'draw' ? 'A draw. Nicely played.' : winner ? `${winner === 'X' ? state.profile.displayName : friend} takes the round.` : `${turn === 'X' ? state.profile.displayName : friend}’s turn`;
-  return <><div className="ttt-status" data-testid="status-tictactoe">{status}</div><div className="ttt-board" data-testid="game-board-tictactoe">{board.map((cell, index) => <button key={index} className="ttt-cell" onClick={() => play(index)} aria-label={`Square ${index + 1}${cell ? `, ${cell}` : ''}`} data-testid={`button-ttt-square-${index}`}>{cell}</button>)}</div><div className="game-actions"><button className="button" onClick={onRestart} data-testid="button-ttt-new-round"><RotateCcw size={15} /> {winner ? 'Play another round' : 'Start a new round'}</button></div><p className="notice" style={{ textAlign: 'center' }}>Pass the device after each turn. {state.friends.length ? `${friend} is on your friends list.` : 'Add a friend on the Friends page to personalize the other side.'}</p></>;
-}
-
-type Grid = number[][];
-function spawn(grid: Grid): Grid {
-  const empty: [number, number][] = [];
-  grid.forEach((row, y) => row.forEach((v, x) => { if (!v) empty.push([y,x]); }));
-  if (!empty.length) return grid;
-  const [y,x] = empty[Math.floor(Math.random() * empty.length)]; const next = grid.map((row) => [...row]); next[y][x] = Math.random() < .9 ? 2 : 4; return next;
-}
-function freshGrid(): Grid { return spawn(spawn(Array.from({ length: 4 }, () => [0,0,0,0]))); }
-function compress(line: number[]) {
-  const nums = line.filter(Boolean); let gain = 0;
-  for (let i = 0; i < nums.length - 1; i++) if (nums[i] === nums[i + 1]) { nums[i] *= 2; gain += nums[i]; nums.splice(i + 1, 1); }
-  while (nums.length < 4) nums.push(0);
-  return { line: nums, gain };
-}
-function Game2048({ finish, onRestart }: { finish: (score: number) => void; onRestart: () => void }) {
-  const [grid, setGrid] = useState<Grid>(freshGrid); const [score, setScore] = useState(0); const [over, setOver] = useState(false); const done = useRef(false); const touch = useRef<[number,number] | null>(null);
-  const move = useCallback((direction: Dir) => {
-    if (over) return;
-    let gain = 0;
-    const rotated = grid.map((row) => [...row]);
-    const clockwise = (g: Grid) => g[0].map((_, x) => g.map((r) => r[x]).reverse());
-    const turns = direction === 'left' ? 0 : direction === 'down' ? 1 : direction === 'right' ? 2 : 3;
-    let work = rotated; for (let i = 0; i < turns; i++) work = clockwise(work);
-    work = work.map((row) => { const c = compress(row); gain += c.gain; return c.line; });
-    for (let i = 0; i < (4 - turns) % 4; i++) work = clockwise(work);
-    if (work.every((row, y) => row.every((v, x) => v === grid[y][x]))) return;
-    const next = spawn(work); const newScore = score + gain; setGrid(next); setScore(newScore);
-    const canMove = next.some((row, y) => row.some((v, x) => !v || (x < 3 && v === row[x + 1]) || (y < 3 && v === next[y + 1][x])));
-    if (!canMove) { setOver(true); if (!done.current) { done.current = true; finish(newScore); } }
-  }, [grid, over, score, finish]);
   useEffect(() => {
-    const key = (e: KeyboardEvent) => { const map: Record<string, Dir> = { ArrowLeft:'left', a:'left', ArrowRight:'right', d:'right', ArrowUp:'up', w:'up', ArrowDown:'down', s:'down' }; const d = map[e.key]; if (d) { e.preventDefault(); move(d); } };
-    window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key);
-  }, [move]);
-  const touchStart = (e: TouchEvent) => { touch.current = [e.touches[0].clientX, e.touches[0].clientY]; };
-  const touchEnd = (e: TouchEvent) => {
-    if (!touch.current) return; const dx = e.changedTouches[0].clientX - touch.current[0]; const dy = e.changedTouches[0].clientY - touch.current[1];
-    if (Math.max(Math.abs(dx), Math.abs(dy)) > 24) move(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
-    touch.current = null;
-  };
-  return <><div style={{ textAlign: 'center', marginBottom: 10 }}><span className="score-chip">Score <strong>{score}</strong></span></div><div className="board-2048" onTouchStart={touchStart} onTouchEnd={touchEnd} data-testid="game-board-2048">{grid.flat().map((value, i) => <div key={i} className="tile" data-value={value || 'empty'}>{value || ''}</div>)}</div><div className="game-actions"><button className="button outline small" onClick={onRestart} data-testid="button-2048-restart"><RotateCcw size={15} /> New game</button></div><p className="notice" style={{ textAlign: 'center' }}>{over ? 'No more moves. Your score has been saved.' : 'Use arrow keys, WASD, or swipe to move the tiles.'}</p></>;
-}
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.imageSmoothingEnabled = false;
 
-function GamePage({ id }: { id: GameId }) {
-  const [state, setState] = useState<ArcadeState>(() => getArcadeState());
-  const [session, setSession] = useState(0);
-  const finished = useRef(false);
-  const finish = useCallback((score: number) => {
-    if (finished.current) return;
-    finished.current = true;
-    setState(recordGameResult(id, score));
-  }, [id]);
-  const finishSniper = useCallback((score: number) => {
-    finished.current = false;
-    finish(score);
-  }, [finish]);
-  useEffect(() => { finished.current = false; }, [session]);
-  const restartGame = () => { finished.current = false; setSession((n) => n + 1); };
-  const best = state.highScores[id];
-  const game = id === 'sniper' ? <ZombieSniperGame key={session} onFinish={finishSniper} /> : id === 'snake' ? <SnakeGame key={session} finish={finish} onRestart={restartGame} /> : id === 'memory' ? <MemoryGame key={session} finish={finish} onRestart={restartGame} /> : id === 'tictactoe' ? <TicTacToeGame key={session} state={state} finish={finish} onRestart={restartGame} /> : <Game2048 key={session} finish={finish} onRestart={restartGame} />;
-  return <main className="content fade-in">
-    <Link href="/" className="nav-link" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, margin: '0 0 20px -12px' }} data-testid="link-back-arcade"><ArrowLeft size={15} /> Arcade</Link>
-    <div className="game-layout">
-      <section className="panel game-main">
-        <div className="game-toolbar"><div><div className="eyebrow">Now playing</div><h1 className="page-title" style={{ fontSize: 'clamp(32px,5vw,48px)', margin: '6px 0 0' }}>{titles[id]}</h1></div><span className="score-number">FREE TO PLAY</span></div>
-        {game}
-      </section>
-      <aside className="game-side">
-        <section className="panel"><div className="eyebrow">Your best</div><div style={{ fontSize: 35, fontWeight: 700, letterSpacing: '-.07em', margin: '4px 0' }} data-testid={`text-best-${id}`}>{best ?? '—'}</div><div className="notice">{best === undefined ? 'Your first score will live here.' : 'Personal best, saved in this browser.'}</div></section>
-         <section className="panel" style={{ background: '#e7e3d2' }}><div className="eyebrow">The quick brief</div><h3 style={{ margin: '7px 0', fontSize: 20, letterSpacing: '-.05em' }}>{descriptions[id]}</h3><p className="notice">{id === 'sniper' ? 'Aim by tapping a target. Headshots are worth 250, body shots 100; missed shots use a round. Press R or use Reload to refill.' : id === 'tictactoe' ? 'Two players, one screen. Take turns and pass the device.' : id === 'snake' ? 'Guide your snake with arrow keys or WASD. Touch controls are ready on small screens.' : id === 'memory' ? 'Turn over two cards at a time and match all eight pairs.' : 'Slide equal tiles together. Keep playing until there are no moves left.'}</p></section>
-        <button className="button outline small" onClick={restartGame} data-testid={`button-reset-${id}`}><RotateCcw size={15} /> Start fresh</button>
-        <Link href="/friends" className="button light small" data-testid="link-game-friends"><Users size={15} /> Friends list</Link>
-      </aside>
-    </div>
-  </main>;
-}
+    ctx.fillStyle = "#08120f";
+    ctx.fillRect(0, 0, 96, 96);
 
-function DeepSignalPage() {
-  const [state, setState] = useState<ArcadeState>(() => getArcadeState());
-  const finish = useCallback((score: number) => {
-    setState(recordGameResult('deep-signal', score));
+    ctx.strokeStyle = "#6fe3c1";
+    ctx.lineWidth = 4;
+    ctx.strokeRect(4, 4, 88, 88);
+
+    ctx.fillStyle = "#142922";
+    ctx.beginPath();
+    ctx.arc(48, 64, 28, Math.PI, 0);
+    ctx.lineTo(76, 84);
+    ctx.lineTo(20, 84);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = "#6fe3c1";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(48, 46, 12, Math.PI * 1.15, Math.PI * 1.85);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(48, 46, 20, Math.PI * 1.15, Math.PI * 1.85);
+    ctx.stroke();
+
+    ctx.fillStyle = "#d8eee4";
+    ctx.fillRect(40, 52, 16, 12);
+    ctx.fillStyle = "#7af5d8";
+    ctx.fillRect(43, 55, 10, 4);
+
+    ctx.fillStyle = "#ffcf56";
+    ctx.fillRect(46, 66, 4, 14);
+    ctx.fillRect(42, 68, 12, 3);
   }, []);
-  const best = state.highScores['deep-signal'];
-  return <main className="content fade-in deep-signal-page">
-    <Link href="/" className="nav-link" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, margin: '0 0 16px -12px' }} data-testid="link-back-arcade"><ArrowLeft size={15} /> JB Playnet</Link>
-    <div className="deep-game-heading">
-      <div><div className="eyebrow">FIRST FIELD TEST / SINGLE PLAYER</div><h1 className="page-title">THE SIGNAL BELOW</h1><p className="page-intro">A missing surveyor’s distress beacon. A sealed entrance. The story is somewhere below.</p></div>
-      <div className="deep-best"><small>YOUR BEST RUN</small><strong data-testid="text-best-deep-signal">{best ?? '—'}</strong><span>{best === undefined ? 'Your first descent is waiting.' : 'Saved in this browser.'}</span></div>
-    </div>
-    <BuriedComplexGame onFinish={finish} />
-    <div className="deep-game-disclaimer" data-testid="status-local-play"><span>NO ACCOUNTS · NO PURCHASES · NO ONLINE PLAY</span><span>Gear and records stay on this device.</span></div>
-  </main>;
-}
 
-function NotFoundPage() {
-  return <main className="content"><section className="panel" style={{ textAlign: 'center', padding: 50 }}><div className="eyebrow">Wrong turn</div><h1 className="page-title">No signal on this route.</h1><Link className="button" href="/">Back to JB Playnet <ArrowRight size={16} /></Link></section></main>;
-}
-
-function Router() {
-  return <Switch>
-    <Route path="/"><AppShell><Lobby /></AppShell></Route>
-    <Route path="/friends"><AppShell><FriendsPage /></AppShell></Route>
-    <Route path="/profile"><AppShell><ProfilePage /></AppShell></Route>
-    <Route path="/play/deep-signal"><AppShell><DeepSignalPage /></AppShell></Route>
-    <Route><AppShell><NotFoundPage /></AppShell></Route>
-  </Switch>;
+  return (
+    <canvas
+      ref={canvasRef}
+      width={96}
+      height={96}
+      style={{
+        width: 96,
+        height: 96,
+        borderRadius: 18,
+        imageRendering: "pixelated",
+        boxShadow: "0 10px 26px rgba(111, 227, 193, 0.25)",
+      }}
+    />
+  );
 }
 
 export default function App() {
-  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-  return <WouterRouter base={base}><Router /></WouterRouter>;
+  const [inGame, setInGame] = useState<boolean>(() =>
+    typeof window !== "undefined" ? window.location.pathname.startsWith("/play/deep-signal") : false,
+  );
+  const [profile, setProfile] = useState<SurveyorProfile>(() => loadSurveyorProfile());
+
+  useEffect(() => {
+    const onPopState = () => {
+      const playing = window.location.pathname.startsWith("/play/deep-signal");
+      setInGame(playing);
+      if (!playing) setProfile(loadSurveyorProfile());
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  const launchGame = () => {
+    window.history.pushState({}, "", "/play/deep-signal");
+    setInGame(true);
+  };
+
+  const exitToWebsite = () => {
+    window.history.pushState({}, "", "/");
+    setProfile(loadSurveyorProfile());
+    setInGame(false);
+  };
+
+  if (inGame) {
+    return <BuriedComplexGame onBackToArcade={exitToWebsite} />;
+  }
+
+  const stats = computePlayerMaxStats(
+    profile.level,
+    profile.stats,
+    profile.equippedGear,
+    profile.slotUpgradeLevels,
+  );
+
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "radial-gradient(circle at 20% 0%, #10241d 0%, #070d0b 58%, #040807 100%)",
+        color: "#e6f5ee",
+        fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        padding: "20px 18px 64px",
+        boxSizing: "border-box",
+      }}
+    >
+      <header
+        style={{
+          width: "100%",
+          maxWidth: 1020,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "12px 18px",
+          background: "rgba(12, 22, 19, 0.88)",
+          border: "1px solid #223b32",
+          borderRadius: 12,
+          marginBottom: 28,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span
+            style={{
+              display: "inline-block",
+              width: 12,
+              height: 12,
+              borderRadius: 3,
+              background: "#6fe3c1",
+              boxShadow: "0 0 12px #6fe3c1",
+            }}
+          />
+          <span style={{ fontWeight: 900, fontSize: 15, letterSpacing: 2, color: "#f2fff9" }}>
+            JB PLAYNET
+          </span>
+          <span
+            style={{
+              fontSize: 10,
+              padding: "2px 7px",
+              borderRadius: 5,
+              background: "#163027",
+              color: "#6fe3c1",
+              fontWeight: 800,
+            }}
+          >
+            v2.6
+          </span>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 12 }}>
+          <span style={{ color: "#ffcf4d", fontWeight: 700 }}>{profile.gold} GOLD</span>
+          <span style={{ color: "#5ec8ff", fontWeight: 700 }}>{profile.diamonds} DIAMONDS</span>
+          <a
+            href="#featured-apps"
+            style={{
+              color: "#06120e",
+              background: "#6fe3c1",
+              padding: "6px 12px",
+              borderRadius: 7,
+              fontWeight: 900,
+              textDecoration: "none",
+              fontSize: 11,
+            }}
+          >
+            APPS ↓
+          </a>
+        </div>
+      </header>
+
+      <section
+        style={{
+          width: "100%",
+          maxWidth: 1020,
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(310px, 1fr))",
+          gap: 24,
+          alignItems: "center",
+          padding: "26px 24px",
+          background: "rgba(11, 20, 17, 0.9)",
+          border: "1px solid #223b32",
+          borderRadius: 16,
+          marginBottom: 44,
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ fontSize: 11, letterSpacing: 2.5, color: "#6fe3c1", fontWeight: 800 }}>
+            SURVEYOR TRAINING DECK · PRE-DEPLOYMENT
+          </div>
+          <h1
+            style={{
+              margin: 0,
+              fontSize: "clamp(26px, 3.8vw, 38px)",
+              fontWeight: 900,
+              lineHeight: 1.15,
+              color: "#f2fff9",
+            }}
+          >
+            Something is still transmitting.
+          </h1>
+          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "#9bc4b4" }}>
+            Your Surveyor is warming up on the sub-level deck. Launch{" "}
+            <strong style={{ color: "#e6f5ee" }}>The Signal Below</strong> to raid 100 2.6V floors,
+            defeat guardians for Gold &amp; Gems, fuse duplicates (<strong style={{ color: "#eabfff" }}>3 → 9 → 27</strong>),
+            and complete the <strong style={{ color: "#ffcf56" }}>105-Item Discovery Index</strong>.
+          </p>
+
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 10,
+              marginTop: 4,
+              fontSize: 11,
+            }}
+          >
+            <span
+              style={{
+                padding: "5px 10px",
+                borderRadius: 6,
+                background: "#12241e",
+                border: "1px solid #28473c",
+                color: "#8de8cb",
+              }}
+            >
+              SURVEYOR LV.{profile.level}
+            </span>
+            <span
+              style={{
+                padding: "5px 10px",
+                borderRadius: 6,
+                background: "#12241e",
+                border: "1px solid #28473c",
+                color: "#8de8cb",
+              }}
+            >
+              ATK {stats.totalAttack} · HP {stats.maxHealth}
+            </span>
+            <span
+              style={{
+                padding: "5px 10px",
+                borderRadius: 6,
+                background: "#12241e",
+                border: "1px solid #28473c",
+                color: "#8de8cb",
+              }}
+            >
+              DEEPEST FLOOR {String(profile.deepestFloor).padStart(2, "0")}
+            </span>
+            <span
+              style={{
+                padding: "5px 10px",
+                borderRadius: 6,
+                background: "#1c1726",
+                border: "1px solid #443366",
+                color: "#d4a8ff",
+                fontWeight: 700,
+              }}
+            >
+              INDEX {profile.discoveredItems.length}/{FULL_ITEM_CATALOG.length}
+            </span>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+          <SurveyorWorkoutCanvas profile={profile} />
+          <span style={{ fontSize: 11, color: "#6e9989" }}>
+            Live pixel training loop · Reflects your equipped skin &amp; gear
+          </span>
+        </div>
+      </section>
+
+      <section
+        id="featured-apps"
+        style={{
+          width: "100%",
+          maxWidth: 1020,
+          display: "flex",
+          flexDirection: "column",
+          gap: 16,
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h2 style={{ margin: 0, fontSize: 16, letterSpacing: 2, color: "#8de8cb" }}>
+            ARCADE APPS · SELECT TO LAUNCH
+          </h2>
+          <span style={{ fontSize: 11, color: "#6e9989" }}>CLICK APP LOGO TO PLAY</span>
+        </div>
+
+        <div
+          onClick={launchGame}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              launchGame();
+            }
+          }}
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: 20,
+            padding: 20,
+            background: "linear-gradient(135deg, #0e1d18 0%, #122821 100%)",
+            border: "2px solid #2e5447",
+            borderRadius: 16,
+            cursor: "pointer",
+            boxShadow: "0 14px 34px rgba(0, 0, 0, 0.45)",
+          }}
+        >
+          <SignalAppLogoTile />
+
+          <div style={{ flex: 1, minWidth: 240, display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 18, fontWeight: 900, color: "#f2fff9", letterSpacing: 1.5 }}>
+                THE SIGNAL BELOW
+              </span>
+              <span
+                style={{
+                  fontSize: 10,
+                  padding: "2px 8px",
+                  borderRadius: 999,
+                  background: "rgba(111, 227, 193, 0.16)",
+                  border: "1px solid #6fe3c1",
+                  color: "#6fe3c1",
+                  fontWeight: 800,
+                }}
+              >
+                FLAGSHIP ARPG · v2.6
+              </span>
+            </div>
+
+            <p style={{ margin: 0, fontSize: 12, color: "#9bc4b4", lineHeight: 1.55 }}>
+              2.6V subterranean extraction ARPG. Slay guardians for Gold &amp; Gems, upgrade permanent gear slots,
+              merge duplicates (3 → 9 → 27), and collect all 105 items.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              launchGame();
+            }}
+            style={{
+              padding: "12px 22px",
+              borderRadius: 10,
+              border: "2px solid #9effdf",
+              background: "#6fe3c1",
+              color: "#06120e",
+              fontWeight: 900,
+              fontSize: 13,
+              letterSpacing: 1.2,
+              cursor: "pointer",
+            }}
+          >
+            OPEN APP ▶
+          </button>
+        </div>
+      </section>
+    </div>
+  );
 }
