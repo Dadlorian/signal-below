@@ -134,49 +134,65 @@ React · TypeScript · Vite · HTML canvas · three.js · Tailwind CSS
 
 ---
 
-## 🕶️ The Dadlorian Rules
+## THE DADLORIAN RULES
 
-You're the hacker in this house. You build stuff that runs on other people's screens.
-That's real power. My job: make sure you don't hurt yourself. Or anyone else.
+**You're the hacker in this house.** You build stuff that runs on other people's screens. That's real power.
 
-**Rule 0: Your code is your code.** I never touch it. No fixes. No cleanup. This is the Way.
+**My job: make sure you don't hurt yourself. Or anyone else.**
 
-### Rule 1: Watch your packages
+> [!IMPORTANT]
+> **RULE 0 // YOUR CODE IS YOUR CODE**
+>
+> I never touch it. No fixes. No cleanup.
+> **This is the Way.**
+
+### RULE 1 // WATCH YOUR PACKAGES
+
+> [!WARNING]
+> **A new package is a stranger moving into your code.**
 
 Every library is somebody else's code. It runs on *your* laptop. Then in your friends' browsers.
 
-Hackers know this. They hide in packages with friendly names. Install the wrong one and it can
-infect your laptop. Then you pass it to everyone who plays.
+Hackers hide in packages with friendly names. One wrong install can infect your laptop. Then you pass it to everyone who plays.
 
-I scan them. You should know them too.
+I scan them. **You should know them too.**
 
-- Open `package.json`. That's your list.
+- `package.json` is your list
 - Adding a new one? Look it up on npmjs.com first. Who made it? Who uses it?
-- Don't need it? Don't install it.
+- Don't need it? **Don't install it.**
 
-### Rule 2: Never turn text into code
+### RULE 2 // NEVER TURN TEXT INTO CODE
+
+> [!CAUTION]
+> **Text in. Code out. Game over.**
 
 Only a few tricks let outsiders run their code in your game:
 
-- `eval(...)`
-- `new Function(...)`
-- `innerHTML` with a variable in it
+```js
+eval(...)
+new Function(...)
+element.innerHTML = someVariable
+```
 
-Feed one of those a sneaky string and they're inside your friend's browser.
+Feed one a sneaky string and they're inside your friend's browser.
 
 Check yourself: `grep -rn "eval(\|new Function(\|innerHTML" src/`
 
-### Rule 3: New code doesn't run until it's scanned
+### RULE 3 // NEW CODE DOESN'T RUN UNTIL IT'S SCANNED
 
 That's how real game studios ship. It's called **CI/CD**. Yours looks like this:
 
-`zip → scan → sealed box → test copy → live → undo button`
+```text
+ZIP  >  SCAN  >  SEALED BOX  >  TEST COPY  >  LIVE  >  UNDO BUTTON
+```
 
-- **Scan:** I read your code without running it.
-- **Sealed box:** Docker builds and serves your game. Not my server.
-- **Live:** Cloudflare is free. It gives your game a real web address, squeezes the files small, and keeps copies close to your friends. That's why it loads fast.
-- **Undo:** every release keeps the last version ready.
+- **SCAN:** I read your code without running it.
+- **SEALED BOX:** Docker builds and serves your game. Not my server.
+- **LIVE:** Cloudflare is free. It gives your game a real web address, squeezes the files small, and keeps copies close to your friends. That's why it loads fast.
+- **UNDO:** every release keeps the last version ready.
 
-A scan isn't magic. It catches the usual tricks, not everything. So stay sharp.
+> [!NOTE]
+> A scan isn't magic. It catches the usual tricks, not everything. **Stay sharp.**
 
-You're ahead of most people your age. You know how a game reaches the internet. You know where hackers try to get in. Keep it up.
+> [!TIP]
+> **You're ahead of most people your age.** You know how a game reaches the internet. You know where hackers try to get in. Keep it up.
