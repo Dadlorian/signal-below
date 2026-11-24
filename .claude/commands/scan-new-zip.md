@@ -27,6 +27,8 @@ The "baseline" is git HEAD: the last update Corey accepted (committed).
 7. Report to Corey in plain language: (a) verdict OK / NEW-THING-NEEDS-REVIEW / FAIL, one line why;
    (b) what is new: files, packages, hosts, flagged paths, each with the finding; (c) the report path;
    (d) what a static scan cannot rule out, one line. Never say "safe". Ask before swapping.
-8. After Corey approves the swap (UPDATE-INSTRUCTION.md), run `deploy/verify-live.sh`. When Corey says to,
-   commit; that becomes the new baseline. Move the zip into `zips/` and add one change-log line.
+8. After Corey approves the swap (UPDATE-INSTRUCTION.md), run `deploy/verify-live.sh` and a quick smoke
+   test of the live site. Then run `/whats-new` (drafts the README "What's new" entry; Corey approves it).
+   When Corey says to, commit; that becomes the new baseline. Move the zip into `zips/` and add one
+   change-log line.
 Keep ONE report per day in reports/ (delete the day's earlier ones). Do not add scripts, tools or docs.

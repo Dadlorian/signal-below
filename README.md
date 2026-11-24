@@ -19,11 +19,15 @@ A surveyor went missing beneath the ridge. You followed their distress signal in
 ## What you're in for
 
 - 🏚️ **100 floors, never the same twice.** Every run builds a brand-new dungeon from dice rolls.
-- 💀 **A boss every 10th floor.** The **Signal Sovereign** waits on Floor 100.
+- 💀 **A named boss every 10th floor, each with its own move.** Start with **VANCE-01, the Iron Warden**, and its shockwave slam. The **Signal Sovereign** waits on Floor 100.
+- 🔗 **Beat a boss, unlock a Signal Link.** Next run, warp straight back to that floor.
 - 🛡️ **Wardens hit harder.** Watch the wind-up, then dodge or guard at the right moment.
 - 💎 **Loot from Common to Legendary.** Better gear equips itself automatically, and the deeper you go, the luckier the drops.
-- 🚪 **Bank it or risk it.** Every 5th floor is a safe room. Secure your loot, or carry it deeper for more. Fall in battle and you lose everything you didn't bank.
+- 🔧 **Fuse duplicates.** Three of a kind become one stronger one: 3 → 9 → 27.
+- 🧑‍🚀 **Unlock new suits.** Extract alive from Floor 20, 50 and 100 to earn new surveyor skins.
+- 🚪 **Bank it or risk it.** After every cleared floor, extract and bank your loot, or descend for more. Fall in battle and you lose everything you didn't bank.
 - 🔥 **Beat Floor 100?** Overdrive mode keeps going.
+- 🎨 **New in v3.0:** all-new pixel art for the surveyor, the bosses, the enemies and the rooms.
 
 ## Controls
 
@@ -31,22 +35,24 @@ A surveyor went missing beneath the ridge. You followed their distress signal in
 |---|---|
 | Move | `W` `A` `S` `D` |
 | Slash | `Left click` or `J` |
-| Guard | `Right click` or `K` |
+| Guard | `Right click`, `K` or `Shift` |
 | Dodge | `Space` |
 | Interact | `E` |
-| Next floor | Clear the room, then walk to the lit door |
+| Next floor | Clear the room, then walk into the Extraction Lift on the right |
 
 ## The loot math (straight from the code)
 
-Every drop rolls 0 to 100, plus a depth bonus of 0.45 per floor (it maxes out at 35). Here's what that means:
+Every drop rolls 0 to 100, plus a depth bonus of half a point per floor (it maxes out at 44, on floor 88). Here's what that means:
 
 | Floor | Common | Uncommon | Rare | Epic | Legendary |
 |---|---|---|---|---|---|
-| 1 | 47.6% | 28% | 22% | 2.5% | **0%** |
-| 50 | 25.5% | 28% | 22% | 20% | **4.5%** |
-| 78+ | 13% | 28% | 22% | 20% | **17%** |
+| 1 | 51.5% | 28% | 20.5% | 0% | **0%** |
+| 25 | 39.5% | 28% | 22% | 10.5% | **0%** |
+| 50 | 27% | 28% | 22% | 20% | **3%** |
+| 75 | 14.5% | 28% | 22% | 20% | **15.5%** |
+| 88+ | 8% | 28% | 22% | 20% | **22%** |
 
-> Legendary gear **can't drop until floor 41**. How deep are you willing to go for it?
+> Legendary gear **can't drop until floor 45**. How deep are you willing to go for it?
 
 ## Challenge the squad
 
@@ -86,6 +92,25 @@ npm run dev
 
 Then open the address it prints (usually `http://localhost:5173`).
 
+## 📰 What's new
+
+### v3.0 · Pixels & Husks
+
+- 🎨 **Pixel-art glow-up.** Your suit, the bosses, the enemies, the rooms. All redrawn.
+- 🧟 **Meet the Husks.** The old guards got mutated. They're not friendly.
+- 🏹 **Husk Archers shoot, then run.** Get close and they bail.
+- 🌀 **Husk Phasers teleport.** Watch for the laser line first.
+- 💥 **Floor 20: the Riot Architect.** Explosive bolts. Keep moving.
+- 🦇 **Floor 30: the Flyer Matriarch.** Two flyers every 3 seconds. Good luck.
+- 🎯 **Training deck gets pixels too.** Smack the boss dummy. Warm up first.
+
+### v2.6 · The foundation
+
+- ⚔️ Slay guardians for gold and gems.
+- 🔧 Upgrade gear slots for good.
+- 🧬 Fuse duplicates: 3 → 9 → 27.
+- 📦 Collect all 105 items.
+
 ## Where things live
 
 ```
@@ -93,7 +118,9 @@ project-bolt-stackblitz-starters-kppnjtxg/project/
 ├─ src/
 │  ├─ App.tsx                        lobby, pages, and the router
 │  ├─ components/BuriedComplexGame.tsx  the game screen: drawing + controls
-│  └─ lib/deep-signal-engine.ts      the brain: rooms, enemies, loot, every frame
+│  └─ lib/
+│     ├─ deep-signal-engine.ts       the brain: rooms, enemies, bosses, loot, every frame
+│     └─ Pixel-skins.ts              the pixel art: suits, bosses, enemies, rooms
 └─ docs/                             Signal Hacker + the Field Manual
 ```
 
@@ -104,3 +131,52 @@ React · TypeScript · Vite · HTML canvas · three.js · Tailwind CSS
 ---
 
 <p align="center"><b>JB Playnet</b> · Found a bug? <a href="https://github.com/Dadlorian/signal-below/issues">Open an issue</a> and it might end up on the bug-hunt board.</p>
+
+---
+
+## 🕶️ The Dadlorian Rules
+
+You're the hacker in this house. You build stuff that runs on other people's screens.
+That's real power. My job: make sure you don't hurt yourself. Or anyone else.
+
+**Rule 0: Your code is your code.** I never touch it. No fixes. No cleanup. This is the Way.
+
+### Rule 1: Watch your packages
+
+Every library is somebody else's code. It runs on *your* laptop. Then in your friends' browsers.
+
+Hackers know this. They hide in packages with friendly names. Install the wrong one and it can
+infect your laptop. Then you pass it to everyone who plays.
+
+I scan them. You should know them too.
+
+- Open `package.json`. That's your list.
+- Adding a new one? Look it up on npmjs.com first. Who made it? Who uses it?
+- Don't need it? Don't install it.
+
+### Rule 2: Never turn text into code
+
+Only a few tricks let outsiders run their code in your game:
+
+- `eval(...)`
+- `new Function(...)`
+- `innerHTML` with a variable in it
+
+Feed one of those a sneaky string and they're inside your friend's browser.
+
+Check yourself: `grep -rn "eval(\|new Function(\|innerHTML" src/`
+
+### Rule 3: New code doesn't run until it's scanned
+
+That's how real game studios ship. It's called **CI/CD**. Yours looks like this:
+
+`zip → scan → sealed box → test copy → live → undo button`
+
+- **Scan:** I read your code without running it.
+- **Sealed box:** Docker builds and serves your game. Not my server.
+- **Live:** Cloudflare is free. It gives your game a real web address, squeezes the files small, and keeps copies close to your friends. That's why it loads fast.
+- **Undo:** every release keeps the last version ready.
+
+A scan isn't magic. It catches the usual tricks, not everything. So stay sharp.
+
+You're ahead of most people your age. You know how a game reaches the internet. You know where hackers try to get in. Keep it up.
