@@ -12,6 +12,7 @@ const repo = path.resolve(C.arg('--repo', process.cwd()));
 const root = C.arg('--root', null);
 const allowlist = C.loadAllowlist(C.arg('--allowlist', ''));
 const failOnly = C.flag('--fail-only');
+const warnToo = C.flag('--warn-too'); // with --fail-only: also report the WARN-level rules (eval, Function, child_process...) so a zip is read before it is overlaid
 const P = C.arg('--id-prefix', '7');
 const label = C.arg('--label', 'repo');
 const tunnelHost = C.arg('--tunnel-host', '');
@@ -55,7 +56,7 @@ for (const rel of files) {
   for (const rule of I.RULES) {
     if (rule.where === 'pkg') continue;
     const level = rule.codeLevel || rule.level;
-    if (failOnly && level !== 'FAIL') continue;
+    if (failOnly && !warnToo && level !== 'FAIL') continue;
     if (rule.scriptOnly && !isScript) continue;
     if (rule.exts && !rule.exts.includes(ext)) continue;
     if (rule.files && !rule.files.test(rel)) continue;
@@ -113,6 +114,11 @@ C.meta('codescan.' + label, { filesScanned: scanned, failHits: failHits.length, 
 const T = failOnly ? `Code in ${label}` : 'Code patterns';
 C.emit({ id: P + 'a', cls: 'critical', title: `${T}: malicious indicators (FAIL-level)`, status: failHits.length ? 'FAIL' : 'PASS',
   summary: failHits.length ? `${failHits.length} line(s) match known-bad patterns` : `no known-bad patterns in ${scanned} files`, evidence: failHits });
+if (failOnly && warnToo) {
+  C.emit({ id: P + 'b', cls: 'critical', title: `${T}: needs a human look (WARN-level)`, status: warnHits.length ? 'WARN' : 'PASS',
+    summary: warnHits.length ? `${warnHits.length} hit(s): eval/Function/child_process/cookies/secret storage/obfuscation in the zip` : 'no eval, Function constructor, child_process, cookie access or secret storage in the zip outside the allowlist',
+    evidence: warnHits });
+}
 if (!failOnly) {
   C.emit({ id: P + 'b', cls: 'critical', title: `${T}: needs a human look (WARN-level)`, status: warnHits.length ? 'WARN' : 'PASS',
     summary: warnHits.length ? `${warnHits.length} hit(s): eval/Function/child_process/dynamic innerHTML/cookies/secret storage/obfuscation` : 'no eval, Function constructor, child_process, dynamic innerHTML, cookie access or secret-looking storage outside the allowlist',
@@ -142,7 +148,7 @@ if (!failOnly) {
     evidence: sinks });
 
   // 16. vite server settings (structural), dev-server exposure, CORS, tunnel host presence.
-  // Rules and their doc sources: scan/CONTEXT7-NOTES.md (vite docs/config/server-options.md, GHSA-vg6x-rcgg-rjx6).
+  // Rules and their doc sources: scan/README.md, "Appendix: rule sources" (vite docs/config/server-options.md, GHSA-vg6x-rcgg-rjx6).
   const viteFail = [], viteWarn = [], viteInfo = [], viteAllowed = [];
   const allViteConfigs = files.filter((f) => /(^|\/)vite\.config\.[cm]?[jt]s$/.test(f));
   const mainConfigs = new Set(viteConfigs);

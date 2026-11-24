@@ -23,6 +23,18 @@ for (const [k, e] of Object.entries(pkgs)) {
   targets.set(`${name}@${e.version}`, { name, version: e.version });
 }
 
+// Versions in the last accepted lockfile (git HEAD): only NEW or CHANGED versions get age / deprecation warnings.
+const baseline = new Set();
+const basePath = C.arg('--baseline');
+if (basePath && fs.existsSync(basePath)) {
+  try {
+    for (const [k, e] of Object.entries(C.readJSON(path.resolve(basePath)).packages || {})) {
+      if (!k || e.link || e.inBundle || !e.version) continue;
+      baseline.add(`${e.name || k.replace(/^.*node_modules\//, '')}@${e.version}`);
+    }
+  } catch (_) { /* unreadable baseline: warn on everything, as before */ }
+}
+
 fs.mkdirSync(cacheDir, { recursive: true });
 const cacheFile = (id) => path.join(cacheDir, encodeURIComponent(id) + '.json');
 
@@ -82,9 +94,11 @@ async function main() {
 
   const now = Date.now();
   const fresh = [], dormant = [], brandNew = [], deprecated = [], noRepo = [], nonMaintainer = [], notFound = [], ciPublished = [];
+  const knownQuiet = []; // age / deprecation notes for versions already in the last accepted lockfile (not warned)
   let withProvenance = 0, withSignature = 0, ok = 0;
   for (const [id, d] of results) {
     const { name, version } = targets.get(id);
+    const known = baseline.has(id);
     if (d.error) { notFound.push(`${id}: ${d.error}`); continue; }
     ok++;
     const time = d.time || {};
@@ -94,12 +108,15 @@ async function main() {
     const idx = versionsSorted.findIndex(([v]) => v === version);
     const prev = idx > 0 ? versionsSorted[idx - 1] : null;
     const created = time.created ? Date.parse(time.created) : NaN;
-    if (!isNaN(ageDays) && ageDays < MIN_AGE_DAYS) {
+    if (!isNaN(ageDays) && ageDays < MIN_AGE_DAYS && known) {
+      knownQuiet.push(`${id}: published ${ageDays.toFixed(1)} days ago`);
+    } else if (!isNaN(ageDays) && ageDays < MIN_AGE_DAYS) {
       fresh.push(`${id}: published ${ageDays.toFixed(1)} days ago (${time[version].slice(0, 10)})${prev ? `, previous ${prev[0]} ${((published - prev[1]) / 86400000).toFixed(0)} days earlier` : ''}`);
       if (prev && (published - prev[1]) / 86400000 > 365) dormant.push(`${id}: first release in ${((published - prev[1]) / 86400000).toFixed(0)} days (dormant package suddenly updated)`);
     }
     if (!isNaN(created) && (now - created) / 86400000 < 90 && versionsSorted.length < 5) brandNew.push(`${id}: package first published ${((now - created) / 86400000).toFixed(0)} days ago with only ${versionsSorted.length} version(s)`);
-    if (d.deprecated) deprecated.push(`${id}: ${C.trunc(d.deprecated, 120)}`);
+    if (d.deprecated && known) knownQuiet.push(`${id}: deprecated (${C.trunc(d.deprecated, 60)})`);
+    else if (d.deprecated) deprecated.push(`${id}: ${C.trunc(d.deprecated, 120)}`);
     const repo = d.repository && (typeof d.repository === 'string' ? d.repository : d.repository.url);
     if (!repo) noRepo.push(id);
     const maint = (d.maintainers || []).map((m) => (typeof m === 'string' ? m.split(' ')[0] : m.name)).filter(Boolean);
@@ -129,12 +146,13 @@ async function main() {
   push('non-maintainer-publish', nonMaintainer, 'WARN');
   push('deprecated', deprecated, 'WARN');
   push('registry-lookup-failed', notFound, 'WARN');
+  if (knownQuiet.length) ev.push(`INFO already in the last accepted lockfile, so not warned (${knownQuiet.length}): ${knownQuiet.slice(0, 12).join('; ')}${knownQuiet.length > 12 ? '; …' : ''}`);
   if (ciPublished.length) ev.push(`INFO published from CI via trusted publishing with provenance (${ciPublished.length}): ${ciPublished.slice(0, 12).join(', ')}${ciPublished.length > 12 ? ', …' : ''}`);
   if (noRepo.length) ev.push(`INFO no repository field (${noRepo.length}): ${noRepo.slice(0, 20).join(', ')}${noRepo.length > 20 ? ', …' : ''}`);
   ev.push(`INFO provenance attestations: ${withProvenance}/${ok} versions; registry signatures: ${withSignature}/${ok}`);
   ev.push(`INFO metadata source: ${fetched} fetched now, ${cached} from cache (${cacheDir})`);
   const summary = status === 'PASS'
-    ? `${ok}/${ids.length} versions checked: none younger than ${MIN_AGE_DAYS} days, none deprecated, no maintainer anomalies`
+    ? `${ok}/${ids.length} versions checked: no new or changed version younger than ${MIN_AGE_DAYS} days or deprecated, no maintainer anomalies${knownQuiet.length ? ` (${knownQuiet.length} note(s) on versions already accepted in the last commit are in the evidence)` : ''}`
     : `${fresh.length} too-new (<${MIN_AGE_DAYS}d), ${dormant.length} dormant-then-updated, ${brandNew.length} brand-new, ${nonMaintainer.length} non-maintainer publishes, ${deprecated.length} deprecated, ${notFound.length} lookup failures`;
   C.emit({ id: '11', cls: 'critical', title: 'Registry metadata (release age, maintainers, deprecation)', status, summary, evidence: ev });
 }

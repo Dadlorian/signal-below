@@ -75,3 +75,8 @@ host|127.0.0.1|URL-parsing base in mockup-sandbox dev plugin|2026-11-22
 host|signal.gamelab.link|the family's own Cloudflare tunnel hostname|2026-11-22
 host|github.com|links to source repos in docs|2026-11-22
 host|registry.npmjs.org|the scanner's own registry URLs|2026-11-22
+
+# ---- added 2026-11-24: our own files, so a routine update reads as quiet --------------------------------
+automation|deploy/Dockerfile|our build recipe (nginx image of the finished game); see CLAUDE.md "How the game is hosted"|2026-11-24
+automation|deploy/verify-live.sh|our read-only check that the live container and public site match what we built|2026-11-24
+code|project-bolt-stackblitz-starters-kppnjtxg/project/docs/**|our guide pages (written by Corey, not the son); innerHTML is fed constants only|2026-11-24

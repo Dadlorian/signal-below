@@ -7,9 +7,11 @@ dungeon crawler) on his laptop and sends zips of it. Corey hosts it on this serv
 exposes it to the son's friends through a Cloudflare tunnel (https://signal.gamelab.link).
 The son is learning and the code is AI-assisted, so every update is untrusted input.
 
-The step-by-step update pipeline, the list of expected scan warnings, and the exact docker
-commands all live in **one place**: `project-bolt-stackblitz-starters-kppnjtxg/project/UPDATE-INSTRUCTION.md`.
-Read it before touching a zip and follow it in one pass. Do not re-derive it or add tooling.
+**A new zip is processed with `/scan-new-zip <zipname>`** (`.claude/commands/scan-new-zip.md`): one
+scanner (`./security-scan.sh`), one registry of known-trusted items (`scan/allowlist.txt`), one report
+per day. The docker commands, the `.npmrc` rule and rollback are in
+`project-bolt-stackblitz-starters-kppnjtxg/project/UPDATE-INSTRUCTION.md`. Follow them in one pass.
+Do not re-derive the process, add scripts, or write new docs for it.
 
 ## Rules
 
@@ -24,7 +26,8 @@ Read it before touching a zip and follow it in one pass. Do not re-derive it or 
 - Never extract a zip into the repo to inspect it. `./security-scan.sh` already unzips root zips to
   scratch; if you must look by hand, use a new empty scratchpad directory.
 - One pass, one scan. Finish every doc and note edit first, then run `./security-scan.sh` once.
-  Every run writes a report in `reports/`; extra runs only add noise.
+  Every run writes a report in `reports/`; keep only the last one per day (delete the earlier ones).
+  Old zips go in `zips/` (git-ignored); every zip at the repo root is scanned.
 - Never type a key-shaped string (an AWS-style access key, an `npm_` token, and so on) into any
   file, not even a fake one. The secrets check [2] reads our own docs and fails on it. Write
   "an AWS-style example key" instead. The git-history check [23] skips `security-scan.sh` and
@@ -45,7 +48,7 @@ Read the diff of anything in this list before overlaying it, and tell Corey:
   (preinstall/install/postinstall/prepare), non-registry sources (git, URL, file).
 - Lockfile: every package resolves from `registry.npmjs.org` with an integrity hash.
 - `.npmrc`: real settings (`registry=`, auth tokens, `ignore-scripts=false`) are a finding. His
-  pasted start-up notes are not (see the pipeline, step 4).
+  pasted start-up notes are not (see UPDATE-INSTRUCTION.md, ".npmrc").
 - `vite.config.ts`: `server.host`, `allowedHosts`, proxy and `fs` settings.
 - Network calls, new external URLs, `eval`, `innerHTML` with variable input, storage of secrets.
 - Secrets or personal data in files (`.env`, keys, tokens, emails).

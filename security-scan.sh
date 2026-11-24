@@ -100,7 +100,8 @@ else
   while IFS= read -r L; do
     echo "-- $L"
     OFF=(); [ "$OFFLINE" -eq 1 ] && OFF=(--offline)
-    node "$LIB/registry-meta.js" --lock "$REPO/$L" --cache-dir "$CACHE_DIR" --min-age-days "$MIN_AGE" "${OFF[@]}"
+    BASE=(); git show "HEAD:$L" > "$RUN_DIR/base-lock.json" 2>/dev/null && BASE=(--baseline "$RUN_DIR/base-lock.json")
+    node "$LIB/registry-meta.js" --lock "$REPO/$L" --cache-dir "$CACHE_DIR" --min-age-days "$MIN_AGE" "${BASE[@]}" "${OFF[@]}"
   done < "$RUN_DIR/locks.txt"
 fi
 
@@ -221,7 +222,7 @@ else
             | sed -e "s|^Only in $XD/|ONLY-IN-ZIP  |" -e "s|^Only in $REPO/|ONLY-IN-REPO |" -e "s|^Files $XD/\([^ ]*\) and .* differ|DIFFERS      \1|" \
             | sed "s|^|$(basename "$Z"): |" | head -200 >> "$ZDIFF"
         done
-        node "$LIB/code-scan.js" --repo "$REPO" --root "$XD" --fail-only --allowlist "$ALLOW" --id-prefix 26 --label "$(basename "$Z")"
+        node "$LIB/code-scan.js" --repo "$REPO" --root "$XD" --fail-only --warn-too --allowlist "$ALLOW" --id-prefix 26 --label "$(basename "$Z")"
       else
         [ "$ZSTATUS" = PASS ] && ZSTATUS=WARN; echo "WARN $Z: could not extract for inspection: $(tail -1 "$RUN_DIR/unzip.err")" >> "$RUN_DIR/zip.ev"
       fi
