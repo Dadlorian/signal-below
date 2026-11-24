@@ -241,12 +241,12 @@ if [ "$QUICK" -eq 1 ]; then
   rec SKIP 23 critical "Secrets in git history" "--quick"
   meta git "{\"commits\":$COMMITS,\"patchBytes\":0}"
 else
-  git log -p --all --max-count=400 --no-color -- . ':(exclude)**/package-lock.json' ':(exclude)*.zip' 2>/dev/null | head -c 80000000 > "$RUN_DIR/history.patch"
+  git log -p --all --max-count=400 --no-color -- . ':(exclude)**/package-lock.json' ':(exclude)*.zip' ':(exclude)security-scan.sh' ':(exclude)scan/selftest.sh' 2>/dev/null | head -c 80000000 > "$RUN_DIR/history.patch"
   PB=$(stat -c %s "$RUN_DIR/history.patch")
   meta git "{\"commits\":$COMMITS,\"patchBytes\":$PB}"
   $GREP -nE '^\+' "$RUN_DIR/history.patch" | $GREP -vE '^\+\+\+ ' | $GREP -E "$SECRET_RE" | $GREP -vE 'example|placeholder|your[-_]?api|process\.env|\$\{|xxxx|security-scan\.sh|scan/lib/' | sed -E 's/(["'"'"'])([^"'"'"']{4})[^"'"'"']*([^"'"'"']{2})(["'"'"'])/\1\2…\3\4/g' | cut -c1-200 | head -50 > "$RUN_DIR/hist.ev" || true
   if [ -s "$RUN_DIR/hist.ev" ]; then rec FAIL 23 critical "Secrets in git history" "$(wc -l < "$RUN_DIR/hist.ev") added line(s) in history look like credentials (still retrievable even if deleted later)" "$RUN_DIR/hist.ev"
-  else rec PASS 23 critical "Secrets in git history" "no credential-shaped strings added in the last 400 commits ($COMMITS total, $((PB/1024)) KB of patches)"; fi
+  else rec PASS 23 critical "Secrets in git history" "no credential-shaped strings added in the last 400 commits ($COMMITS total, $((PB/1024)) KB of patches; our own security-scan.sh and scan/selftest.sh are left out because they hold the fake test keys and the key patterns)"; fi
 fi
 git log --all --diff-filter=D --name-only --pretty=format: 2>/dev/null | $GREP -v '^$' | sort -u > "$RUN_DIR/deleted.txt" || true
 git log --all --diff-filter=A --name-only --pretty=format: 2>/dev/null | $GREP -v '^$' | sort -u > "$RUN_DIR/added.txt" || true

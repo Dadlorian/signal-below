@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import BuriedComplexGame, {
-  SURVEYOR_SKINS,
-  drawPixelSurveyorSprite,
-} from "./components/BuriedComplexGame";
-import { FULL_ITEM_CATALOG, computePlayerMaxStats } from "./lib/deep-signal-engine";
-import { loadSurveyorProfile, type SurveyorProfile } from "./lib/deep-signal-store";
+import BuriedComplexGame, { SURVEYOR_SKINS } from "./components/BuriedComplexGame";
+import { FULL_ITEM_CATALOG, computePlayerMaxStats, getBossSpecForFloor } from "./lib/deep-signal-engine";
+import { loadSurveyorProfile, saveSurveyorProfile, type SurveyorProfile } from "./lib/deep-signal-store";
+import {
+  drawExactBoss,
+  drawExactSurveyor,
+  drawPixelatedTrainingBackground,
+} from "./lib/Pixel-skins";
 
 function getSkinPalette(skinId: string) {
   const skin = SURVEYOR_SKINS.find((s) => s.id === skinId) ?? SURVEYOR_SKINS.at(0)!;
@@ -15,6 +17,7 @@ function getSkinPalette(skinId: string) {
     visor: skin.visor,
   };
 }
+
 function drawPixelLegendaryItemDrop(
   ctx: CanvasRenderingContext2D,
   cx: number,
@@ -116,6 +119,8 @@ function SurveyorWorkoutCanvas({ profile }: { profile: SurveyorProfile }) {
     let bossRecoilX = 0;
     let hitCount = 0;
     let dropIndex = 0;
+
+    const vanceSpec = getBossSpecForFloor(10);
 
     type LegendarySlotKind = "weapon" | "helmet" | "chestplate" | "pants" | "shoes" | "necklace" | "ring";
     const LEGENDARY_SLOTS: LegendarySlotKind[] = [
@@ -256,7 +261,7 @@ function SurveyorWorkoutCanvas({ profile }: { profile: SurveyorProfile }) {
           const H = canvas.height;
           const groundY = 154;
           const playerX = 148;
-          const bossX = 272;
+          const bossX = 278;
           const palette = getSkinPalette(profile.activeSkin);
 
           attackMs = Math.max(0, attackMs - dt * 1000);
@@ -264,7 +269,6 @@ function SurveyorWorkoutCanvas({ profile }: { profile: SurveyorProfile }) {
           bossFlashMs = Math.max(0, bossFlashMs - dt * 1000);
           bossRecoilX = Math.max(0, bossRecoilX - 60 * dt);
 
-          // Continuous slash loop against the stationary Boss Dummy
           if (cooldownMs <= 0) {
             attackMs = 190;
             cooldownMs = 430;
@@ -284,7 +288,6 @@ function SurveyorWorkoutCanvas({ profile }: { profile: SurveyorProfile }) {
               });
             }
 
-            // Spawn Gold every hit
             drops.push({
               x: bossX - 12,
               y: groundY,
@@ -295,7 +298,6 @@ function SurveyorWorkoutCanvas({ profile }: { profile: SurveyorProfile }) {
               label: "+50G",
             });
 
-            // Every 2nd hit drops a Gem; every 3rd hit drops a Legendary Item icon
             if (hitCount % 2 === 0) {
               drops.push({
                 x: bossX - 10,
@@ -323,75 +325,20 @@ function SurveyorWorkoutCanvas({ profile }: { profile: SurveyorProfile }) {
             }
           }
 
-          // Background & static grid
-          ctx.fillStyle = "#09110e";
-          ctx.fillRect(0, 0, W, H);
+          drawPixelatedTrainingBackground(ctx, W, H, groundY, now);
 
-          ctx.strokeStyle = "#162620";
-          ctx.lineWidth = 1;
-          for (let gx = 0; gx <= W; gx += 24) {
-            ctx.beginPath();
-            ctx.moveTo(gx, 0);
-            ctx.lineTo(gx, H);
-            ctx.stroke();
-          }
-          for (let gy = 0; gy <= H; gy += 24) {
-            ctx.beginPath();
-            ctx.moveTo(0, gy);
-            ctx.lineTo(W, gy);
-            ctx.stroke();
-          }
+          drawExactBoss(
+            ctx,
+            Math.round(bossX + bossRecoilX),
+            groundY + 6,
+            -1,
+            0,
+            vanceSpec,
+            now,
+            { flash: bossFlashMs > 0, scaleOverride: 2 },
+          );
 
-          // 2.6V Training Platform Deck
-          ctx.fillStyle = "#14241e";
-          ctx.fillRect(24, groundY + 24, W - 48, 24);
-          ctx.strokeStyle = "#2d4d41";
-          ctx.lineWidth = 2;
-          ctx.strokeRect(24, groundY + 24, W - 48, 24);
-
-          // Draw Stationary Armored Boss Dummy on the Right
-          const bx = Math.round(bossX + bossRecoilX);
-          const by = groundY;
-          const bBob = Math.abs(Math.sin(now * 0.006)) * 2;
-          const flash = bossFlashMs > 0;
-
-          ctx.fillStyle = "rgba(0,0,0,0.5)";
-          ctx.beginPath();
-          ctx.ellipse(bx, by + 24, 24, 7, 0, 0, Math.PI * 2);
-          ctx.fill();
-
-          const bDark = flash ? "#ffffff" : "#3d2805";
-          const bMain = flash ? "#ffffff" : "#d99b1e";
-          const bGlow = flash ? "#ffffff" : "#ffe082";
-
-          // Pedestal post & heavy boss torso
-          ctx.fillStyle = "#2b3833";
-          ctx.fillRect(bx - 6, by + 6, 12, 18);
-          ctx.fillStyle = bDark;
-          ctx.fillRect(bx - 18, Math.round(by - 22 - bBob), 36, 28);
-          ctx.fillStyle = bMain;
-          ctx.fillRect(bx - 16, Math.round(by - 20 - bBob), 32, 24);
-          // Chest core
-          ctx.fillStyle = bDark;
-          ctx.fillRect(bx - 6, Math.round(by - 12 - bBob), 12, 10);
-          ctx.fillStyle = bGlow;
-          ctx.fillRect(bx - 4, Math.round(by - 10 - bBob), 8, 6);
-          // Boss helm & horns
-          ctx.fillStyle = bDark;
-          ctx.fillRect(bx - 14, Math.round(by - 42 - bBob), 28, 20);
-          ctx.fillStyle = bMain;
-          ctx.fillRect(bx - 12, Math.round(by - 40 - bBob), 24, 16);
-          ctx.fillStyle = bGlow;
-          ctx.fillRect(bx - 14, Math.round(by - 50 - bBob), 5, 9);
-          ctx.fillRect(bx + 9, Math.round(by - 50 - bBob), 5, 9);
-          ctx.fillRect(bx - 3, Math.round(by - 53 - bBob), 6, 11);
-          // Visor
-          ctx.fillStyle = "#080b0d";
-          ctx.fillRect(bx - 10, Math.round(by - 33 - bBob), 14, 5);
-          ctx.fillStyle = bGlow;
-          ctx.fillRect(bx - 9, Math.round(by - 32 - bBob), 11, 3);
-
-          // Bouncing Gold, Gems & Legendary Item Icons magnetized to Surveyor
+          const coinSpin = Math.floor(now / 170) % 2 === 0;
           for (let i = drops.length - 1; i >= 0; i--) {
             const d = drops.at(i)!;
             d.x += d.vx * dt;
@@ -403,7 +350,6 @@ function SurveyorWorkoutCanvas({ profile }: { profile: SurveyorProfile }) {
               d.vz = Math.abs(d.vz) > 35 ? -d.vz * 0.45 : 0;
             }
 
-            // Magnetize back to stationary Surveyor once past apex
             if (d.vz <= 40) {
               const pullDir = playerX - d.x;
               d.x += Math.sign(pullDir) * 230 * dt;
@@ -414,15 +360,36 @@ function SurveyorWorkoutCanvas({ profile }: { profile: SurveyorProfile }) {
             if (d.kind === "legendary" && d.slot) {
               drawPixelLegendaryItemDrop(ctx, cx, cy - 2, d.slot);
             } else if (d.kind === "gem") {
-              ctx.fillStyle = "#5ec8ff";
-              ctx.fillRect(cx - 5, cy - 5, 10, 10);
+              ctx.fillStyle = "#0a0d0f";
+              ctx.beginPath();
+              ctx.moveTo(cx, cy - 8);
+              ctx.lineTo(cx + 6, cy);
+              ctx.lineTo(cx, cy + 8);
+              ctx.lineTo(cx - 6, cy);
+              ctx.closePath();
+              ctx.fill();
+              ctx.fillStyle = "#2b7de9";
+              ctx.beginPath();
+              ctx.moveTo(cx, cy - 6);
+              ctx.lineTo(cx + 4, cy);
+              ctx.lineTo(cx, cy + 6);
+              ctx.lineTo(cx - 4, cy);
+              ctx.closePath();
+              ctx.fill();
               ctx.fillStyle = "#ffffff";
-              ctx.fillRect(cx - 2, cy - 3, 3, 3);
+              ctx.fillRect(cx - 2, cy - 3, 2, 2);
             } else {
-              ctx.fillStyle = "#d99b1e";
-              ctx.fillRect(cx - 5, cy - 4, 10, 8);
-              ctx.fillStyle = "#ffdf5e";
-              ctx.fillRect(cx - 4, cy - 5, 8, 8);
+              if (coinSpin) {
+                ctx.fillStyle = "#0a0d0f";
+                ctx.fillRect(cx - 5, cy - 6, 10, 12);
+                ctx.fillStyle = "#ffe45e";
+                ctx.fillRect(cx - 4, cy - 5, 8, 10);
+              } else {
+                ctx.fillStyle = "#0a0d0f";
+                ctx.fillRect(cx - 3, cy - 6, 6, 12);
+                ctx.fillStyle = "#ffe45e";
+                ctx.fillRect(cx - 2, cy - 5, 4, 10);
+              }
             }
 
             if (Math.abs(playerX - d.x) < 18 && d.vz <= 40) {
@@ -439,9 +406,9 @@ function SurveyorWorkoutCanvas({ profile }: { profile: SurveyorProfile }) {
 
           const lungeX = attackMs > 0 ? 12 : 0;
           ctx.save();
-          ctx.translate(Math.round(playerX + lungeX), groundY);
-          ctx.scale(2.25, 2.25);
-          drawPixelSurveyorSprite(
+          ctx.translate(Math.round(playerX + lungeX), groundY - 4);
+          ctx.scale(2, 2);
+          drawExactSurveyor(
             ctx,
             0,
             0,
@@ -491,11 +458,11 @@ function SurveyorWorkoutCanvas({ profile }: { profile: SurveyorProfile }) {
           ctx.fillStyle = "#ffcf56";
           ctx.font = "bold 11px monospace";
           ctx.textAlign = "left";
-          ctx.fillText("BOSS DUMMY // LEGENDARY LOOT DRILL", 18, 22);
+          ctx.fillText("VANCE-01 DUMMY // LEGENDARY DRILL", 18, 20);
 
           ctx.fillStyle = "#8ab5a4";
           ctx.textAlign = "right";
-          ctx.fillText(`SKIN: ${palette.name}`, W - 18, 22);
+          ctx.fillText(`SKIN: ${palette.name}`, W - 18, 20);
         }
       }
       raf = window.requestAnimationFrame(render);
@@ -558,14 +525,17 @@ function SignalAppLogoTile() {
     ctx.arc(48, 46, 20, Math.PI * 1.15, Math.PI * 1.85);
     ctx.stroke();
 
-    ctx.fillStyle = "#d8eee4";
+    ctx.fillStyle = "#0a0d0f";
+    ctx.fillRect(38, 50, 20, 16);
+    ctx.fillStyle = "#f4f8f7";
     ctx.fillRect(40, 52, 16, 12);
-    ctx.fillStyle = "#7af5d8";
-    ctx.fillRect(43, 55, 10, 4);
+    ctx.fillStyle = "#0a0d0f";
+    ctx.fillRect(44, 55, 2, 6);
+    ctx.fillRect(50, 55, 2, 6);
 
     ctx.fillStyle = "#ffcf56";
-    ctx.fillRect(46, 66, 4, 14);
-    ctx.fillRect(42, 68, 12, 3);
+    ctx.fillRect(46, 68, 4, 14);
+    ctx.fillRect(42, 70, 12, 3);
   }, []);
 
   return (
@@ -626,7 +596,10 @@ export default function App() {
     <div
       style={{
         minHeight: "100vh",
-        background: "radial-gradient(circle at 20% 0%, #10241d 0%, #070d0b 58%, #040807 100%)",
+        backgroundColor: "#070d0b",
+        backgroundImage:
+          "linear-gradient(to right, rgba(111, 227, 193, 0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(111, 227, 193, 0.04) 1px, transparent 1px)",
+        backgroundSize: "16px 16px",
         color: "#e6f5ee",
         fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
         display: "flex",
@@ -644,8 +617,8 @@ export default function App() {
           justifyContent: "space-between",
           alignItems: "center",
           padding: "12px 18px",
-          background: "rgba(12, 22, 19, 0.88)",
-          border: "1px solid #223b32",
+          background: "#0c1613",
+          border: "2px solid #223b32",
           borderRadius: 12,
           marginBottom: 28,
         }}
@@ -674,7 +647,7 @@ export default function App() {
               fontWeight: 800,
             }}
           >
-            v2.6
+            v3.0
           </span>
         </div>
 
@@ -707,15 +680,15 @@ export default function App() {
           gap: 24,
           alignItems: "center",
           padding: "26px 24px",
-          background: "rgba(11, 20, 17, 0.9)",
-          border: "1px solid #223b32",
+          background: "#0b1411",
+          border: "2px solid #223b32",
           borderRadius: 16,
           marginBottom: 44,
         }}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ fontSize: 11, letterSpacing: 2.5, color: "#6fe3c1", fontWeight: 800 }}>
-            SURVEYOR TRAINING DECK · PRE-DEPLOYMENT
+        <div style={{ fontSize: 11, letterSpacing: 2.5, color: "#6fe3c1", fontWeight: 800 }}>
+            SURVEYOR TRAINING DECK · PRE-DEPLOYMENT v3.0
           </div>
           <h1
             style={{
@@ -730,9 +703,12 @@ export default function App() {
           </h1>
           <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: "#9bc4b4" }}>
             Your Surveyor is warming up on the sub-level deck. Launch{" "}
-            <strong style={{ color: "#e6f5ee" }}>The Signal Below</strong> to raid 100 2.6V floors,
-            defeat guardians for Gold &amp; Gems, fuse duplicates (<strong style={{ color: "#eabfff" }}>3 → 9 → 27</strong>),
-            and complete the <strong style={{ color: "#ffcf56" }}>105-Item Discovery Index</strong>.
+            <strong style={{ color: "#e6f5ee" }}>The Signal Below</strong> to raid 100 floors,
+            defeat unique sector guardians (<strong style={{ color: "#ff8a80" }}>VANCE-01</strong>,{" "}
+            <strong style={{ color: "#9dff4d" }}>E1-IJ-4H</strong>,{" "}
+            <strong style={{ color: "#7ae6ff" }}>Flyer Matriarch</strong>), fuse duplicates (
+            <strong style={{ color: "#eabfff" }}>3 → 9 → 27</strong>), and complete the{" "}
+            <strong style={{ color: "#ffcf56" }}>105-Item Discovery Index</strong>.
           </p>
 
           <div
@@ -791,12 +767,43 @@ export default function App() {
             </span>
           </div>
         </div>
-
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
           <SurveyorWorkoutCanvas profile={profile} />
           <span style={{ fontSize: 11, color: "#6e9989" }}>
             Live pixel training loop · Reflects your equipped skin &amp; gear
           </span>
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 6, marginTop: 4 }}>
+            {SURVEYOR_SKINS.map((sk) => {
+              const unlocked = profile.unlockedSkins.includes(sk.id);
+              const active = profile.activeSkin === sk.id;
+              return (
+                <button
+                  key={sk.id}
+                  type="button"
+                  disabled={!unlocked}
+                  title={unlocked ? `Equip ${sk.name}` : sk.unlockNote}
+                  onClick={() => {
+                    const updated = { ...profile, activeSkin: sk.id };
+                    saveSurveyorProfile(updated);
+                    setProfile(updated);
+                  }}
+                  style={{
+                    padding: "5px 9px",
+                    borderRadius: 6,
+                    fontSize: 10,
+                    fontWeight: 800,
+                    cursor: unlocked ? "pointer" : "not-allowed",
+                    border: active ? "2px solid #6fe3c1" : "1px solid #28473c",
+                    background: active ? "#16382d" : unlocked ? "#101f1a" : "#0a120f",
+                    color: active ? "#8ef7d8" : unlocked ? "#bfe3d5" : "#4e6b60",
+                    opacity: unlocked ? 1 : 0.55,
+                  }}
+                >
+                  {unlocked ? sk.name : `🔒 ${sk.name}`}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </section>
 
@@ -833,7 +840,7 @@ export default function App() {
             alignItems: "center",
             gap: 20,
             padding: 20,
-            background: "linear-gradient(135deg, #0e1d18 0%, #122821 100%)",
+            background: "#0e1d18",
             border: "2px solid #2e5447",
             borderRadius: 16,
             cursor: "pointer",
@@ -858,13 +865,13 @@ export default function App() {
                   fontWeight: 800,
                 }}
               >
-                FLAGSHIP ARPG · v2.6
+                FLAGSHIP ARPG · v3.0
               </span>
             </div>
 
             <p style={{ margin: 0, fontSize: 12, color: "#9bc4b4", lineHeight: 1.55 }}>
-              2.6V subterranean extraction ARPG. Slay guardians for Gold &amp; Gems, upgrade permanent gear slots,
-              merge duplicates (3 → 9 → 27), and collect all 105 items.
+              Subterranean extraction ARPG featuring custom pixel-art Husks &amp; Guardians, 5 weapon tiers,
+              permanent slot upgrades, duplicate fusion (3 → 9 → 27), and 105 collectible items.
             </p>
           </div>
 
@@ -875,13 +882,13 @@ export default function App() {
               launchGame();
             }}
             style={{
-              padding: "12px 22px",
-              borderRadius: 10,
+              padding: "14px 26px",
+              borderRadius: 12,
               border: "2px solid #9effdf",
               background: "#6fe3c1",
               color: "#06120e",
               fontWeight: 900,
-              fontSize: 13,
+              fontSize: 14,
               letterSpacing: 1.2,
               cursor: "pointer",
             }}

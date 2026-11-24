@@ -7,105 +7,73 @@ dungeon crawler) on his laptop and sends zips of it. Corey hosts it on this serv
 exposes it to the son's friends through a Cloudflare tunnel (https://signal.gamelab.link).
 The son is learning and the code is AI-assisted, so every update is untrusted input.
 
+The step-by-step update pipeline, the list of expected scan warnings, and the exact docker
+commands all live in **one place**: `project-bolt-stackblitz-starters-kppnjtxg/project/UPDATE-INSTRUCTION.md`.
+Read it before touching a zip and follow it in one pass. Do not re-derive it or add tooling.
+
 ## Rules
 
-- Never change the son's code unprompted: `project-bolt-stackblitz-starters-kppnjtxg/` is his.
-  No refactors, cleanups, formatting, dependency bumps or "fixes" there. Report problems to Corey
-  and let him decide. Files at the repo root (this file, `security-scan.sh`, `scan/`, `reports/`)
-  are ours to edit.
+- Never change the son's code unprompted: everything under `project-bolt-stackblitz-starters-kppnjtxg/project/`
+  except `UPDATE-INSTRUCTION.md` and `docs/` is his. No refactors, cleanups, formatting, dependency
+  bumps or "fixes" there. Report problems to Corey and let him decide. Files at the repo root
+  (this file, `security-scan.sh`, `scan/`, `deploy/`, `reports/`) are ours to edit.
 - Never run `npm install`, `npm ci`, `npm run dev`, `vite` or anything else that executes the
-  son's code or package scripts on the host before the scan below passes. Treat a new zip like
-  an unknown download.
-- Never extract a zip into the repo to inspect it. Use a new empty directory in the scratchpad.
+  son's code or package scripts on the host. Installs happen only inside the container
+  (`scan/contained-install.sh`), and only after the scan has no FAIL. Treat a new zip like an
+  unknown download.
+- Never extract a zip into the repo to inspect it. `./security-scan.sh` already unzips root zips to
+  scratch; if you must look by hand, use a new empty scratchpad directory.
+- One pass, one scan. Finish every doc and note edit first, then run `./security-scan.sh` once.
+  Every run writes a report in `reports/`; extra runs only add noise.
+- Never type a key-shaped string (an AWS-style access key, an `npm_` token, and so on) into any
+  file, not even a fake one. The secrets check [2] reads our own docs and fails on it. Write
+  "an AWS-style example key" instead. The git-history check [23] skips `security-scan.sh` and
+  `scan/selftest.sh` on purpose (they hold the fake test keys); do not "fix" that.
 - Never claim "safe". Say "no indicators found by these checks" and state what a static scan
-  cannot rule out.
+  cannot rule out (the report's "Residual risk" section lists it).
 - Do not commit, push, or publish unless Corey asks. Do not touch the Cloudflare tunnel config
-  or restart `cloudflared` without asking, because friends are playing through it.
+  or restart `cloudflared` without asking, because friends are playing through it. Ask Corey
+  before swapping the live container.
 
-## Update workflow (every time a new zip or change arrives)
+## What to look at in a new zip
 
-1. **Stage.** Put the zip in a new empty directory in the scratchpad (or the repo root if Corey
-   already placed it there) and unzip there. Never overwrite the live project directly.
-2. **Scan before install.** From the repo root, run `./security-scan.sh`. Use `--offline` only
-   if there's no network. Read the generated report in `reports/`.
-   - FAIL: stop. Tell Corey what fired and where. Do not install or launch.
-   - WARN: explain each in plain language, say whether it is new since the last report, and
-     let Corey decide.
-   - PASS: continue.
-3. **Show what changed.** Summarize the diff against the last known-good version: new or
-   changed packages and versions, new files, changed scripts, config, URLs.
-4. **Install in containment.** Use `scan/contained-install.sh` (docker is available on this
-   host) rather than installing on the host. Install with `--ignore-scripts`. Use `npm ci`,
-   not `npm install`, so the lockfile is honored.
-5. **Re-scan the result.** The scan also checks installed `node_modules`.
-6. **Launch.** Only then run the game, and only with Corey's go-ahead.
-7. **Record.** Keep the report. Tell Corey the verdict in plain language, with the report path.
-
-## How the game is hosted (since 2026-11-23)
-
-The live site is a Docker container named `signal-below` (nginx serving the finished build, no
-Node at runtime), on port 5173, which the Cloudflare tunnel points at. Bind it on all interfaces
-(`-p 5173:8080`); a `127.0.0.1`-only bind gave the tunnel a 502.
-The old user service `signal-web.service` is stopped and disabled. It ran `vite build` on the host
-at every start, which is exactly what we avoid. Do not re-enable it.
-
-To publish an update after the scan passes (about 20 seconds, brief blip for players):
-```
-cd project-bolt-stackblitz-starters-kppnjtxg/project
-docker build -f ../../deploy/Dockerfile --build-context deploy=../../deploy -t signal-below:new .
-docker rm -f signal-below
-docker run -d --name signal-below --restart unless-stopped -p 5173:8080 --read-only --tmpfs /tmp \
-  --cap-drop ALL --security-opt no-new-privileges --pids-limit 100 --memory 256m --user 101 signal-below:new
-```
-Then check `https://signal.gamelab.link/` and `/docs/` return 200. Ask Corey before swapping.
-Then **pre-warm** Cloudflare so the first friend doesn't get a cold load (the slow "glitch"): request
-the new `/assets/index-*.js` and `/assets/index-*.css` once through the public URL and expect
-`cf-cache-status: HIT` on the second request. Test on a staging port (`-p 127.0.0.1:5175:8080`) before
-swapping. The tunnel reaches the container on the LAN address, so the live container must publish on
-all interfaces (`-p 5173:8080`), never `127.0.0.1` only.
-
-What `deploy/nginx.conf` and the build do for the son's frequent updates (none of it edits his code):
-- Hashed files in `/assets/` are cached for a year (`immutable`). A new build means new file names, so
-  updates show up immediately.
-- The game page and guides send `no-cache`, so friends revalidate and get the new version right away.
-- Text is gzip-compressed on the way through the tunnel. `/api/*` and unknown files return a real 404.
-  `/favicon.ico` returns 204. The game's own routes (`/play/...`) still fall back to `index.html`.
-- `deploy/inject-fonts.js` runs after `vite build` and copies the Google Fonts URL from his
-  `src/index.css` into the built `index.html` as a `<link>`, so fonts start loading early. It skips
-  quietly if his CSS changes. His source is never modified.
-Docs pages (`docs/`) are copied in as plain files, so they don't depend on his vite config.
-
-## Things to check on every update
+Corey's two main worries are hidden `eval`/dynamic code and unapproved or unpinned npm packages.
+The scanner covers both; check [22] lists what the zip changes (`DIFFERS` / `ONLY-IN-ZIP`).
+Read the diff of anything in this list before overlaying it, and tell Corey:
 
 - `package.json`: new dependencies, anything unpinned (`latest`, `*`), lifecycle scripts
   (preinstall/install/postinstall/prepare), non-registry sources (git, URL, file).
 - Lockfile: every package resolves from `registry.npmjs.org` with an integrity hash.
-- `.npmrc`: no `registry=`, auth tokens, or `ignore-scripts=false`.
-- `vite.config.ts`: `server.host`, `allowedHosts`, proxy and `fs` settings. The tunnel host
-  `signal.gamelab.link` has to stay in `allowedHosts` for dev and preview, or the public site
-  breaks. A past update dropped it.
+- `.npmrc`: real settings (`registry=`, auth tokens, `ignore-scripts=false`) are a finding. His
+  pasted start-up notes are not (see the pipeline, step 4).
+- `vite.config.ts`: `server.host`, `allowedHosts`, proxy and `fs` settings.
 - Network calls, new external URLs, `eval`, `innerHTML` with variable input, storage of secrets.
-- Secrets or personal data in files or zips (`.env`, keys, tokens, emails).
+- Secrets or personal data in files (`.env`, keys, tokens, emails).
 - Leftover Replit template folders (`artifacts/api-server`, `lib/db`, `.replit`,
-  `scripts/post-merge.sh`): not part of the game and must not be started.
-- `vite --host` exposes the dev server to the network. For friends, prefer serving the
-  production build (`vite build` then `vite preview` or static files) behind the tunnel.
+  `scripts/post-merge.sh`): not part of the game and must never be started.
 
-## Known accepted items (as of 2026-11-22)
+Vite and plugin version changes (up or down) are normal and not a risk by themselves. The scan
+result matters, not the version number. A stale `node_modules` is rebuilt in the container.
 
-- `lucide-react: "latest"` is unpinned. The lockfile pins it. Always use `npm ci`.
-- `npm audit`: 2 moderate findings in `postcss-selector-parser` via `@tailwindcss/typography`.
-  It only affects the build step on the son's own CSS. Do not run `npm audit fix --force`.
-- The son keeps pasting his start-up notes into `.npmrc`, which npm reads, so npm prints
-  "Unknown project config" warnings. The notes already live in `.npmrc.txt`. On every update,
-  after unzipping, replace `.npmrc` with the two comment lines below (Corey approved this
-  on 2026-11-22). Check first that the old text is also in `.npmrc.txt`, and don't touch
-  `.npmrc.txt`:
-  `; Intentionally empty. npm reads this file, so no notes go here.`
-  `; The start-up notes live in .npmrc.txt.`
-  If the new `.npmrc` has real settings (`registry=`, `_authToken`, `ignore-scripts=false`),
-  that is a scan finding. Don't overwrite it; ask Corey.
-- `esbuild` and `fsevents` install scripts are expected.
+## How the game is hosted (since 2026-11-23)
+
+- The live site is a Docker container named `signal-below`: nginx serving the finished build,
+  no Node at runtime. It publishes port 5173 on **all** interfaces (`-p 5173:8080`); the tunnel
+  reaches it on the LAN address, so a `127.0.0.1`-only bind gives a 502. It restarts by itself
+  (`--restart unless-stopped`).
+- The old user service `signal-web.service` is stopped and disabled. It ran `vite build` on the
+  host at every start, which is exactly what we avoid. Do not re-enable it.
+- Everything for hosting lives in `deploy/` at the repo root. His code is never edited:
+  - `deploy/nginx.conf`: hashed files in `/assets/` cached for a year (`immutable`; a new build
+    means new names, so updates show up at once); the game page and guides are `no-cache`; text
+    is gzip-compressed; `/api/*` and unknown files return a real 404; `/favicon.ico` returns 204;
+    the game's own routes (`/play/...`) fall back to `index.html`.
+  - `deploy/inject-fonts.js` runs after `vite build` and copies the Google Fonts URL from his
+    `src/index.css` into the built `index.html` as a `<link>`. It skips quietly if his CSS changes.
+  - Docs pages (`docs/`) are copied in as plain files.
+- `allowedHosts` in his `vite.config.ts` only matters for `vite --host` / `vite preview`. The live
+  site does not use them, so a missing `signal.gamelab.link` there no longer breaks the public
+  site. Still worth a gentle note to him.
 
 ## Talking to Corey
 
@@ -119,3 +87,12 @@ This repo has MM3 (`.mm3/`). For judgment calls about code ("is this update safe
 get an MM3 verdict and cite the run id (MM3-####). Mark anything not from MM3 as your own
 reading. When delegating to a helper, give it `mm3 agent delegate`, and check its reported
 run ids against the ledger with `mm3 view MM3-####`.
+
+## Change log (this file)
+
+- **2026-11-22.** First version: rules, update workflow, accepted items.
+- **2026-11-23.** Hosting moved to the `signal-below` container; nginx caching, gzip, fonts added.
+- **2026-11-24.** Consolidated: the pipeline, expected warnings and docker commands now live only
+  in `UPDATE-INSTRUCTION.md`; this file keeps rules and hosting facts. Added the one-pass rule and
+  the no-key-strings-in-docs rule (both cost extra scan reports today). Fixed the stale
+  `allowedHosts` wording (the live site is nginx now).
