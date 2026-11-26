@@ -268,6 +268,8 @@ whether `/v1` is needed on the address. **Decoy test:** put a `.env` with
 `.aider.model.settings.yml` with `extra_headers` in the throwaway repo; confirm none is used
 (llama-server log, no lint run). On the laptop, also confirm `start-helper` refuses to start in
 that decoy folder. Try `/add` on a copy of a 2,700-line file and note what happens.
+**Watch-mode decoy** (only if comment mode is ever wanted): see part L. Also check that
+`start-helper <address> ask` refuses edits even when you ask it to change a file.
 
 ---
 
@@ -297,6 +299,60 @@ that decoy folder. Try `/add` on a copy of a 2,700-line file and note what happe
 8. Repeat 4 to 7 with `PROFILE = "B"`.
 9. Stop the session; restart; old address dead, new one works; key file gone with the session.
 10. Set up GitHub (part C) and test `safety.yml` on a throwaway pull request; only then the laptop.
+
+---
+
+## L. THE LOOP (teen workflow) and the loop-check template
+
+**Install on the laptop:** copy `loop/loop.cmd` to `%USERPROFILE%\.local\bin\loop.cmd`, next to
+`start-helper.cmd` (that folder is already on his Path, GUIDE-WINDOWS step 9). It is a plain
+`.cmd` file, so PowerShell's execution policy does not block it and it needs no admin. Read it
+first: it is commented for him to read too. It could not be run where it was written; test every
+command once on the laptop on a throwaway branch [test this first]. `start-helper.cmd` gained an
+optional second word `ask` (`--chat-mode ask`, ask-only) used by `loop design`; the mode setting
+moved out of `.aider.conf.yml` into the launcher, so recopy both files.
+
+What `loop` does and does not do: it runs only its own `git` / `npm` / `start-helper` commands
+and prints each one first; never a command the AI suggested; never `npm install`; `loop setup` is
+`npm ci --ignore-scripts` and refuses when the package files differ from `origin/main`; `loop
+test` builds on the laptop (that runs his own `vite.config.ts` and plugins, as any build does) and
+previews with Vite's `preview` on `127.0.0.1` (never `npm run dev`, which runs Vite with `--host`);
+`loop push` refuses on `main` and when key files, key names or a tunnel address are staged. Its
+plan notes go in `ideas\` at the repo root, **not** `docs\`: `deploy/Dockerfile` copies `docs/`
+onto the live site.
+
+**Branch protection on `main`** (part C.3) is what makes the loop work for friends: they push
+branches, cannot push to `main`, cannot merge.
+
+**Collaborators vs forks.** Collaborators (Write) push branches to your repo: simplest for
+teens, the checks run with a read-only token, but every collaborator can push any branch name
+and can bypass push protection with a reason. Forks keep friends out of your repo entirely
+(fork pull requests need your approval before checks run, part C.4) but add a fork, a second
+remote and "sync fork" to their day. Start with collaborators for people you know; use forks for
+anyone else.
+
+**CI template.** `github/workflows/loop-check.yml` is a template, not live. Copy it to
+`.github/workflows/loop-check.yml` in the game repo only after branch protection and CODEOWNERS
+are set, and then **remove `safety.yml`** and change the required checks to `static` and
+`build`: loop-check is the superset (every safety.yml check, two made diff-based, plus Rule 2
+and a build), so running both would repeat the same work. Be clear what the build means: job
+`build` runs `npm ci --ignore-scripts` and `npm run build` **in GitHub's runner**, which executes
+the branch's `vite.config.ts` and its plugins there. It has no secrets, a read-only token, no
+cache, and it only starts after job `static` passed. It never runs on this server.
+
+**Heads-up on both templates:** the game's `package.json` `dev` script runs Vite with `--host`.
+`safety.yml` fails on any `--host` script, so as written it is red on every pull request until
+you decide (ask him to change the script as a lesson, or accept it). `loop-check.yml` fails only
+when a pull request adds or changes such a script.
+
+**Optional editor extras** (none tested; the terminal is the supported way):
+- `vscodium/user-tasks.json`: paste via *Tasks: Open User Tasks*. User-level tasks exist in VS
+  Code (shell/process only); VSCodium support and `${input:...}` there are [test this first].
+  Never put a `tasks.json` in the game repo's `.vscode/`; keep `task.allowAutomaticTasks` off.
+- Comment mode (`--watch-files`): only by hand, with every start-helper switch plus
+  `--watch-files`, only after `git pull` has finished. Add to the part H decoy test: pull a
+  branch whose file contains a comment ending in `AI!` while watch mode runs, and record whether
+  it acts on it and whether "Edit the files?" still appears [test this first].
 
 ---
 

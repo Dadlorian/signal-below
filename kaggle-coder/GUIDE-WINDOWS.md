@@ -145,6 +145,7 @@ Into `C:\Users\<son>\` (names exactly as shown, including the leading dots):
 | `aiderignore` | `.aiderignore-signal` |
 | (new, empty file) | `.aider-empty.txt` |
 | `start-helper.cmd` | `.local\bin\start-helper.cmd` |
+| `loop/loop.cmd` (from the `loop/` folder) | `.local\bin\loop.cmd` |
 
 These live in your home folder, not in the game, so they never reach GitHub.
 
@@ -175,29 +176,36 @@ saves what you type.) Every program you start can read it, so the card rules on 
 
 ---
 
-## Step 13. Your daily loop
+## Step 13. Your daily loop: THE LOOP
 
-1. Kaggle: run the notebook; copy the address.
-2. Terminal, game folder: `git switch main`, `git pull`, `git status` (must say nothing to
-   commit), `git switch -c helper/<short-name>` (like `helper/boss-flash`).
-3. `start-helper <address>`
-4. **One small task per session.** `/add` only the one or two files to change, each **under
-   about 400 lines** (see "Big files" below).
-5. `/ask` for a plan first. Read it. Then type one short instruction.
-6. Aider shows its plan and asks **"Edit the files?"**. Read it, then answer y or n.
-7. `/diff` to read what changed. Wrong? `/undo`.
-8. Play the game yourself to check the change.
-9. `/drop` the files and `/clear` before the next task. If it seems to forget things, `/tokens`.
-10. `/exit`, then `git push -u origin helper/<short-name>`, open a pull request on GitHub, and
-    wait for the checks and Corey. A red check is a note to look at together, not a telling-off.
-11. **Stop the Kaggle session** (stop button in the notebook's top bar) [test this first]. The
-    script also stops itself after 30 idle minutes or 3 hours.
+Daily work runs through `loop` (full page: [loop/LOOP.md](loop/LOOP.md)). Corey copies
+`loop/loop.cmd` next to `start-helper.cmd` once (GUIDE-COREY-UBUNTU part L).
 
+0. Kaggle: run the notebook, copy the address. In the terminal, in the game folder:
+   `$env:KC_URL="https://...your address..."` (PowerShell) so `loop` can find it.
+1. **[1/5 IDEA]** `loop idea boss-flash` - new branch `v-boss-flash` and a plan note in `ideas\`.
+2. **[2/5 DESIGN]** `loop design` - ask-only helper. `/ask` how; write the plan in the note.
+3. **[3/5 CODE]** `loop code` - the helper edits after "Edit the files?" and your y.
+   - **One small task per session.** `/add` only the one or two files to change, each **under
+     about 400 lines** (see "Big files" below).
+   - Read the plan, answer y or n. `/diff` to read what changed. Wrong? `/undo`.
+   - `/drop` the files and `/clear` before the next task. If it seems to forget, `/tokens`.
+   - Never `/run`, `/test`, `/lint`, `/web`, `/code` or `!`. `/exit` when done.
+4. **[4/5 TEST]** `loop test` - build, Rule 2 check, then play at http://127.0.0.1:4173.
+   (First time on this laptop: `loop setup`.)
+5. **[5/5 PUSH]** `loop push` - commit, push, open the pull-request link it prints. Wait for the
+   checks and Corey. A red check is a clue to look at together, not a telling-off.
+6. **Stop the Kaggle session** (stop button in the notebook's top bar) [test this first]. The
+   script also stops itself after 30 idle minutes or 3 hours.
+
+`loop status` shows where you are; `loop undo` takes back the helper's last commit.
 Once a week Corey makes a new key; you both update the Kaggle Secret and step 11.
 
 **If you run the game on the laptop with Node:** Corey sets
-`npm config set ignore-scripts true --location=user` once. Use `npm ci` only on a lockfile that
-is on `main`; never add packages yourself (card item 1).
+`npm config set ignore-scripts true --location=user` once. `loop setup` runs
+`npm ci --ignore-scripts` and refuses if the package files differ from `main`; never add packages
+yourself (card item 1). Never `npm run dev`: it runs Vite with `--host` and shares the game with the
+whole network. `loop test` previews on 127.0.0.1 only.
 
 ---
 

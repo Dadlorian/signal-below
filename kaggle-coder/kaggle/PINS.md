@@ -55,12 +55,14 @@ Install command (Corey, on the laptop, as the son's user):
 (`--exclude-newer` keeps any loose dependency to files uploaded before that date [test this first]).
 Do **not** use `aider-install`: it always installs `aider-chat@latest`.
 
-## GitHub Actions (safety.yml) and local pre-commit
+## GitHub Actions (safety.yml / loop-check.yml) and local pre-commit
 
 | What | Pin | sha256 |
 |---|---|---|
 | actions/checkout | `v7.0.1` = commit `3d3c42e5aac5ba805825da76410c181273ba90b1` | n/a (pinned by commit) |
 | gitleaks | `v8.30.1` (2026-03-21), `gitleaks_8.30.1_linux_x64.tar.gz` | `551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb` |
+| actions/setup-node (loop-check.yml only) | `v7.1.0` (2026-10-08) = commit `949feb2413d6458794dcd2491c4babbbce0c15c1`, `package-manager-cache: false` | n/a (pinned by commit) |
+| Node.js in CI (loop-check.yml only) | `26.13.1` (2026-11-10), line 26 "Lithium", Active LTS since 2026-10-28 per nodejs/Release `schedule.json`; from nodejs.org `dist/index.json` | setup-node downloads and checks it [test this first] |
 
 ## Not planned
 

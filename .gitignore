@@ -3,3 +3,60 @@ stackblitz-starters-gg5payac.zip
 
 # archived zips of what the son sent (kept locally; every zip at the repo root is scanned, these are not)
 zips/
+
+# ---------------------------------------------------------------------------
+# Secrets: never in git, anywhere in this repo (the one place these rules live).
+# A pushed secret must be treated as leaked even after it is deleted.
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+!env.example
+.envrc
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+
+# Kaggle and Cloudflare credentials
+kaggle.json
+access_token
+.kaggle/
+.cloudflared/
+
+# Aider: the user config can hold a key or an address; chat history can hold code and prompts.
+# (kaggle-coder/aider/ keeps its templates WITHOUT the leading dot so they stay tracked)
+.aider*
+
+# ---------------------------------------------------------------------------
+# Generated or heavy files that never belong in git
+# ---------------------------------------------------------------------------
+*.gguf
+*.vsix
+*.part
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# ---------------------------------------------------------------------------
+# kaggle-coder/ only (scoped so they cannot hide the son's game files)
+# ---------------------------------------------------------------------------
+# notes someone might make about a key or today's tunnel address
+kaggle-coder/**/api-keys.txt
+kaggle-coder/**/*key*.txt
+kaggle-coder/**/*token*.txt
+kaggle-coder/**/*secret*.txt
+kaggle-coder/**/*tunnel*.txt
+kaggle-coder/**/*address*.txt
+kaggle-coder/**/notes-*.txt
+# notebook output, logs, downloads (a log can contain the tunnel address)
+kaggle-coder/**/*.log
+kaggle-coder/**/*.ipynb
+kaggle-coder/**/output/
+kaggle-coder/**/downloads/

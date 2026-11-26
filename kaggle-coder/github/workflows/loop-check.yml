@@ -1,0 +1,245 @@
+# loop-check: the pull-request check for THE LOOP. TEMPLATE, not live.
+# Corey copies it to .github/workflows/loop-check.yml in the game repo only after branch
+# protection on main and CODEOWNERS are set (GUIDE-COREY-UBUNTU.md, part L).
+#
+# loop-check.yml is the SUPERSET of safety.yml: job "static" holds every safety.yml check
+# (two made diff-based, see below), plus the Rule 2 check. Job "build" then BUILDS the branch.
+# Run ONE of the two files, never both: when loop-check.yml goes in, safety.yml comes out, and
+# the required status checks change from "checks" to "static" and "build".
+#
+# What differs from safety.yml:
+#   - vite.config.* changes stop the check (warning only for the repo owner's own PRs)
+#   - "--host" in package.json scripts fails only when this PR adds or changes it
+#   - install scripts: fails on any package that has one and did NOT have one on the base
+#     branch, unless listed in NEW_INSTALL_SCRIPT_OK (starts empty)
+#   - Rule 2: eval( / new Function( in src fail; innerHTML is listed as a warning
+#   - job "build" runs `npm ci --ignore-scripts` and `npm run build` IN GITHUB'S RUNNER.
+#     That executes the branch's own build code (vite.config.ts and its plugins) there, with
+#     no secrets, a read-only token and no cache. It never runs on Corey's server.
+#
+# Rules this file keeps: pull_request only (never pull_request_target), permissions contents:
+# read, no secrets, no caches, actions pinned by commit SHA, timeouts on every job.
+# These checks are ADVICE, not the gate: a pull request can edit this file. RED CHECK = a clue,
+# not a punishment. Not tested yet [test this first].
+
+name: loop-check
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: loop-check-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  # Folder (inside the repo) that holds the game's package.json. "." = repo root.
+  GAME_DIR: "."
+  GITLEAKS_VERSION: "8.30.1"
+  GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+  # Packages allowed to ADD an install script in a pull request. Starts empty on purpose.
+  NEW_INSTALL_SCRIPT_OK: ""
+  NODE_VERSION: "26.13.1"   # Node 26 "Lithium", Active LTS since 2026-10-28
+
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out (no saved credentials, full history for the diff)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Stop on files that change how tools behave
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --name-only "$BASE_SHA...$HEAD_SHA" > changed.txt
+          echo "Changed files:"; cat changed.txt
+          # 1. Files that hold or redirect keys: always fail, whoever opened the pull request.
+          KEY_RE='(^|/)\.env($|\.)|(^|/)\.aider|(^|/)kaggle\.json$|(^|/)access_token$|(^|/)\.kaggle/|\.(key|pem)$'
+          if grep -E "$KEY_RE" changed.txt > keyfiles.txt; then
+            echo "::error::Key, address or helper-config files must never be committed:"; cat keyfiles.txt
+            exit 1
+          fi
+          # 2. Editor, AI-helper, CI and git-attribute folders, hooks, npm config, vite.config, Replit leftovers.
+          STOP_RE='(^|/)\.(continue|vscode|github|husky)/|(^|/)\.gitattributes$|(^|/)\.npmrc$|(^|/)\.replit$|(^|/)scripts/post-merge\.sh$|(^|/)tasks\.json$|(^|/)vite\.config\.'
+          if grep -E "$STOP_RE" changed.txt > stops.txt; then
+            echo "::error::These paths need Corey to look first:"; cat stops.txt
+            if [ "$PR_AUTHOR" = "$OWNER" ]; then
+              echo "::warning::PR is from the repo owner; reported, not failed."
+            else
+              exit 1
+            fi
+          fi
+
+      - name: package.json - install scripts, odd sources, floating versions, --host
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          PJ="$GAME_DIR/package.json"
+          [ -f "$PJ" ] || { echo "no package.json at $PJ"; exit 0; }
+          fail=0
+          hooks=$(jq -r '(.scripts // {}) | keys[] | select(test("^(pre|post)?(install|prepare|prepack|postpack)$"))' "$PJ")
+          if [ -n "$hooks" ]; then echo "::error::lifecycle scripts: $hooks"; fail=1; fi
+          # --host: fail only if this pull request adds or changes such a script. (The game's own
+          # "dev" script runs Vite with --host; that is why the loop previews on 127.0.0.1 instead.)
+          host_now=$(jq -r '(.scripts // {}) | to_entries[] | select(.value | test("--host")) | "\(.key)=\(.value)"' "$PJ" | sort)
+          host_base=$(git show "$BASE_SHA:$PJ" 2>/dev/null | jq -r '(.scripts // {}) | to_entries[] | select(.value | test("--host")) | "\(.key)=\(.value)"' | sort || true)
+          new_host=$(comm -23 <(echo "$host_now") <(echo "$host_base") | sed '/^$/d')
+          if [ -n "$new_host" ]; then echo "::error::new or changed scripts that share the dev server on the network (--host): $new_host"; fail=1; fi
+          bad=$(jq -r '[.dependencies, .devDependencies, .optionalDependencies, .peerDependencies]
+                 | map(. // {}) | add | to_entries[]
+                 | select(.value == "latest" or .value == "*" or .value == "" or .value == "x"
+                          or (.value | test("^(git|git\\+|github:|gitlab:|bitbucket:|https?:|file:|link:)"))
+                          or (.value | test("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")))
+                 | "\(.key)@\(.value)"' "$PJ")
+          if [ -n "$bad" ]; then echo "::error::floating or non-registry dependencies:"; echo "$bad"; fail=1; fi
+          ranges=$(jq -r '[.dependencies, .devDependencies] | map(. // {}) | add | to_entries[]
+                   | select(.value | test("^[~^]")) | .key' "$PJ" | wc -l)
+          echo "::notice::$ranges dependencies use ^ or ~ ranges (the lockfile pins the exact version)."
+          exit $fail
+
+      - name: Lockfile - registry, integrity, no NEW install scripts
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          LOCK="$GAME_DIR/package-lock.json"
+          if [ ! -f "$LOCK" ]; then
+            if [ -f "$GAME_DIR/package.json" ]; then echo "::error::package.json without package-lock.json"; exit 1; fi
+            exit 0
+          fi
+          # Packages that already had install scripts on the base branch stay; new ones need
+          # Corey to add them to NEW_INSTALL_SCRIPT_OK (which starts empty).
+          base_list=$(git show "$BASE_SHA:$LOCK" 2>/dev/null | jq -r '(.packages // {}) | to_entries[] | select(.value.hasInstallScript == true) | .key' | tr '\n' ' ' || true)
+          jq -r --arg ok "$NEW_INSTALL_SCRIPT_OK $base_list" '
+            ($ok | split(" ")) as $allowed
+            | (.packages // {}) | to_entries[]
+            | select(.key != "" and (.value.link != true) and (.value.inBundle != true))
+            | .key as $name
+            | (if ((.value.resolved // "") | startswith("https://registry.npmjs.org/")) | not
+                 then "\(.key): resolved from \(.value.resolved // "nowhere")" else empty end),
+              (if (.value.integrity // "") == "" then "\(.key): no integrity hash" else empty end),
+              (if .value.hasInstallScript == true and ($allowed | index($name)) == null
+                 then "\(.key): NEW package with an install script (Rule 1: ask Corey)" else empty end)
+          ' "$LOCK" > lock-problems.txt
+          if [ -s lock-problems.txt ]; then echo "::error::lockfile problems:"; cat lock-problems.txt; exit 1; fi
+          echo "lockfile: every package from registry.npmjs.org with an integrity hash"
+
+      - name: vite.config - dev server exposure
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=$(ls "$GAME_DIR"/vite.config.* 2>/dev/null || true)
+          [ -n "$files" ] || exit 0
+          if grep -nE "allowedHosts[[:space:]]*:[[:space:]]*true|host[[:space:]]*:[[:space:]]*(true|['\"]0\.0\.0\.0['\"])" $files; then
+            echo "::error::vite.config opens the dev server to the network (host / allowedHosts)."
+            exit 1
+          fi
+
+      - name: Known vulnerabilities (lockfile only, nothing is installed)
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ -f "$GAME_DIR/package-lock.json" ] || exit 0
+          # Copy only the two manifest files to an empty folder, so no project npm config is used.
+          W=$(mktemp -d)
+          cp "$GAME_DIR/package.json" "$GAME_DIR/package-lock.json" "$W/"
+          cd "$W"
+          NPM_CONFIG_USERCONFIG=/dev/null npm audit --package-lock-only --ignore-scripts \
+            --registry=https://registry.npmjs.org/ --audit-level=high
+
+      - name: Secrets (gitleaks, pinned and hash-checked)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          T=$(mktemp -d)
+          curl -sSfL -o "$T/gl.tgz" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  $T/gl.tgz" | sha256sum -c -
+          tar -xzf "$T/gl.tgz" -C "$T" gitleaks
+          # Rules come from .github/gitleaks.toml on the BASE branch, so this pull request cannot
+          # weaken them for itself. Falls back to the pull request's copy only if base has none.
+          if ! git show "$BASE_SHA:.github/gitleaks.toml" > "$T/gitleaks.toml" 2>/dev/null; then
+            echo "::warning::no .github/gitleaks.toml on the base branch; using this pull request's copy"
+            cp .github/gitleaks.toml "$T/gitleaks.toml"
+          fi
+          # New commits in this pull request, then every file in the tree.
+          "$T/gitleaks" git --no-banner --redact --config "$T/gitleaks.toml" \
+            --log-opts="$BASE_SHA..$HEAD_SHA" .
+          "$T/gitleaks" dir --no-banner --redact --config "$T/gitleaks.toml" "$GAME_DIR"
+
+      - name: Rule 2 - never turn text into code
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ -d "$GAME_DIR/src" ] || exit 0
+          if grep -rnE "eval *\(|new Function *\(" "$GAME_DIR/src"; then
+            echo "::error::Rule 2: eval( or new Function( found above. Text must never become code."
+            exit 1
+          fi
+          if grep -rn "innerHTML" "$GAME_DIR/src"; then
+            echo "::warning::Rule 2: innerHTML found above. Fine for fixed text, a stop if the right side is a variable."
+          fi
+          echo "Rule 2: no eval / new Function in src."
+
+      - name: If this check is red
+        if: failure()
+        shell: bash
+        run: |
+          echo "RED CHECK = a clue, not a punishment."
+          echo "Open the first step with a red X and read its first ::error:: line."
+          echo "Key file or tunnel address? Tell Corey now: a pushed key counts as leaked."
+          echo "Package or install-script message? That is Rule 1: ask Corey before changing packages."
+          echo "Then fix it on your branch, loop test, loop push again. Same pull request, new commits."
+
+  build:
+    needs: static
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out (no saved credentials)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Node (pinned action, no cache)
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+
+      - name: Install from the lockfile only, no install scripts
+        shell: bash
+        working-directory: ${{ env.GAME_DIR }}
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Build (runs the branch's vite.config.ts and plugins in this runner)
+        shell: bash
+        working-directory: ${{ env.GAME_DIR }}
+        run: npm run build
+
+      - name: If the build is red
+        if: failure()
+        shell: bash
+        run: |
+          echo "RED CHECK = a clue, not a punishment."
+          echo "The build broke. Scroll up to the first line that says error."
+          echo "On your laptop: loop test shows the same error. Fix, loop test, loop push."

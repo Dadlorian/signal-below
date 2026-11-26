@@ -16,7 +16,7 @@ timeout: 120                         # seconds; under the tunnel's ~125 s limit
 verify-ssl: true
 
 # ---- Ask before writing: plan first, then "Edit the files?" ----
-architect: true
+# The mode itself (architect, or ask-only for "loop design") is set by start-helper.cmd.
 auto-accept-architect: false
 
 # ---- The tunnel cannot stream ----

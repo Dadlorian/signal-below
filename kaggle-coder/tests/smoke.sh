@@ -9,7 +9,7 @@
 #
 # Checks: /health answers; without the key, models and chat give 401 and /, /index.html,
 # /props, /slots, /metrics are not 200; with the key the model is "kaggle-coder", a
-# stream:false chat answers, a tool call is parsed (information only), and a ~12k-token prompt
+# stream:false chat answers, a tool call is parsed and stream:true is timed (both information only), and a ~12k-token prompt
 # with a ~800-token answer finishes in under 100 seconds through the tunnel.
 # The model's text is only printed, never run. Not tested yet.
 set -euo pipefail
@@ -71,6 +71,30 @@ if [ "$c" = 200 ] && jq -e '.choices[0].message.tool_calls | length > 0' "$T/bod
   info "tool call parsed: $(jq -c '.choices[0].message.tool_calls[0].function' "$T/body" | head -c 160)"
 else
   info "no parsed tool call (status $c)"
+fi
+
+# ---- streaming through the tunnel (information only; decides which chat panels can work) ----
+# Cloudflare's docs say quick tunnels do not support streaming; a cloudflared issue says it was fixed
+# in 2025. This sends one stream:true request and timestamps each data line as it arrives.
+# Streaming works if the lines arrive spread out over time; buffered if they arrive in one burst at the end.
+printf '%s' '{"model":"kaggle-coder","stream":true,"max_tokens":400,"messages":[{"role":"user","content":"Count from 1 to 150, one number per line, nothing else."}]}' > "$T/stream.json"
+s_start=$(date +%s.%N); s_first=""; s_last="$s_start"; s_n=0
+while IFS= read -r line; do
+  case "$line" in
+    data:*) s_n=$((s_n+1)); s_last=$(date +%s.%N); [ -z "$s_first" ] && s_first="$s_last" ;;
+  esac
+done < <(curl -sSN --max-time 150 -H @"$T/auth" -H 'Content-Type: application/json' \
+           -X POST "$BASE/v1/chat/completions" --data-binary @"$T/stream.json" 2>/dev/null || true)
+if [ "$s_n" -eq 0 ]; then
+  info "stream:true gave no data lines (error, hang or timeout): a client that insists on streaming will not work"
+else
+  verdict=$(awk -v s="$s_start" -v f="$s_first" -v l="$s_last" -v n="$s_n" 'BEGIN{
+    total=l-s; span=l-f;
+    printf "%d data lines; first after %.1fs, last after %.1fs (spread %.1fs) -> ", n, f-s, total, span;
+    if (n >= 20 && total > 3 && span >= 0.3*total) print "STREAMING WORKS (lines arrived over time)";
+    else if (total > 3 && span < 0.15*total) print "BUFFERED (all lines arrived in one burst at the end)";
+    else print "UNCLEAR (reply too short or too fast to tell; try again)" }')
+  info "stream:true: $verdict"
 fi
 
 # ---- about 12k tokens in, about 800 out, timed end to end (token count is an estimate) ----

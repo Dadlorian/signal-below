@@ -38,7 +38,8 @@ are unconfirmed.
 
 | Who | Read |
 |---|---|
-| Son (Windows 11) | [GUIDE-WINDOWS.md](GUIDE-WINDOWS.md) |
+| Son and friends: the daily 5-step loop | [loop/LOOP.md](loop/LOOP.md) |
+| Son (Windows 11) setup | [GUIDE-WINDOWS.md](GUIDE-WINDOWS.md) |
 | Corey (Ubuntu): key, GitHub, review, testing on his own Kaggle account | [GUIDE-COREY-UBUNTU.md](GUIDE-COREY-UBUNTU.md) |
 | Both: the layers, where keys live, the leak routine, the card to print | [SAFETY-BRIDGE.md](SAFETY-BRIDGE.md) |
 | Versions and hashes | [kaggle/PINS.md](kaggle/PINS.md) |
@@ -50,9 +51,10 @@ are unconfirmed.
 | `kaggle/server.py` | Paste into a private Kaggle notebook: picks a model profile, checks pins and key, downloads and sha256-checks everything, starts llama-server, proves requests without the key get 401, opens the tunnel, prints only the address, stops itself when idle |
 | `kaggle/kernel-metadata.json` | For Corey's optional command-line launch on his own account |
 | `kaggle/PINS.md` | Exact versions, commits and sha256 values |
-| `aider/` | Corey's Aider settings and the `start-helper.cmd` launcher for the laptop's home folder |
-| `vscodium/` | Plain-editor safety settings (no extensions allowed) |
-| `github/` | Pull-request checks, gitleaks rules, Dependabot, CODEOWNERS for the game repo |
+| `aider/` | Corey's Aider settings and the `start-helper.cmd` launcher (normal or `ask` mode) for the laptop's home folder |
+| `loop/loop.cmd`, `loop/LOOP.md` | THE LOOP: `loop idea / design / code / test / push` (+ `setup`, `status`, `undo`, `help`), one page of docs |
+| `vscodium/` | Plain-editor safety settings (no extensions allowed); optional `user-tasks.json` for the Run Task menu |
+| `github/` | Pull-request checks (`safety.yml`, or the superset `loop-check.yml` that also builds), gitleaks rules, Dependabot, CODEOWNERS for the game repo |
 | `tests/smoke.sh` | Corey's check of a new address (key from the environment or a hidden prompt) |
 | `continue/` | **Parked, not in use** (earlier client draft) |
 

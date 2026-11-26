@@ -1,6 +1,8 @@
 @echo off
 rem start-helper.cmd - Corey's launcher for Aider. Copy to %USERPROFILE%\.local\bin\
-rem Use it from the game folder:   start-helper https://some-random-words.trycloudflare.com
+rem Use it from the game folder:   start-helper https://some-random-words.trycloudflare.com [ask]
+rem   no 2nd word : architect mode - plan first, then "Edit the files?" before any write
+rem   ask         : ask-only mode (--chat-mode ask) - answers questions, never edits (loop design)
 rem
 rem Why a launcher: Aider also reads settings from files inside a repo (.aider.conf.yml,
 rem .aider.model.*.yml/json, .env). Those could point the key at someone else's server or set
@@ -8,11 +10,14 @@ rem commands to run. This launcher (1) refuses to start if such a file is in the
 rem (2) passes Corey's own files explicitly, and (3) repeats every safety switch on the
 rem command line, which wins over files and environment. Not tested yet [test this first].
 setlocal EnableDelayedExpansion
-set "URL=%~1"
+set "KCURL=%~1"
 set "H=%USERPROFILE%"
+set "MODEFLAGS=--architect --no-auto-accept-architect"
+if /i "%~2"=="ask" set "MODEFLAGS=--chat-mode ask"
 
-if "!URL!"=="" goto usage
-echo(!URL!| findstr /r /x /c:"https://[abcdefghijklmnopqrstuvwxyz0123456789-]*\.trycloudflare\.com" >nul || goto usage
+if "!KCURL!"=="" goto usage
+rem "set KCURL" prints KCURL=value; findstr checks the whole line is a quick-tunnel address.
+set KCURL | findstr /r /x /c:"KCURL=https://[abcdefghijklmnopqrstuvwxyz0123456789-]*\.trycloudflare\.com" >nul || goto usage
 
 if not exist ".git\" (
   echo STOP: start me from the game folder, the one that has a .git folder in it.
@@ -38,14 +43,14 @@ aider --config "%H%\.aider.conf.yml" ^
   --read "%H%\.aider-conventions.md" ^
   --chat-history-file "%H%\.aider-history\chat.md" ^
   --input-history-file "%H%\.aider-history\input.txt" ^
-  --openai-api-base "!URL!/v1" ^
+  --openai-api-base "!KCURL!/v1" ^
   --model openai/kaggle-coder --weak-model openai/kaggle-coder --editor-model openai/kaggle-coder ^
-  --architect --no-auto-accept-architect --no-stream ^
+  !MODEFLAGS! --no-stream ^
   --no-auto-lint --no-auto-test --no-suggest-shell-commands --no-notifications ^
   --no-watch-files --no-detect-urls --no-check-update --analytics-disable --disable-playwright
 exit /b %ERRORLEVEL%
 
 :usage
-echo Usage: start-helper https://some-random-words.trycloudflare.com
+echo Usage: start-helper https://some-random-words.trycloudflare.com [ask]
 echo Copy the address exactly as your own Kaggle notebook printed it.
 exit /b 2

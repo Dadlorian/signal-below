@@ -54,6 +54,25 @@ MODEL_ALIAS = "kaggle-coder"
 PORT = 8080                 # always passed; the README default at this build is 9931
 MAX_OUTPUT_TOKENS = 1024    # server-side cap (-n); the default would be "no limit"
 MAX_HOURS = 3.0
+
+
+def _env_int(name, lo, hi):
+    """Optional whole-number override from the notebook environment; None when unset."""
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return None
+    if not raw.isdigit() or not (lo <= int(raw) <= hi):
+        raise SystemExit("STOP: %s must be a whole number from %d to %d, not %r" % (name, lo, hi, raw))
+    return int(raw)
+
+
+# Test-only overrides (for example a chat panel whose own system prompt needs more room than 16384).
+# More context uses more GPU memory; if the server runs out, unset them or use PROFILE "A-small".
+# Set in the notebook cell BEFORE running this script:  os.environ["KC_CTX"] = "32768"
+CTX_OVERRIDE = _env_int("KC_CTX", 4096, 131072)
+OUT_OVERRIDE = _env_int("KC_MAX_OUT", 256, 8192)
+if OUT_OVERRIDE:
+    MAX_OUTPUT_TOKENS = OUT_OVERRIDE
 IDLE_MINUTES = 30           # stop when the server log has not grown for this long [test this first]
 MIN_MIB_FOR_A = 15000       # each GPU must report at least this much (a T4 reports a bit under 16 GiB)
 WORKDIR = os.environ.get("KC_WORKDIR", "/tmp/kaggle-coder")  # outside /kaggle/working, so it is not saved as output
@@ -378,12 +397,14 @@ def main():
         "--jinja",                         # chat template + tool-call parsing
         "-ngl", "all",
         "-sm", "layer", "-ts", "1,1",      # split layers over both T4s
-        "-c", str(profile["ctx"]),
+        "-c", str(CTX_OVERRIDE or profile["ctx"]),
         "-np", "1",                        # one slot holds the whole window
         "-n", str(MAX_OUTPUT_TOKENS),
         "--no-context-shift",              # overflow gives an error, not a silent cut
     ] + profile["flags"]
     lib_path = ":".join(lib_dirs(llama_dir, cudart_dir))
+    say("context window: %d tokens, max reply: %d tokens%s"
+        % (CTX_OVERRIDE or profile["ctx"], MAX_OUTPUT_TOKENS, " (test override)" if (CTX_OVERRIDE or OUT_OVERRIDE) else ""))
     say("starting llama-server (loading the model takes several minutes)")
     llama = subprocess.Popen(cmd, stdout=open(llama_log, "w"), stderr=subprocess.STDOUT,
                              env=clean_env({"LD_LIBRARY_PATH": lib_path}), start_new_session=True)

@@ -21,6 +21,14 @@ None of this has been tested yet. Items marked [test this first] are unconfirmed
 
 All the AI work happens on Kaggle. Your laptop only runs the editor, git and Aider.
 
+**THE LOOP** (`loop idea / design / code / test / push`, see loop/LOOP.md) sits on top of
+layers 3 and 5. It runs only its own git / npm / start-helper commands and prints each one
+first. It never runs a command the AI suggested, never uses `npm install`, previews on
+127.0.0.1 only, and `loop push` refuses on `main` or when a key file, key name or tunnel
+address is staged. `loop design` starts the helper in ask-only mode; typing `/code` there would
+switch to a mode that edits **without** the "Edit the files?" question, which is why `/code` is
+on the card.
+
 ## Where keys may live (and nowhere else)
 
 | Key | Lives only in |
@@ -57,7 +65,7 @@ Never in the game folder, a commit, a chat, a screenshot, a message, or a note f
 |     game folder. start-helper says STOP: believe it.               |
 |  6. Aider asks "Create new file?" for a name starting with a dot:  |
 |     answer No.                                                     |
-|  7. Never type /run, /test, /lint, /web or a line starting with !  |
+|  7. Never type /run, /test, /lint, /web, /code or a line with !    |
 |     Never add --yes-always. Write the command down, ask Corey.     |
 |  8. Aider (or anything) offers to upgrade or install something:    |
 |     answer No.                                                     |
@@ -98,6 +106,16 @@ Passing every layer means "no indicators found by these checks". It does not mea
 - **The laptop.** If Windows Update stops installing updates, new holes stay open. Your files
   and browser data are reachable from your account. It shares the home network with Corey's
   server; a guest Wi-Fi network would separate them.
+- **Comment mode (optional, off by default).** Aider's `--watch-files` acts on `AI!` comments
+  in any file that changes, including files pulled from someone else's branch. A friend's
+  comment becomes an instruction to your helper. Only start it after `git pull` has finished,
+  never leave it running while pulling [test this first].
+- **CI builds branch code (if `loop-check.yml` is used).** The build runs the branch's
+  `vite.config.ts` and plugins in GitHub's runner. No secrets and a read-only token limit what
+  it can reach, but a malicious change could still misuse that runner's time and network, and a
+  green build says nothing about what the code does in a browser.
+- **Building on the laptop.** `loop test` runs `npm run build`, which runs the project's own
+  config and plugins with your account's rights, like any build.
 - **GitHub's reach.** It only sees what you push. Push protection can be bypassed by whoever
   pushes, and it does not know a random key's shape.
 

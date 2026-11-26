@@ -1,0 +1,69 @@
+{
+  "//": [
+    "OPTIONAL. VSCodium USER tasks for THE LOOP: Ctrl+Shift+P > Tasks: Run Task shows 1-IDEA ... 5-PUSH.",
+    "Install: Ctrl+Shift+P > Tasks: Open User Tasks, paste this, save. It lives in the user profile,",
+    "NEVER in the game repo (.vscode/ is on the Stop card). task.allowAutomaticTasks stays off and",
+    "nothing here runs by itself. The VS Code docs say user tasks exist and only shell/process tasks",
+    "work there; whether VSCodium behaves the same, whether ${input:...} works in user tasks, and",
+    "whether the task terminal accepts the y/n questions are all [test this first].",
+    "Each task just types a loop command in the terminal, from the open folder."
+  ],
+  "version": "2.0.0",
+  "inputs": [
+    {
+      "id": "ideaName",
+      "type": "promptString",
+      "description": "Idea name: lowercase letters, digits and - (example: boss-flash)"
+    }
+  ],
+  "tasks": [
+    {
+      "label": "1-IDEA",
+      "type": "shell",
+      "command": "loop.cmd",
+      "args": ["idea", "${input:ideaName}"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "2-DESIGN",
+      "type": "shell",
+      "command": "loop.cmd",
+      "args": ["design"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "3-CODE",
+      "type": "shell",
+      "command": "loop.cmd",
+      "args": ["code"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "4-TEST",
+      "type": "shell",
+      "command": "loop.cmd",
+      "args": ["test"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "5-PUSH",
+      "type": "shell",
+      "command": "loop.cmd",
+      "args": ["push"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "loop status",
+      "type": "shell",
+      "command": "loop.cmd",
+      "args": ["status"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    }
+  ]
+}
