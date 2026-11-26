@@ -32,6 +32,14 @@ export type SurveyorStats = {
   agilityPoints: number;
 };
 
+export type EnemyCombatRecord = {
+  kills: number;
+  deathsTo: number;
+  goldDropped: number;
+  gemsDropped: number;
+  bestRarity?: GearRarity;
+};
+
 export type SurveyorProfile = {
   version: 5;
   level: number;
@@ -50,10 +58,20 @@ export type SurveyorProfile = {
   unlockedSkins: string[];
   activeSkin: string;
   deepestFloor: number;
+  lastBattledFloor: number;
   totalExtractions: number;
+  totalTimePlayedMs: number;
+  totalGoldEarned: number;
+  totalDiamondsEarned: number;
+  totalItemsMerged: number;
+  totalItemsFound: number;
+  enemyRecords: Record<string, EnemyCombatRecord>;
+  itemFoundCount: Record<string, number>;
+  itemKillsCount: Record<string, number>;
   introWatched: boolean;
   checksum?: string;
-};
+}; 
+
 
 export const VAULT_PAGE_SIZE = 64; // 8x8 grid per page
 export const VAULT_TOTAL_PAGES = 4; // 4 pages = 256 total stack slots
@@ -326,6 +344,10 @@ function collectDiscoveredKeys(
 export function createDefaultSurveyorProfile(initialGear: GearItem[] = []): SurveyorProfile {
   const starter = createStarterCommonLoadout();
   const stacked = stackGearList(initialGear);
+  const discovered = collectDiscoveredKeys([], stacked, starter);
+  const initialFound: Record<string, number> = {};
+  for (const k of discovered) initialFound[k] = 1;
+
   const base: Omit<SurveyorProfile, "checksum"> = {
     version: 5,
     level: 1,
@@ -341,19 +363,27 @@ export function createDefaultSurveyorProfile(initialGear: GearItem[] = []): Surv
     slotUpgradeLevels: createDefaultSlotUpgrades(),
     bankedGear: stacked,
     equippedGear: starter,
-    discoveredItems: collectDiscoveredKeys([], stacked, starter),
+    discoveredItems: discovered,
     unlockedSignalLinks: Array.of(1),
     decodedTapes: [],
     discoveredEnemies: [],
     unlockedSkins: Array.of("standard-issue"),
     activeSkin: "standard-issue",
     deepestFloor: 1,
+    lastBattledFloor: 1,
     totalExtractions: 0,
+    totalTimePlayedMs: 0,
+    totalGoldEarned: 0,
+    totalDiamondsEarned: 0,
+    totalItemsMerged: 0,
+    totalItemsFound: discovered.length,
+    enemyRecords: {},
+    itemFoundCount: initialFound,
+    itemKillsCount: {},
     introWatched: false,
   };
   return { ...base, checksum: computeIntegrityHash(base) };
 }
-
 
 function sanitizeNumberArray(input: unknown, fallback: number[]): number[] {
   if (!Array.isArray(input)) return fallback;
@@ -365,6 +395,32 @@ function sanitizeStringArray(input: unknown, fallback: string[]): string[] {
   if (!Array.isArray(input)) return fallback;
   const clean = input.filter((s): s is string => typeof s === "string" && s.length > 0 && s.length <= 96);
   return clean.length > 0 ? Array.from(new Set(clean)) : fallback;
+}
+
+function sanitizeNumberMap(input: unknown): Record<string, number> {
+  if (!input || typeof input !== "object") return {};
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(input as Record<string, unknown>)) {
+    if (typeof v === "number" && Number.isFinite(v) && v > 0) out[k] = Math.floor(v);
+  }
+  return out;
+}
+
+function sanitizeEnemyRecords(input: unknown): Record<string, EnemyCombatRecord> {
+  if (!input || typeof input !== "object") return {};
+  const out: Record<string, EnemyCombatRecord> = {};
+  for (const [k, raw] of Object.entries(input as Record<string, unknown>)) {
+    if (!raw || typeof raw !== "object") continue;
+    const r = raw as Partial<EnemyCombatRecord>;
+    out[k] = {
+      kills: clampInt(r.kills, 0, 999_999, 0),
+      deathsTo: clampInt(r.deathsTo, 0, 999_999, 0),
+      goldDropped: clampInt(r.goldDropped, 0, 999_999_999, 0),
+      gemsDropped: clampInt(r.gemsDropped, 0, 999_999_999, 0),
+      bestRarity: r.bestRarity && RARITIES.has(r.bestRarity) ? r.bestRarity : undefined,
+    };
+  }
+  return out;
 }
 
 export function loadSurveyorProfile(): SurveyorProfile {
@@ -403,6 +459,7 @@ export function loadSurveyorProfile(): SurveyorProfile {
         bankedGear,
         equippedGear,
       );
+      const deepestFloor = clampInt(parsed.deepestFloor, 1, 9999, 1);
 
       const rebuilt: Omit<SurveyorProfile, "checksum"> = {
         version: 5,
@@ -421,8 +478,17 @@ export function loadSurveyorProfile(): SurveyorProfile {
         discoveredEnemies: sanitizeStringArray(parsed.discoveredEnemies, []),
         unlockedSkins,
         activeSkin,
-        deepestFloor: clampInt(parsed.deepestFloor, 1, 9999, 1),
+        deepestFloor,
+        lastBattledFloor: clampInt(parsed.lastBattledFloor, 1, 9999, deepestFloor),
         totalExtractions: clampInt(parsed.totalExtractions, 0, 999999, 0),
+        totalTimePlayedMs: clampInt(parsed.totalTimePlayedMs, 0, 999_999_999_999, 0),
+        totalGoldEarned: clampInt(parsed.totalGoldEarned, 0, 999_999_999, 0),
+        totalDiamondsEarned: clampInt(parsed.totalDiamondsEarned, 0, 999_999_999, 0),
+        totalItemsMerged: clampInt(parsed.totalItemsMerged, 0, 999_999, 0),
+        totalItemsFound: clampInt(parsed.totalItemsFound, discoveredItems.length, 999_999, discoveredItems.length),
+        enemyRecords: sanitizeEnemyRecords(parsed.enemyRecords),
+        itemFoundCount: sanitizeNumberMap(parsed.itemFoundCount),
+        itemKillsCount: sanitizeNumberMap(parsed.itemKillsCount),
         introWatched: Boolean(parsed.introWatched),
       };
 
@@ -454,6 +520,7 @@ export function loadSurveyorProfile(): SurveyorProfile {
         }
       }
 
+      const deepestFloor = clampInt(parsed.deepestFloor, 1, 9999, 1);
       const migrated: Omit<SurveyorProfile, "checksum"> = {
         ...base,
         level: clampInt(parsed.level, 1, 999, 1),
@@ -474,7 +541,8 @@ export function loadSurveyorProfile(): SurveyorProfile {
         discoveredEnemies: sanitizeStringArray(parsed.discoveredEnemies, []),
         unlockedSkins: sanitizeStringArray(parsed.unlockedSkins, Array.of("standard-issue")),
         activeSkin: typeof parsed.activeSkin === "string" ? parsed.activeSkin : "standard-issue",
-        deepestFloor: clampInt(parsed.deepestFloor, 1, 9999, 1),
+        deepestFloor,
+        lastBattledFloor: deepestFloor,
         totalExtractions: clampInt(parsed.totalExtractions, 0, 999999, 0),
         introWatched: Boolean(parsed.introWatched),
       };
@@ -530,6 +598,7 @@ export function resetSurveyorProfile(): SurveyorProfile {
 export function loadBankedGear(): GearItem[] {
   return loadSurveyorProfile().bankedGear;
 }
+
 
 export function saveBankedGear(items: GearItem[]): boolean {
   const profile = loadSurveyorProfile();

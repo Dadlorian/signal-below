@@ -9,7 +9,7 @@ export type MusicMode =
   | 'corrupted';
 
 const BIOME_GROOVES: Record<
-  BiomeId,
+  string,
   {
     rootHz: number;
     melody: number[];
@@ -326,7 +326,7 @@ class DeepSignalAudioEngine {
 
   private startLoop() {
     this.stopLoop();
-    const groove = BIOME_GROOVES[this.biome];
+    const groove = BIOME_GROOVES[this.biome] ?? BIOME_GROOVES["outer-bunker"]!;
     const interval =
       this.mode === 'boss'
         ? Math.round(groove.stepMs * 0.88)
@@ -348,7 +348,7 @@ class DeepSignalAudioEngine {
     delay: DelayNode
   ) {
     const now = ctx.currentTime;
-    const groove = BIOME_GROOVES[this.biome];
+    const groove = BIOME_GROOVES[this.biome] ?? BIOME_GROOVES["outer-bunker"]!;
     const idx = this.step % 16;
     this.step += 1;
 

@@ -1,18 +1,19 @@
 {
-  "generated": "2026-11-24T13:23:34-05:00",
+  "generated": "2026-11-26T16:05:21-05:00",
   "repo": "/home/projects/beta_games",
   "options": [],
   "verdict": "MEDIUM",
-  "rule": "no FAIL, but 1 WARN in supply-chain/secrets/config checks ([13]). Rule: a WARN in a critical-class check needs a human decision before installing.",
+  "rule": "no FAIL, but 2 WARN in supply-chain/secrets/config checks ([13] [20]). Rule: a WARN in a critical-class check needs a human decision before installing.",
   "counts": {
-    "PASS": 26,
-    "WARN": 2,
+    "PASS": 27,
+    "WARN": 3,
     "FAIL": 0,
     "INFO": 7,
     "SKIP": 0
   },
   "criticalWarnIds": [
-    "13"
+    "13",
+    "20"
   ],
   "hygieneWarnIds": [
     "16"
@@ -20,24 +21,14 @@
   "failIds": [],
   "scanned": {
     "gitStatus": [
-      " M .gitignore",
-      " M CLAUDE.md",
-      " M project-bolt-stackblitz-starters-kppnjtxg/project/UPDATE-INSTRUCTION.md",
-      " M reports/latest.json",
-      " D scan/CONTEXT7-NOTES.md",
-      " M scan/README.md",
-      " M scan/allowlist.txt",
-      " M scan/lib/code-scan.js",
-      " M scan/lib/registry-meta.js",
-      " M security-scan.sh",
-      "D  stackblitz-starters-11-22-26.zip",
-      "D  stackblitz-starters-old.zip",
-      "?? .claude/",
-      "?? deploy/verify-live.sh",
-      "?? reports/security-report-2026-11-24-1322.md",
-      "?? stackblitz-starters-gg5payac-11-24.zip"
+      " M README.md",
+      "?? stackblitz-starters-gg5payac-11-26.zip"
     ],
     "options": [],
+    "files": {
+      "total": 307,
+      "text": 302
+    },
     "lockfile.project-bolt-stackblitz-starters-kppnjtxg/project/package-lock.json": {
       "lockfileVersion": 3,
       "entries": 289
@@ -81,7 +72,7 @@
       "natives": 10
     },
     "codescan.repo": {
-      "filesScanned": 295,
+      "filesScanned": 296,
       "failHits": 0,
       "warnHits": 0,
       "hygieneWarns": 4,
@@ -118,7 +109,7 @@
       "warn": 10,
       "tunnelRegression": true
     },
-    "codescan.stackblitz-starters-gg5payac-11-24.zip": {
+    "codescan.stackblitz-starters-gg5payac-11-26.zip": {
       "filesScanned": 264,
       "failHits": 0,
       "warnHits": 0,
@@ -139,8 +130,8 @@
       "extracted": 1
     },
     "git": {
-      "commits": 14,
-      "patchBytes": 3835652
+      "commits": 18,
+      "patchBytes": 4001768
     }
   },
   "results": [
@@ -152,6 +143,28 @@
       "summary": "none among 307 files",
       "evidence": [
         "info project-bolt-stackblitz-starters-kppnjtxg/project/.npmrc (npm config, content checked in [17])"
+      ]
+    },
+    {
+      "id": "2",
+      "title": "Hard-coded secrets and personal data",
+      "cls": "critical",
+      "status": "PASS",
+      "summary": "no secret-looking strings in 301 text files; 0 e-mail address(es) listed for review",
+      "evidence": []
+    },
+    {
+      "id": "21",
+      "title": "Binaries, executables and symlinks in the tree",
+      "cls": "critical",
+      "status": "PASS",
+      "summary": "no native binaries or symlinks; 5 script/executable/large file(s) listed",
+      "evidence": [
+        "info deploy/verify-live.sh: script file, executable (2542 bytes)",
+        "info project-bolt-stackblitz-starters-kppnjtxg/project/scripts/post-merge.sh: script file (72 bytes)",
+        "info scan/contained-install.sh: script file, executable (10084 bytes)",
+        "info scan/selftest.sh: script file, executable (7592 bytes)",
+        "info security-scan.sh: script file, executable (21289 bytes)"
       ]
     },
     {
@@ -339,9 +352,9 @@
       "title": "Registry metadata (release age, maintainers, deprecation)",
       "cls": "critical",
       "status": "PASS",
-      "summary": "289/289 versions checked: no new or changed version younger than 14 days or deprecated, no maintainer anomalies (49 note(s) on versions already accepted in the last commit are in the evidence)",
+      "summary": "289/289 versions checked: no new or changed version younger than 14 days or deprecated, no maintainer anomalies (37 note(s) on versions already accepted in the last commit are in the evidence)",
       "evidence": [
-        "INFO already in the last accepted lockfile, so not warned (49): @babel/generator@7.29.14: published 12.9 days ago; @babel/helper-module-transforms@7.29.14: published 12.9 days ago; @babel/helper-string-parser@7.29.14: published 12.9 days ago; @babel/helpers@7.29.14: published 12.9 days ago; @babel/parser@7.29.14: published 12.9 days ago; @babel/runtime@7.29.14: published 12.9 days ago; @babel/traverse@7.29.14: published 12.9 days ago; @babel/types@7.29.14: published 12.9 days ago; @jridgewell/resolve-uri@3.1.3: published 11.6 days ago; @rollup/rollup-android-arm-eabi@4.68.4: published 8.4 days ago; @rollup/rollup-android-arm64@4.68.4: published 8.4 days ago; @rollup/rollup-android-x64@4.68.4: published 8.4 days ago; …",
+        "INFO already in the last accepted lockfile, so not warned (37): @jridgewell/resolve-uri@3.1.3: published 13.7 days ago; @rollup/rollup-android-arm-eabi@4.68.4: published 10.5 days ago; @rollup/rollup-android-arm64@4.68.4: published 10.5 days ago; @rollup/rollup-android-x64@4.68.4: published 10.5 days ago; @rollup/rollup-darwin-arm64@4.68.4: published 10.5 days ago; @rollup/rollup-darwin-x64@4.68.4: published 10.5 days ago; @rollup/rollup-freebsd-arm64@4.68.4: published 10.5 days ago; @rollup/rollup-freebsd-x64@4.68.4: published 10.5 days ago; @rollup/rollup-linux-arm-gnueabihf@4.68.4: published 10.5 days ago; @rollup/rollup-linux-arm-musleabihf@4.68.4: published 10.5 days ago; @rollup/rollup-linux-arm64-gnu@4.68.4: published 10.5 days ago; @rollup/rollup-linux-arm64-musl@4.68.4: published 10.5 days ago; …",
         "INFO published from CI via trusted publishing with provenance (162): @babel/code-frame@7.29.7, @babel/compat-data@7.29.7, @babel/core@7.29.13, @babel/generator@7.29.14, @babel/helper-compilation-targets@7.29.13, @babel/helper-globals@7.29.7, @babel/helper-module-imports@7.29.7, @babel/helper-module-transforms@7.29.14, @babel/helper-plugin-utils@7.29.7, @babel/helper-string-parser@7.29.14, @babel/helper-validator-identifier@7.29.7, @babel/helper-validator-option@7.29.7, …",
         "INFO no repository field (1): @tabby_ai/hijri-converter@1.0.5",
         "INFO provenance attestations: 166/289 versions; registry signatures: 289/289",
@@ -539,7 +552,7 @@
       "title": "Code patterns: malicious indicators (FAIL-level)",
       "cls": "critical",
       "status": "PASS",
-      "summary": "no known-bad patterns in 295 files",
+      "summary": "no known-bad patterns in 296 files",
       "evidence": []
     },
     {
@@ -741,7 +754,7 @@
         "ok   .claude/settings.local.json: no hooks, no broad permissions",
         "INFO project-bolt-stackblitz-starters-kppnjtxg/project/.claude/settings.local.json: enabledPlugins = mm3@mvp-scale",
         "ok   project-bolt-stackblitz-starters-kppnjtxg/project/.claude/settings.local.json: no hooks, no broad permissions",
-        "INFO 3 AI memory/ledger file(s): .claude/commands/scan-new-zip.md, project-bolt-stackblitz-starters-kppnjtxg/project/.agents/memory/MEMORY.md, project-bolt-stackblitz-starters-kppnjtxg/project/.agents/memory/flagship-game-direction.md",
+        "INFO 4 AI memory/ledger file(s): .claude/commands/scan-new-zip.md, .claude/commands/whats-new.md, project-bolt-stackblitz-starters-kppnjtxg/project/.agents/memory/MEMORY.md, project-bolt-stackblitz-starters-kppnjtxg/project/.agents/memory/flagship-game-direction.md",
         "INFO agent instruction files: CLAUDE.md, project-bolt-stackblitz-starters-kppnjtxg/project/replit.md (scanned for injection text in check 20)"
       ]
     },
@@ -749,13 +762,15 @@
       "id": "20",
       "title": "Prompt-injection style text in docs, memory and config",
       "cls": "critical",
-      "status": "PASS",
-      "summary": "no injection-style phrases in 43 text/config files",
-      "evidence": []
+      "status": "WARN",
+      "summary": "1 line(s) read like instructions aimed at an AI assistant or a human operator",
+      "evidence": [
+        "README.md:27 (zero-width characters (hidden text)) - 🧑‍🚀 **Unlock new suits.** Extract alive from Floor 20, 50 and 100 to earn new surveyor skins."
+      ]
     },
     {
       "id": "26a",
-      "title": "Code in stackblitz-starters-gg5payac-11-24.zip: malicious indicators (FAIL-level)",
+      "title": "Code in stackblitz-starters-gg5payac-11-26.zip: malicious indicators (FAIL-level)",
       "cls": "critical",
       "status": "PASS",
       "summary": "no known-bad patterns in 264 files",
@@ -763,7 +778,7 @@
     },
     {
       "id": "26b",
-      "title": "Code in stackblitz-starters-gg5payac-11-24.zip: needs a human look (WARN-level)",
+      "title": "Code in stackblitz-starters-gg5payac-11-26.zip: needs a human look (WARN-level)",
       "cls": "critical",
       "status": "PASS",
       "summary": "no eval, Function constructor, child_process, cookie access or secret storage in the zip outside the allowlist",
@@ -776,17 +791,23 @@
       "status": "PASS",
       "summary": "1 archive(s), 319 entries, 1 extracted to scratch for static inspection",
       "evidence": [
-        "info stackblitz-starters-gg5payac-11-24.zip: 1357 KB, 319 entries",
-        "info stackblitz-starters-gg5payac-11-24.zip contains project-bolt-stackblitz-starters-kppnjtxg/project/.npmrc (content checked after extraction / in [17] if same as repo)",
-        "info stackblitz-starters-gg5payac-11-24.zip executable/binary entry: project-bolt-stackblitz-starters-kppnjtxg/project/scripts/post-merge.sh",
-        "info zip vs working tree: 7 differing path(s) listed below (ONLY-IN-ZIP / ONLY-IN-REPO / DIFFERS)",
-        "stackblitz-starters-gg5payac-11-24.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project: .claude",
-        "stackblitz-starters-gg5payac-11-24.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project: .mm3",
-        "stackblitz-starters-gg5payac-11-24.zip: DIFFERS      project-bolt-stackblitz-starters-kppnjtxg/project/.npmrc",
-        "stackblitz-starters-gg5payac-11-24.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project: .npmrc.txt",
-        "stackblitz-starters-gg5payac-11-24.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project: GAME_SPEEDUP.md",
-        "stackblitz-starters-gg5payac-11-24.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project: UPDATE-INSTRUCTION.md",
-        "stackblitz-starters-gg5payac-11-24.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project: docs"
+        "info stackblitz-starters-gg5payac-11-26.zip: 1407 KB, 319 entries",
+        "info stackblitz-starters-gg5payac-11-26.zip contains project-bolt-stackblitz-starters-kppnjtxg/project/.npmrc (content checked after extraction / in [17] if same as repo)",
+        "info stackblitz-starters-gg5payac-11-26.zip executable/binary entry: project-bolt-stackblitz-starters-kppnjtxg/project/scripts/post-merge.sh",
+        "info zip vs working tree: 13 differing path(s) listed below (ONLY-IN-ZIP / ONLY-IN-REPO / DIFFERS)",
+        "stackblitz-starters-gg5payac-11-26.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project: .claude",
+        "stackblitz-starters-gg5payac-11-26.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project: .mm3",
+        "stackblitz-starters-gg5payac-11-26.zip: DIFFERS      project-bolt-stackblitz-starters-kppnjtxg/project/.npmrc",
+        "stackblitz-starters-gg5payac-11-26.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project: .npmrc.txt",
+        "stackblitz-starters-gg5payac-11-26.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project: GAME_SPEEDUP.md",
+        "stackblitz-starters-gg5payac-11-26.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project: UPDATE-INSTRUCTION.md",
+        "stackblitz-starters-gg5payac-11-26.zip: ONLY-IN-REPO project-bolt-stackblitz-starters-kppnjtxg/project: docs",
+        "stackblitz-starters-gg5payac-11-26.zip: DIFFERS      project-bolt-stackblitz-starters-kppnjtxg/project/src/App.tsx",
+        "stackblitz-starters-gg5payac-11-26.zip: DIFFERS      project-bolt-stackblitz-starters-kppnjtxg/project/src/components/BuriedComplexGame.tsx",
+        "stackblitz-starters-gg5payac-11-26.zip: DIFFERS      project-bolt-stackblitz-starters-kppnjtxg/project/src/lib/Pixel-skins.ts",
+        "stackblitz-starters-gg5payac-11-26.zip: DIFFERS      project-bolt-stackblitz-starters-kppnjtxg/project/src/lib/deep-signal-audio.ts",
+        "stackblitz-starters-gg5payac-11-26.zip: DIFFERS      project-bolt-stackblitz-starters-kppnjtxg/project/src/lib/deep-signal-engine.ts",
+        "stackblitz-starters-gg5payac-11-26.zip: DIFFERS      project-bolt-stackblitz-starters-kppnjtxg/project/src/lib/deep-signal-store.ts"
       ]
     },
     {
@@ -794,7 +815,7 @@
       "title": "Secrets in git history",
       "cls": "critical",
       "status": "PASS",
-      "summary": "no credential-shaped strings added in the last 400 commits (14 total, 3745 KB of patches; our own security-scan.sh and scan/selftest.sh are left out because they hold the fake test keys and the key patterns)",
+      "summary": "no credential-shaped strings added in the last 400 commits (18 total, 3907 KB of patches; our own security-scan.sh and scan/selftest.sh are left out because they hold the fake test keys and the key patterns)",
       "evidence": []
     },
     {
@@ -802,9 +823,12 @@
       "title": "Sensitive files ever committed (added or deleted)",
       "cls": "critical",
       "status": "PASS",
-      "summary": "none; 1 file(s) were deleted over the history (listed)",
+      "summary": "none; 4 file(s) were deleted over the history (listed)",
       "evidence": [
-        "info deleted at some point: stackblitz-starters-gg5payac.zip"
+        "info deleted at some point: scan/CONTEXT7-NOTES.md",
+        "info deleted at some point: stackblitz-starters-11-22-26.zip",
+        "info deleted at some point: stackblitz-starters-gg5payac.zip",
+        "info deleted at some point: stackblitz-starters-old.zip"
       ]
     },
     {

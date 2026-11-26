@@ -81,3 +81,6 @@ question for him, not a security question.
   slash command, one report per day. `scan/update-check.sh` removed; its deploy check is `deploy/verify-live.sh`.
   Check [11] now warns only on packages new or changed since the last committed lockfile. The zip scan now
   also reports eval/Function/child_process hits (`--warn-too`), so they are seen before his files are overlaid.
+- **2026-11-26.** His v4.0 zip applied (six `src/` files: `App.tsx`, `BuriedComplexGame.tsx`, `Pixel-skins.ts`,
+  `deep-signal-audio.ts`, `deep-signal-engine.ts`, `deep-signal-store.ts`; package files and `vite.config.ts`
+  unchanged). Report `reports/security-report-2026-11-26-1604.md`, 0 FAIL. Swapped live; `verify-live.sh` passed.

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import BuriedComplexGame, { SURVEYOR_SKINS } from "./components/BuriedComplexGame";
+import BuriedComplexGame from "./components/BuriedComplexGame";
 import { FULL_ITEM_CATALOG, computePlayerMaxStats, getBossSpecForFloor } from "./lib/deep-signal-engine";
 import { loadSurveyorProfile, saveSurveyorProfile, type SurveyorProfile } from "./lib/deep-signal-store";
 import {
+  SURVEYOR_SKINS,
   drawExactBoss,
   drawExactSurveyor,
   drawPixelatedTrainingBackground,
@@ -345,350 +346,351 @@ function SurveyorWorkoutCanvas({ profile }: { profile: SurveyorProfile }) {
             d.vx *= 0.9;
             d.z += d.vz * dt;
             d.vz -= 360 * dt;
-            if (d.z <= 0) {
-              d.z = 0;
-              d.vz = Math.abs(d.vz) > 35 ? -d.vz * 0.45 : 0;
-            }
-
-            if (d.vz <= 40) {
-              const pullDir = playerX - d.x;
-              d.x += Math.sign(pullDir) * 230 * dt;
-            }
-
-            const cy = Math.round(d.y + 12 - d.z);
-            const cx = Math.round(d.x);
-            if (d.kind === "legendary" && d.slot) {
-              drawPixelLegendaryItemDrop(ctx, cx, cy - 2, d.slot);
-            } else if (d.kind === "gem") {
-              ctx.fillStyle = "#0a0d0f";
-              ctx.beginPath();
-              ctx.moveTo(cx, cy - 8);
-              ctx.lineTo(cx + 6, cy);
-              ctx.lineTo(cx, cy + 8);
-              ctx.lineTo(cx - 6, cy);
-              ctx.closePath();
-              ctx.fill();
-              ctx.fillStyle = "#2b7de9";
-              ctx.beginPath();
-              ctx.moveTo(cx, cy - 6);
-              ctx.lineTo(cx + 4, cy);
-              ctx.lineTo(cx, cy + 6);
-              ctx.lineTo(cx - 4, cy);
-              ctx.closePath();
-              ctx.fill();
-              ctx.fillStyle = "#ffffff";
-              ctx.fillRect(cx - 2, cy - 3, 2, 2);
-            } else {
-              if (coinSpin) {
+              if (d.z <= 0) {
+                d.z = 0;
+                d.vz = Math.abs(d.vz) > 35 ? -d.vz * 0.45 : 0;
+              }
+  
+              if (d.vz <= 40) {
+                const pullDir = playerX - d.x;
+                d.x += Math.sign(pullDir) * 230 * dt;
+              }
+  
+              const cy = Math.round(d.y + 12 - d.z);
+              const cx = Math.round(d.x);
+              if (d.kind === "legendary" && d.slot) {
+                drawPixelLegendaryItemDrop(ctx, cx, cy - 2, d.slot);
+              } else if (d.kind === "gem") {
                 ctx.fillStyle = "#0a0d0f";
-                ctx.fillRect(cx - 5, cy - 6, 10, 12);
-                ctx.fillStyle = "#ffe45e";
-                ctx.fillRect(cx - 4, cy - 5, 8, 10);
+                ctx.beginPath();
+                ctx.moveTo(cx, cy - 8);
+                ctx.lineTo(cx + 6, cy);
+                ctx.lineTo(cx, cy + 8);
+                ctx.lineTo(cx - 6, cy);
+                ctx.closePath();
+                ctx.fill();
+                ctx.fillStyle = "#2b7de9";
+                ctx.beginPath();
+                ctx.moveTo(cx, cy - 6);
+                ctx.lineTo(cx + 4, cy);
+                ctx.lineTo(cx, cy + 6);
+                ctx.lineTo(cx - 4, cy);
+                ctx.closePath();
+                ctx.fill();
+                ctx.fillStyle = "#ffffff";
+                ctx.fillRect(cx - 2, cy - 3, 2, 2);
               } else {
-                ctx.fillStyle = "#0a0d0f";
-                ctx.fillRect(cx - 3, cy - 6, 6, 12);
-                ctx.fillStyle = "#ffe45e";
-                ctx.fillRect(cx - 2, cy - 5, 4, 10);
+                if (coinSpin) {
+                  ctx.fillStyle = "#0a0d0f";
+                  ctx.fillRect(cx - 5, cy - 6, 10, 12);
+                  ctx.fillStyle = "#ffe45e";
+                  ctx.fillRect(cx - 4, cy - 5, 8, 10);
+                } else {
+                  ctx.fillStyle = "#0a0d0f";
+                  ctx.fillRect(cx - 3, cy - 6, 6, 12);
+                  ctx.fillStyle = "#ffe45e";
+                  ctx.fillRect(cx - 2, cy - 5, 4, 10);
+                }
+              }
+  
+              if (Math.abs(playerX - d.x) < 18 && d.vz <= 40) {
+                popups.push({
+                  x: playerX,
+                  y: d.kind === "legendary" ? groundY - 44 : groundY - 30,
+                  text: d.label,
+                  color: d.kind === "legendary" ? "#ffe082" : d.kind === "gem" ? "#5ec8ff" : "#ffcf4d",
+                  life: d.kind === "legendary" ? 0.75 : 0.65,
+                });
+                drops.splice(i, 1);
               }
             }
-
-            if (Math.abs(playerX - d.x) < 18 && d.vz <= 40) {
-              popups.push({
-                x: playerX,
-                y: d.kind === "legendary" ? groundY - 44 : groundY - 30,
-                text: d.label,
-                color: d.kind === "legendary" ? "#ffe082" : d.kind === "gem" ? "#5ec8ff" : "#ffcf4d",
-                life: d.kind === "legendary" ? 0.75 : 0.65,
-              });
-              drops.splice(i, 1);
+  
+            const lungeX = attackMs > 0 ? 12 : 0;
+            ctx.save();
+            ctx.translate(Math.round(playerX + lungeX), groundY - 4);
+            ctx.scale(2, 2);
+            drawExactSurveyor(
+              ctx,
+              0,
+              0,
+              1,
+              0,
+              profile.activeSkin,
+              FULL_LEGENDARY_PREVIEW,
+              { attacking: attackMs > 0 },
+            );
+            if (attackMs > 0) {
+              ctx.strokeStyle = "#ffcf56";
+              ctx.lineWidth = 2.4;
+              ctx.beginPath();
+              ctx.arc(0, -3, 24, -0.85, 0.85);
+              ctx.stroke();
             }
-          }
-
-          const lungeX = attackMs > 0 ? 12 : 0;
-          ctx.save();
-          ctx.translate(Math.round(playerX + lungeX), groundY - 4);
-          ctx.scale(2, 2);
-          drawExactSurveyor(
-            ctx,
-            0,
-            0,
-            1,
-            0,
-            profile.activeSkin,
-            FULL_LEGENDARY_PREVIEW,
-            { attacking: attackMs > 0 },
-          );
-          if (attackMs > 0) {
-            ctx.strokeStyle = "#ffcf56";
-            ctx.lineWidth = 2.4;
-            ctx.beginPath();
-            ctx.arc(0, -3, 24, -0.85, 0.85);
-            ctx.stroke();
-          }
-          ctx.restore();
-
-          for (let i = sparks.length - 1; i >= 0; i--) {
-            const sp = sparks.at(i)!;
-            sp.x += sp.vx * dt;
-            sp.y += sp.vy * dt;
-            sp.vy += 190 * dt;
-            sp.life -= dt;
-            if (sp.life <= 0) {
-              sparks.splice(i, 1);
-              continue;
+            ctx.restore();
+  
+            for (let i = sparks.length - 1; i >= 0; i--) {
+              const sp = sparks.at(i)!;
+              sp.x += sp.vx * dt;
+              sp.y += sp.vy * dt;
+              sp.vy += 190 * dt;
+              sp.life -= dt;
+              if (sp.life <= 0) {
+                sparks.splice(i, 1);
+                continue;
+              }
+              ctx.fillStyle = sp.color;
+              ctx.fillRect(Math.round(sp.x), Math.round(sp.y), 3, 3);
             }
-            ctx.fillStyle = sp.color;
-            ctx.fillRect(Math.round(sp.x), Math.round(sp.y), 3, 3);
-          }
-
-          ctx.font = "bold 10px monospace";
-          ctx.textAlign = "center";
-          for (let i = popups.length - 1; i >= 0; i--) {
-            const p = popups.at(i)!;
-            p.y -= 28 * dt;
-            p.life -= dt;
-            if (p.life <= 0) {
-              popups.splice(i, 1);
-              continue;
+  
+            ctx.font = "bold 10px monospace";
+            ctx.textAlign = "center";
+            for (let i = popups.length - 1; i >= 0; i--) {
+              const p = popups.at(i)!;
+              p.y -= 28 * dt;
+              p.life -= dt;
+              if (p.life <= 0) {
+                popups.splice(i, 1);
+                continue;
+              }
+              ctx.fillStyle = p.color;
+              ctx.fillText(p.text, Math.round(p.x), Math.round(p.y));
             }
-            ctx.fillStyle = p.color;
-            ctx.fillText(p.text, Math.round(p.x), Math.round(p.y));
+  
+            ctx.fillStyle = "#ffcf56";
+            ctx.font = "bold 11px monospace";
+            ctx.textAlign = "left";
+            ctx.fillText("VANCE-01 DUMMY // LEGENDARY DRILL", 18, 20);
+  
+            ctx.fillStyle = "#8ab5a4";
+            ctx.textAlign = "right";
+            ctx.fillText(`SKIN: ${palette.name}`, W - 18, 20);
           }
-
-          ctx.fillStyle = "#ffcf56";
-          ctx.font = "bold 11px monospace";
-          ctx.textAlign = "left";
-          ctx.fillText("VANCE-01 DUMMY // LEGENDARY DRILL", 18, 20);
-
-          ctx.fillStyle = "#8ab5a4";
-          ctx.textAlign = "right";
-          ctx.fillText(`SKIN: ${palette.name}`, W - 18, 20);
         }
-      }
+        raf = window.requestAnimationFrame(render);
+      };
+  
       raf = window.requestAnimationFrame(render);
-    };
-
-    raf = window.requestAnimationFrame(render);
-    return () => window.cancelAnimationFrame(raf);
-  }, [profile]);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      width={420}
-      height={220}
-      style={{
-        width: "100%",
-        maxWidth: 460,
-        height: "auto",
-        borderRadius: 12,
-        border: "2px solid #243d34",
-        imageRendering: "pixelated",
-        boxShadow: "0 16px 40px rgba(0, 0, 0, 0.55)",
-      }}
-    />
-  );
-}
-
-function SignalAppLogoTile() {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.imageSmoothingEnabled = false;
-
-    ctx.fillStyle = "#08120f";
-    ctx.fillRect(0, 0, 96, 96);
-
-    ctx.strokeStyle = "#6fe3c1";
-    ctx.lineWidth = 4;
-    ctx.strokeRect(4, 4, 88, 88);
-
-    ctx.fillStyle = "#142922";
-    ctx.beginPath();
-    ctx.arc(48, 64, 28, Math.PI, 0);
-    ctx.lineTo(76, 84);
-    ctx.lineTo(20, 84);
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.strokeStyle = "#6fe3c1";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(48, 46, 12, Math.PI * 1.15, Math.PI * 1.85);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.arc(48, 46, 20, Math.PI * 1.15, Math.PI * 1.85);
-    ctx.stroke();
-
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(38, 50, 20, 16);
-    ctx.fillStyle = "#f4f8f7";
-    ctx.fillRect(40, 52, 16, 12);
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(44, 55, 2, 6);
-    ctx.fillRect(50, 55, 2, 6);
-
-    ctx.fillStyle = "#ffcf56";
-    ctx.fillRect(46, 68, 4, 14);
-    ctx.fillRect(42, 70, 12, 3);
-  }, []);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      width={96}
-      height={96}
-      style={{
-        width: 96,
-        height: 96,
-        borderRadius: 18,
-        imageRendering: "pixelated",
-        boxShadow: "0 10px 26px rgba(111, 227, 193, 0.25)",
-      }}
-    />
-  );
-}
-
-export default function App() {
-  const [inGame, setInGame] = useState<boolean>(() =>
-    typeof window !== "undefined" ? window.location.pathname.startsWith("/play/deep-signal") : false,
-  );
-  const [profile, setProfile] = useState<SurveyorProfile>(() => loadSurveyorProfile());
-
-  useEffect(() => {
-    const onPopState = () => {
-      const playing = window.location.pathname.startsWith("/play/deep-signal");
-      setInGame(playing);
-      if (!playing) setProfile(loadSurveyorProfile());
-    };
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
-  }, []);
-
-  const launchGame = () => {
-    window.history.pushState({}, "", "/play/deep-signal");
-    setInGame(true);
-  };
-
-  const exitToWebsite = () => {
-    window.history.pushState({}, "", "/");
-    setProfile(loadSurveyorProfile());
-    setInGame(false);
-  };
-
-  if (inGame) {
-    return <BuriedComplexGame onBackToArcade={exitToWebsite} />;
-  }
-
-  const stats = computePlayerMaxStats(
-    profile.level,
-    profile.stats,
-    profile.equippedGear,
-    profile.slotUpgradeLevels,
-  );
-
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        backgroundColor: "#070d0b",
-        backgroundImage:
-          "linear-gradient(to right, rgba(111, 227, 193, 0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(111, 227, 193, 0.04) 1px, transparent 1px)",
-        backgroundSize: "16px 16px",
-        color: "#e6f5ee",
-        fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        padding: "20px 18px 64px",
-        boxSizing: "border-box",
-      }}
-    >
-      <header
+      return () => window.cancelAnimationFrame(raf);
+    }, [profile]);
+  
+    return (
+      <canvas
+        ref={canvasRef}
+        width={420}
+        height={220}
         style={{
           width: "100%",
-          maxWidth: 1020,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "12px 18px",
-          background: "#0c1613",
-          border: "2px solid #223b32",
+          maxWidth: 460,
+          height: "auto",
           borderRadius: 12,
-          marginBottom: 28,
+          border: "2px solid #243d34",
+          imageRendering: "pixelated",
+          boxShadow: "0 16px 40px rgba(0, 0, 0, 0.55)",
+        }}
+      />
+    );
+  }
+  
+  function SignalAppLogoTile() {
+    const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  
+    useEffect(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.imageSmoothingEnabled = false;
+  
+      ctx.fillStyle = "#08120f";
+      ctx.fillRect(0, 0, 96, 96);
+  
+      ctx.strokeStyle = "#6fe3c1";
+      ctx.lineWidth = 4;
+      ctx.strokeRect(4, 4, 88, 88);
+  
+      ctx.fillStyle = "#142922";
+      ctx.beginPath();
+      ctx.arc(48, 64, 28, Math.PI, 0);
+      ctx.lineTo(76, 84);
+      ctx.lineTo(20, 84);
+      ctx.closePath();
+      ctx.fill();
+  
+      ctx.strokeStyle = "#6fe3c1";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(48, 46, 12, Math.PI * 1.15, Math.PI * 1.85);
+      ctx.stroke();
+  
+      ctx.beginPath();
+      ctx.arc(48, 46, 20, Math.PI * 1.15, Math.PI * 1.85);
+      ctx.stroke();
+  
+      ctx.fillStyle = "#0a0d0f";
+      ctx.fillRect(38, 50, 20, 16);
+      ctx.fillStyle = "#f4f8f7";
+      ctx.fillRect(40, 52, 16, 12);
+      ctx.fillStyle = "#0a0d0f";
+      ctx.fillRect(44, 55, 2, 6);
+      ctx.fillRect(50, 55, 2, 6);
+  
+      ctx.fillStyle = "#ffcf56";
+      ctx.fillRect(46, 68, 4, 14);
+      ctx.fillRect(42, 70, 12, 3);
+    }, []);
+  
+    return (
+      <canvas
+        ref={canvasRef}
+        width={96}
+        height={96}
+        style={{
+          width: 96,
+          height: 96,
+          borderRadius: 18,
+          imageRendering: "pixelated",
+          boxShadow: "0 10px 26px rgba(111, 227, 193, 0.25)",
+        }}
+      />
+    );
+  }
+  
+  export default function App() {
+    const [inGame, setInGame] = useState<boolean>(() =>
+      typeof window !== "undefined" ? window.location.pathname.startsWith("/play/deep-signal") : false,
+    );
+    const [profile, setProfile] = useState<SurveyorProfile>(() => loadSurveyorProfile());
+  
+    useEffect(() => {
+      const onPopState = () => {
+        const playing = window.location.pathname.startsWith("/play/deep-signal");
+        setInGame(playing);
+        if (!playing) setProfile(loadSurveyorProfile());
+      };
+      window.addEventListener("popstate", onPopState);
+      return () => window.removeEventListener("popstate", onPopState);
+    }, []);
+  
+    const launchGame = () => {
+      window.history.pushState({}, "", "/play/deep-signal");
+      setInGame(true);
+    };
+  
+    const exitToWebsite = () => {
+      window.history.pushState({}, "", "/");
+      setProfile(loadSurveyorProfile());
+      setInGame(false);
+    };
+  
+    if (inGame) {
+      return <BuriedComplexGame onBackToArcade={exitToWebsite} />;
+    }
+  
+    const stats = computePlayerMaxStats(
+      profile.level,
+      profile.stats,
+      profile.equippedGear,
+      profile.slotUpgradeLevels,
+      profile.activeSkin,
+    );
+  
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          backgroundColor: "#070d0b",
+          backgroundImage:
+            "linear-gradient(to right, rgba(111, 227, 193, 0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(111, 227, 193, 0.04) 1px, transparent 1px)",
+          backgroundSize: "16px 16px",
+          color: "#e6f5ee",
+          fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          padding: "20px 18px 64px",
+          boxSizing: "border-box",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span
-            style={{
-              display: "inline-block",
-              width: 12,
-              height: 12,
-              borderRadius: 3,
-              background: "#6fe3c1",
-              boxShadow: "0 0 12px #6fe3c1",
-            }}
-          />
-          <span style={{ fontWeight: 900, fontSize: 15, letterSpacing: 2, color: "#f2fff9" }}>
-            JB PLAYNET
-          </span>
-          <span
-            style={{
-              fontSize: 10,
-              padding: "2px 7px",
-              borderRadius: 5,
-              background: "#163027",
-              color: "#6fe3c1",
-              fontWeight: 800,
-            }}
-          >
-            v3.0
-          </span>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 12 }}>
-          <span style={{ color: "#ffcf4d", fontWeight: 700 }}>{profile.gold} GOLD</span>
-          <span style={{ color: "#5ec8ff", fontWeight: 700 }}>{profile.diamonds} DIAMONDS</span>
-          <a
-            href="#featured-apps"
-            style={{
-              color: "#06120e",
-              background: "#6fe3c1",
-              padding: "6px 12px",
-              borderRadius: 7,
-              fontWeight: 900,
-              textDecoration: "none",
-              fontSize: 11,
-            }}
-          >
-            APPS ↓
-          </a>
-        </div>
-      </header>
-
-      <section
-        style={{
-          width: "100%",
-          maxWidth: 1020,
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(310px, 1fr))",
-          gap: 24,
-          alignItems: "center",
-          padding: "26px 24px",
-          background: "#0b1411",
-          border: "2px solid #223b32",
-          borderRadius: 16,
-          marginBottom: 44,
-        }}
+        <header
+          style={{
+            width: "100%",
+            maxWidth: 1020,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "12px 18px",
+            background: "#0c1613",
+            border: "2px solid #223b32",
+            borderRadius: 12,
+            marginBottom: 28,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span
+              style={{
+                display: "inline-block",
+                width: 12,
+                height: 12,
+                borderRadius: 3,
+                background: "#6fe3c1",
+                boxShadow: "0 0 12px #6fe3c1",
+              }}
+            />
+            <span style={{ fontWeight: 900, fontSize: 15, letterSpacing: 2, color: "#f2fff9" }}>
+              JB PLAYNET
+            </span>
+            <span
+              style={{
+                fontSize: 10,
+                padding: "2px 7px",
+                borderRadius: 5,
+                background: "#163027",
+                color: "#6fe3c1",
+                fontWeight: 800,
+              }}
+            >
+              v4.0
+            </span>
+          </div>
+  
+          <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 12 }}>
+            <span style={{ color: "#ffcf4d", fontWeight: 700 }}>{profile.gold} GOLD</span>
+            <span style={{ color: "#5ec8ff", fontWeight: 700 }}>{profile.diamonds} DIAMONDS</span>
+            <a
+              href="#featured-apps"
+              style={{
+                color: "#06120e",
+                background: "#6fe3c1",
+                padding: "6px 12px",
+                borderRadius: 7,
+                fontWeight: 900,
+                textDecoration: "none",
+                fontSize: 11,
+              }}
+            >
+              APPS ↓
+            </a>
+          </div>
+        </header>
+  
+        <section
+          style={{
+            width: "100%",
+            maxWidth: 1020,
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(310px, 1fr))",
+            gap: 24,
+            alignItems: "center",
+            padding: "26px 24px",
+            background: "#0b1411",
+            border: "2px solid #223b32",
+            borderRadius: 16,
+            marginBottom: 44,
+          }}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <div style={{ fontSize: 11, letterSpacing: 2.5, color: "#6fe3c1", fontWeight: 800 }}>
-            SURVEYOR TRAINING DECK · PRE-DEPLOYMENT v3.0
+          <div style={{ fontSize: 11, letterSpacing: 2.5, color: "#6fe3c1", fontWeight: 800 }}>
+            SURVEYOR TRAINING DECK · PRE-DEPLOYMENT v4.0
           </div>
           <h1
             style={{
@@ -706,9 +708,9 @@ export default function App() {
             <strong style={{ color: "#e6f5ee" }}>The Signal Below</strong> to raid 100 floors,
             defeat unique sector guardians (<strong style={{ color: "#ff8a80" }}>VANCE-01</strong>,{" "}
             <strong style={{ color: "#9dff4d" }}>E1-IJ-4H</strong>,{" "}
-            <strong style={{ color: "#7ae6ff" }}>Flyer Matriarch</strong>), fuse duplicates (
-            <strong style={{ color: "#eabfff" }}>3 → 9 → 27</strong>), and complete the{" "}
-            <strong style={{ color: "#ffcf56" }}>105-Item Discovery Index</strong>.
+            <strong style={{ color: "#7ae6ff" }}>Flyer Matriarch</strong>), charge-cleave for{" "}
+            <strong style={{ color: "#ffcf56" }}>2x DMG</strong>, and complete the{" "}
+            <strong style={{ color: "#eabfff" }}>5-Chapter Surveyor Field Book</strong>.
           </p>
 
           <div
@@ -770,18 +772,19 @@ export default function App() {
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
           <SurveyorWorkoutCanvas profile={profile} />
           <span style={{ fontSize: 11, color: "#6e9989" }}>
-            Live pixel training loop · Reflects your equipped skin &amp; gear
+            Live pixel training loop · Reflects your equipped suit &amp; gear
           </span>
           <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 6, marginTop: 4 }}>
             {SURVEYOR_SKINS.map((sk) => {
-              const unlocked = profile.unlockedSkins.includes(sk.id);
+              const unlocked =
+                profile.unlockedSkins.includes(sk.id) || profile.deepestFloor >= sk.unlockFloor;
               const active = profile.activeSkin === sk.id;
               return (
                 <button
                   key={sk.id}
                   type="button"
                   disabled={!unlocked}
-                  title={unlocked ? `Equip ${sk.name}` : sk.unlockNote}
+                  title={unlocked ? `Equip ${sk.name} (${sk.buffLabel})` : sk.unlockNote}
                   onClick={() => {
                     const updated = { ...profile, activeSkin: sk.id };
                     saveSurveyorProfile(updated);
@@ -799,24 +802,26 @@ export default function App() {
                     opacity: unlocked ? 1 : 0.55,
                   }}
                 >
-                  {unlocked ? sk.name : `🔒 ${sk.name}`}
+                  {unlocked ? sk.name : `🔒 F${sk.unlockFloor}`}
                 </button>
               );
             })}
           </div>
-        </div>
-      </section>
+          </div>
+          </section>
 
-      <section
-        id="featured-apps"
-        style={{
-          width: "100%",
-          maxWidth: 1020,
-          display: "flex",
-          flexDirection: "column",
-          gap: 16,
-        }}
-      >
+<section
+  id="featured-apps"
+  style={{
+    width: "100%",
+    maxWidth: 1020,
+    display: "flex",
+    flexDirection: "column",
+    gap: 16,
+  }}
+>
+
+
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <h2 style={{ margin: 0, fontSize: 16, letterSpacing: 2, color: "#8de8cb" }}>
             ARCADE APPS · SELECT TO LAUNCH
@@ -865,13 +870,14 @@ export default function App() {
                   fontWeight: 800,
                 }}
               >
-                FLAGSHIP ARPG · v3.0
+                FLAGSHIP ARPG · v4.0
               </span>
             </div>
 
             <p style={{ margin: 0, fontSize: 12, color: "#9bc4b4", lineHeight: 1.55 }}>
-              Subterranean extraction ARPG featuring custom pixel-art Husks &amp; Guardians, 5 weapon tiers,
-              permanent slot upgrades, duplicate fusion (3 → 9 → 27), and 105 collectible items.
+              Subterranean extraction ARPG featuring Sector 0 Training Yard, 2x Charge Cleaves,
+              10 milestone Surveyor suits, custom pixel-art Husks &amp; Guardians, duplicate fusion (3 → 9 → 27),
+              and the 5-Chapter Surveyor Field Book.
             </p>
           </div>
 

@@ -24,7 +24,7 @@ A surveyor went missing beneath the ridge. You followed their distress signal in
 - 🛡️ **Wardens hit harder.** Watch the wind-up, then dodge or guard at the right moment.
 - 💎 **Loot from Common to Legendary.** Better gear equips itself automatically, and the deeper you go, the luckier the drops.
 - 🔧 **Fuse duplicates.** Three of a kind become one stronger one: 3 → 9 → 27.
-- 🧑‍🚀 **Unlock new suits.** Extract alive from Floor 20, 50 and 100 to earn new surveyor skins.
+- 🧑‍🚀 **Unlock new suits.** There are 10, one every 10 floors. Reach the floor and it's yours.
 - 🚪 **Bank it or risk it.** After every cleared floor, extract and bank your loot, or descend for more. Fall in battle and you lose everything you didn't bank.
 - 🔥 **Beat Floor 100?** Overdrive mode keeps going.
 - 🎨 **New in v3.0:** all-new pixel art for the surveyor, the bosses, the enemies and the rooms.
@@ -37,6 +37,8 @@ A surveyor went missing beneath the ridge. You followed their distress signal in
 | Slash | `Left click` or `J` |
 | Guard | `Right click`, `K` or `Shift` |
 | Dodge | `Space` |
+| Charge slash (2x damage) | Hold `Left click` or `J` for 0.9 seconds |
+| Armory & Field Book | `I` to open, `Q` to close |
 | Interact | `E` |
 | Next floor | Clear the room, then walk into the Extraction Lift on the right |
 
@@ -93,6 +95,16 @@ npm run dev
 Then open the address it prints (usually `http://localhost:5173`).
 
 ## 📰 What's new
+
+### v4.0 · The Field Book
+
+- 🏭 **Sector 0: the Training Yard.** Four quick drills before you drop in. Skip if you're a pro.
+- ⚡ **Hold slash to charge-cleave.** Hold 0.9 seconds for a 2x damage hit.
+- 🧑‍🚀 **10 suits, one every 10 floors.** Reach the floor and it unlocks. Each has a perk.
+- 📖 **The Surveyor Field Book.** 5 chapters: map, items, suits, enemies, bosses. Press `I`.
+- 🧊 **Floor 50: the Cryo Sentinel.** Floor 60 brings the Thermal Titan. Bring layers.
+- 🎖️ **Floor 70: Commander Krell.** Then the Forge Overseer on 80, Aegis Prime on 90.
+- 🎙️ **Floor 40: Archivist Null.** The keeper of the archives. Don't read his mail.
 
 ### v3.0 · Pixels & Husks
 
@@ -196,4 +208,3 @@ ZIP  >  SCAN  >  SEALED BOX  >  TEST COPY  >  LIVE  >  UNDO BUTTON
 
 > [!TIP]
 > **You're ahead of most people your age.** You know how a game reaches the internet. You know where hackers try to get in. Keep it up.
-CHANGED

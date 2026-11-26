@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { deepSignalAudio } from "../lib/deep-signal-audio";
 import {
+  SURVEYOR_SKINS,
   drawExactBoss,
   drawExactEnemy,
   drawExactSurveyor,
@@ -8,17 +9,15 @@ import {
   drawPixelProp,
   drawPixelatedRoomMap,
 } from "../lib/Pixel-skins";
-
 import {
-
   ALL_GEAR_SLOTS,
   ASCENSION_MERGE_COUNT,
+  BIOMES,
+  CHARGE_FULL_MS,
   ENEMY_LORE_CODEX,
   FULL_ITEM_CATALOG,
   MAX_SLOT_UPGRADE_LEVEL,
   SIGNAL_TAPES_DB,
-  VAULT_PAGE_SIZE,
-  VAULT_TOTAL_PAGES,
   WORLD_HEIGHT,
   WORLD_WIDTH,
   acknowledgeBossLore,
@@ -37,9 +36,11 @@ import {
   getEffectiveGearStats,
   getGearSellValue,
   getMultiSlotUpgradePlan,
+  makeGearFromBlueprint,
   sellBankItemStack,
   sellFilteredBankItems,
   setSurveyorSkin,
+  skipTrainingTutorial,
   startDeepSignalRun,
   stepDeepSignalRun,
   unequipAllSlotsToBank,
@@ -48,6 +49,7 @@ import {
   type BossSpec,
   type DeepSignalRun,
   type Enemy,
+  type EnemyClassId,
   type GearItem,
   type GearRarity,
   type GearSlot,
@@ -56,6 +58,8 @@ import {
   type WeaponArchetype,
 } from "../lib/deep-signal-engine";
 import {
+  VAULT_PAGE_SIZE,
+  VAULT_TOTAL_PAGES,
   loadSurveyorProfile,
   resetSurveyorProfile,
   saveSurveyorProfile,
@@ -63,60 +67,6 @@ import {
 } from "../lib/deep-signal-store";
 
 type KeyMap = Record<string, boolean>;
-
-export type SkinTheme = {
-  id: string;
-  name: string;
-  unlockNote: string;
-  body: string;
-  bodyShadow: string;
-  visor: string;
-  visorGlow: string;
-  trim: string;
-};
-
-export const SURVEYOR_SKINS: SkinTheme[] = [
-  {
-    id: "standard-issue",
-    name: "STANDARD SURVEYOR",
-    unlockNote: "Default Sub-Level Expedition Suit",
-    body: "#f4f8f7",
-    bodyShadow: "#cbd6d3",
-    visor: "#0a0d0f",
-    visorGlow: "rgba(244, 248, 247, 0.35)",
-    trim: "#0a0d0f",
-  },
-  {
-    id: "cryo-surveyor",
-    name: "CRYO-CONDUIT RIG",
-    unlockNote: "Extract from Floor 20+",
-    body: "#7ce0ff",
-    bodyShadow: "#3589b3",
-    visor: "#071724",
-    visorGlow: "rgba(99, 210, 255, 0.4)",
-    trim: "#0a0d0f",
-  },
-  {
-    id: "void-walker",
-    name: "ARCHIVE PHANTOM",
-    unlockNote: "Extract from Floor 50+",
-    body: "#c7b3ff",
-    bodyShadow: "#6d52b8",
-    visor: "#130b29",
-    visorGlow: "rgba(182, 156, 255, 0.42)",
-    trim: "#0a0d0f",
-  },
-  {
-    id: "sovereign-gold",
-    name: "SOVEREIGN PRIME",
-    unlockNote: "Extract from Floor 100+",
-    body: "#ffe07d",
-    bodyShadow: "#b5851d",
-    visor: "#1c1303",
-    visorGlow: "rgba(255, 207, 86, 0.45)",
-    trim: "#0a0d0f",
-  },
-];
 
 const RARITY_STYLES: Record<GearRarity, { border: string; bg: string; text: string; hex: string }> = {
   Common: { border: "border-[#637870]", bg: "bg-[#141f1c]", text: "text-[#c4d6cf]", hex: "#9eb3ab" },
@@ -136,10 +86,6 @@ const SLOT_LABELS: Record<GearSlot, string> = {
   ring: "RING",
 };
 
-function getSkinTheme(skinId: string): SkinTheme {
-  return SURVEYOR_SKINS.find((s) => s.id === skinId) ?? SURVEYOR_SKINS.at(0)!;
-}
-
 function getWeaponPalette(rarity?: GearRarity, weaponType?: WeaponArchetype) {
   const type = weaponType ?? "Sword";
   if (type === "Executioner" || rarity === "Legendary") {
@@ -155,73 +101,6 @@ function getWeaponPalette(rarity?: GearRarity, weaponType?: WeaponArchetype) {
     return { blade: "#4da6ff", edge: "#bfe3ff", hilt: "#d49b24", gem: "#e8f7ff" };
   }
   return { blade: "#c4ced4", edge: "#f5f9fa", hilt: "#c99426", gem: "#ffffff" };
-}
-
-function drawPixelWeapon(
-  ctx: CanvasRenderingContext2D,
-  weaponType: WeaponArchetype | undefined,
-  rarity: GearRarity | undefined,
-  swinging: boolean,
-) {
-  const type = weaponType ?? "Sword";
-  const pal = getWeaponPalette(rarity, type);
-  ctx.save();
-  ctx.rotate(swinging ? -0.65 : 0.15);
-
-  ctx.fillStyle = "#0a0d0f";
-  ctx.fillRect(5, -3, 7, 6);
-  ctx.fillStyle = pal.hilt;
-  ctx.fillRect(6, -2, 5, 4);
-
-  if (type === "Rapier") {
-    ctx.fillStyle = "#f2c138";
-    ctx.fillRect(10, -5, 3, 10);
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(12, -2, 19, 4);
-    ctx.fillStyle = pal.blade;
-    ctx.fillRect(13, -1, 17, 2);
-    ctx.fillStyle = pal.edge;
-    ctx.fillRect(13, -1, 15, 1);
-  } else if (type === "Broadsword") {
-    ctx.fillStyle = "#f5f9fa";
-    ctx.fillRect(10, -6, 3, 12);
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(12, -4, 18, 8);
-    ctx.fillStyle = pal.blade;
-    ctx.fillRect(13, -3, 16, 6);
-    ctx.fillStyle = pal.edge;
-    ctx.fillRect(13, -3, 15, 2);
-  } else if (type === "Plasma Cleaver") {
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(10, -6, 20, 11);
-    ctx.fillStyle = "#4a1766";
-    ctx.fillRect(11, -1, 17, 4);
-    ctx.fillStyle = pal.blade;
-    ctx.fillRect(12, -5, 17, 4);
-    ctx.fillStyle = pal.edge;
-    ctx.fillRect(13, -5, 15, 2);
-  } else if (type === "Executioner") {
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(10, -7, 23, 14);
-    ctx.fillStyle = pal.blade;
-    ctx.fillRect(11, -6, 3, 12);
-    ctx.fillRect(14, -4, 16, 8);
-    ctx.fillRect(28, -3, 3, 6);
-    ctx.fillStyle = pal.edge;
-    ctx.fillRect(14, -4, 15, 2);
-    ctx.fillStyle = pal.gem;
-    ctx.fillRect(12, -1, 3, 2);
-  } else {
-    ctx.fillStyle = "#d9a226";
-    ctx.fillRect(10, -5, 3, 10);
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(12, -3, 17, 6);
-    ctx.fillStyle = pal.blade;
-    ctx.fillRect(13, -2, 15, 4);
-    ctx.fillStyle = pal.edge;
-    ctx.fillRect(13, -2, 14, 1);
-  }
-  ctx.restore();
 }
 
 export function PixelGearIcon({
@@ -362,307 +241,162 @@ export function PixelGearIcon({
   );
 }
 
-export function drawPixelSurveyorSprite(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  facingX: number,
-  facingY: number,
-  skinId: string,
-  equipped: Partial<Record<GearSlot, GearItem>>,
-  options?: { walkPhase?: number; guarding?: boolean; attacking?: boolean; invulnerable?: boolean },
-) {
-  const skin = getSkinTheme(skinId);
-  const walk = options?.walkPhase ?? 0;
-  const bob = Math.abs(Math.sin(walk)) * 2;
-  const stride = Math.sin(walk) * 3.5;
-  const flip = facingX < -0.15 ? -1 : 1;
+// Live Interactive Mini-Surveyor Paperdoll (tracks cursor like Minecraft inventory & renders equipped/held items)
+export function SurveyorPaperdollCanvas({
+  skinId,
+  equipped,
+  previewItem,
+  width = 112,
+  height = 112,
+}: {
+  skinId: string;
+  equipped: Partial<Record<GearSlot, GearItem>>;
+  previewItem?: GearItem | null;
+  width?: number;
+  height?: number;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const lookRef = useRef<{ fx: number; fy: number }>({ fx: 1, fy: 0 });
 
-  ctx.save();
-  ctx.translate(Math.round(x), Math.round(y));
+  useEffect(() => {
+    let raf = 0;
+    const render = (now: number) => {
+      const canvas = canvasRef.current;
+      const ctx = canvas?.getContext("2d");
+      if (canvas && ctx) {
+        ctx.imageSmoothingEnabled = false;
+        ctx.fillStyle = "#070c0a";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  if (options?.invulnerable && Math.floor(Date.now() / 65) % 2 === 0) {
-    ctx.globalAlpha = 0.55;
-  }
+        ctx.strokeStyle = "rgba(111, 227, 193, 0.08)";
+        ctx.lineWidth = 1;
+        for (let x = 0; x < canvas.width; x += 14) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, canvas.height);
+          ctx.stroke();
+        }
+        for (let y = 0; y < canvas.height; y += 14) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(canvas.width, y);
+          ctx.stroke();
+        }
 
-  ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
-  ctx.beginPath();
-  ctx.ellipse(0, 14, 12, 4.5, 0, 0, Math.PI * 2);
-  ctx.fill();
+        ctx.fillStyle = "#162923";
+        ctx.fillRect(Math.round(canvas.width / 2 - 26), Math.round(canvas.height * 0.78), 52, 8);
+        ctx.fillStyle = "#6fe3c1";
+        ctx.fillRect(Math.round(canvas.width / 2 - 24), Math.round(canvas.height * 0.78), 48, 2);
 
-  const pantsColor = equipped.pants ? RARITY_STYLES[equipped.pants.rarity].hex : skin.body;
-  const shoeColor = equipped.shoes ? RARITY_STYLES[equipped.shoes.rarity].hex : skin.body;
+        ctx.save();
+        ctx.translate(Math.round(canvas.width / 2), Math.round(canvas.height * 0.64));
+        ctx.scale(1.65, 1.65);
+        drawExactSurveyor(ctx, 0, 0, lookRef.current.fx, lookRef.current.fy, skinId, equipped, {
+          walkPhase: now * 0.004,
+          previewItem,
+        });
+        ctx.restore();
+      }
+      raf = window.requestAnimationFrame(render);
+    };
+    raf = window.requestAnimationFrame(render);
+    return () => window.cancelAnimationFrame(raf);
+  }, [skinId, equipped, previewItem]);
 
-  const leftLegY = Math.round(5 - stride * 0.6);
-  const rightLegY = Math.round(5 + stride * 0.6);
-  ctx.fillStyle = "#0a0d0f";
-  ctx.fillRect(-6, leftLegY - 1, 5, 9);
-  ctx.fillRect(1, rightLegY - 1, 5, 9);
-  ctx.fillStyle = pantsColor;
-  ctx.fillRect(-5, leftLegY, 3, 5);
-  ctx.fillRect(2, rightLegY, 3, 5);
-  ctx.fillStyle = shoeColor;
-  ctx.fillRect(-5, leftLegY + 5, 3, 2);
-  ctx.fillRect(2, rightLegY + 5, 3, 2);
-
-  const chestColor = equipped.chestplate ? RARITY_STYLES[equipped.chestplate.rarity].hex : skin.body;
-  ctx.fillStyle = "#0a0d0f";
-  ctx.fillRect(-8, Math.round(-6 - bob), 16, 12);
-  ctx.fillStyle = chestColor;
-  ctx.fillRect(-6, Math.round(-5 - bob), 12, 8);
-  ctx.fillStyle = "#0a0d0f";
-  ctx.fillRect(-7, Math.round(3 - bob), 14, 2);
-
-  if (equipped.necklace) {
-    ctx.fillStyle = RARITY_STYLES[equipped.necklace.rarity].hex;
-    ctx.fillRect(-2, Math.round(-4 - bob), 4, 2);
-  }
-
-  const helmColor = equipped.helmet ? RARITY_STYLES[equipped.helmet.rarity].hex : skin.body;
-  ctx.fillStyle = "#0a0d0f";
-  ctx.fillRect(-8, Math.round(-18 - bob), 16, 12);
-  ctx.fillStyle = helmColor;
-  ctx.fillRect(-6, Math.round(-16 - bob), 12, 9);
-
-  const eyeShift = flip > 0 ? 1 : -2;
-  ctx.fillStyle = skin.visor;
-  ctx.fillRect(-3 + eyeShift, Math.round(-14 - bob), 2, 5);
-  ctx.fillRect(2 + eyeShift, Math.round(-14 - bob), 2, 5);
-
-  if (options?.guarding) {
-    ctx.strokeStyle = "#6fe3c1";
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.arc(0, -3, 18, Math.atan2(facingY, facingX) - 0.85, Math.atan2(facingY, facingX) + 0.85);
-    ctx.stroke();
-  }
-
-  ctx.save();
-  ctx.translate(0, Math.round(-1 - bob));
-  ctx.rotate(Math.atan2(facingY, facingX));
-  drawPixelWeapon(ctx, equipped.weapon?.weaponType, equipped.weapon?.rarity, Boolean(options?.attacking));
-  ctx.restore();
-
-  ctx.restore();
+  return (
+    <canvas
+      ref={canvasRef}
+      width={width}
+      height={height}
+      onMouseMove={(e) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        const dx = e.clientX - (rect.left + rect.width / 2);
+        const dy = e.clientY - (rect.top + rect.height / 2);
+        const len = Math.max(1, Math.hypot(dx, dy));
+        lookRef.current = { fx: dx / len, fy: (dy / len) * 0.45 };
+      }}
+      onMouseLeave={() => {
+        lookRef.current = { fx: 1, fy: 0 };
+      }}
+      className="rounded-lg border border-[#2d4a40] bg-[#070c0a] shrink-0 cursor-crosshair"
+      style={{ imageRendering: "pixelated" }}
+    />
+  );
 }
 
-export function draw25DBossSprite(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  facingX: number,
-  facingY: number,
-  bossSpec: BossSpec,
-  nowMs: number,
-  options?: { flash?: boolean; scaleOverride?: number },
-) {
-  const flash = Boolean(options?.flash);
-  const arch = bossSpec.archetype;
-  const tier = bossSpec.threatTier;
-  const scale = options?.scaleOverride ?? Math.min(2.1, 1.5 + tier * 0.05);
-  const bob = Math.abs(Math.sin(nowMs * 0.007)) * 2.5;
-  const flip = facingX < 0 ? -1 : 1;
+export function EnemyMiniPreviewCanvas({ enemyKind }: { enemyKind: EnemyClassId }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  ctx.save();
-  ctx.translate(Math.round(x), Math.round(y));
+  useEffect(() => {
+    let raf = 0;
+    const render = (now: number) => {
+      const canvas = canvasRef.current;
+      const ctx = canvas?.getContext("2d");
+      if (canvas && ctx) {
+        ctx.imageSmoothingEnabled = false;
+        ctx.fillStyle = "#070c0a";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
-  ctx.beginPath();
-  ctx.ellipse(0, Math.round(14 * scale), Math.round(16 * scale), Math.round(6 * scale), 0, 0, Math.PI * 2);
-  ctx.fill();
+        const dummyEnemy: Enemy = {
+          id: 1,
+          kind: enemyKind,
+          weapon: "Sword",
+          x: 0,
+          y: 0,
+          z: 0,
+          health: 100,
+          maxHealth: 100,
+          speed: 0,
+          damage: 10,
+          flankAngle: 0,
+          windupMs: 0,
+          maxWindupMs: 400,
+          abilityCooldownMs: 0,
+          specialWindupMs: 0,
+          maxSpecialWindupMs: 400,
+          specialType: "none",
+          aimTargetX: 0,
+          aimTargetY: 0,
+          diveStartX: 0,
+          diveStartY: 0,
+          attackCooldownMs: 0,
+          stunMs: 0,
+          hitFlashMs: 0,
+          facingX: -1,
+          facingY: 0,
+          strafeSign: 1,
+          stolenGold: 0,
+          stolenDiamonds: 0,
+          stealEscapeTimerMs: 0,
+          groundedVulnerableMs: 0,
+          perchX: 0,
+          perchY: 0,
+          spawnTimerMs: 0,
+          barrageRemainingMs: 0,
+          barrageShotTimerMs: 0,
+        };
 
-  ctx.scale(scale, scale);
+        ctx.save();
+        ctx.translate(Math.round(canvas.width / 2), Math.round(canvas.height * 0.68));
+        ctx.scale(1.85, 1.85);
+        drawExactEnemy(ctx, dummyEnemy, now);
+        ctx.restore();
+      }
+      raf = window.requestAnimationFrame(render);
+    };
+    raf = window.requestAnimationFrame(render);
+    return () => window.cancelAnimationFrame(raf);
+  }, [enemyKind]);
 
-  if (arch === "warden-10") {
-    const redMain = flash ? "#ffffff" : "#e62e2e";
-    const redDark = flash ? "#ffffff" : "#991414";
-    const visorPink = flash ? "#ffffff" : "#ffc2c2";
-    const stride = Math.sin(nowMs * 0.01) * 2;
-
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(-7, Math.round(4 - stride * 0.4), 6, 9);
-    ctx.fillRect(1, Math.round(4 + stride * 0.4), 6, 9);
-    ctx.fillStyle = redDark;
-    ctx.fillRect(-6, Math.round(5 - stride * 0.4), 4, 7);
-    ctx.fillRect(2, Math.round(5 + stride * 0.4), 4, 7);
-
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(-13, Math.round(-9 - bob), 26, 14);
-    ctx.fillStyle = redMain;
-    ctx.fillRect(-11, Math.round(-8 - bob), 22, 12);
-    ctx.fillStyle = redDark;
-    ctx.fillRect(-11, Math.round(-2 - bob), 22, 5);
-
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(-16, Math.round(-3 - bob), 5, 6);
-    ctx.fillRect(11, Math.round(-3 - bob), 5, 6);
-    ctx.fillStyle = redMain;
-    ctx.fillRect(-15, Math.round(-2 - bob), 3, 4);
-    ctx.fillRect(12, Math.round(-2 - bob), 3, 4);
-
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(-9, Math.round(-20 - bob), 18, 11);
-    ctx.fillStyle = redMain;
-    ctx.fillRect(-8, Math.round(-19 - bob), 16, 9);
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(flip < 0 ? -9 : -2, Math.round(-16 - bob), 11, 4);
-    ctx.fillStyle = visorPink;
-    ctx.fillRect(flip < 0 ? -8 : -1, Math.round(-15 - bob), 9, 2);
-
-    ctx.save();
-    ctx.translate(0, Math.round(-2 - bob));
-    ctx.rotate(Math.atan2(facingY, facingX));
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(10, -4, 20, 8);
-    ctx.fillStyle = redMain;
-    ctx.fillRect(11, -3, 18, 6);
-    ctx.fillStyle = visorPink;
-    ctx.fillRect(12, -2, 15, 2);
-    ctx.restore();
-    ctx.restore();
-    return;
-  }
-
-  if (arch === "riot-20") {
-    const greenMain = flash ? "#ffffff" : "#80eb28";
-    const greenDark = flash ? "#ffffff" : "#1f7a24";
-    const stride = Math.sin(nowMs * 0.01) * 2;
-
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(-7, Math.round(4 - stride * 0.4), 6, 9);
-    ctx.fillRect(1, Math.round(4 + stride * 0.4), 6, 9);
-    ctx.fillStyle = greenDark;
-    ctx.fillRect(-6, Math.round(5 - stride * 0.4), 4, 7);
-    ctx.fillRect(2, Math.round(5 + stride * 0.4), 4, 7);
-
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(-12, Math.round(-9 - bob), 24, 14);
-    ctx.fillStyle = greenMain;
-    ctx.fillRect(-10, Math.round(-8 - bob), 20, 12);
-    ctx.fillStyle = greenDark;
-    ctx.fillRect(-8, Math.round(-4 - bob), 16, 7);
-
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(-9, Math.round(-20 - bob), 18, 11);
-    ctx.fillStyle = greenMain;
-    ctx.fillRect(-8, Math.round(-19 - bob), 16, 9);
-    ctx.fillStyle = "#0a0d0f";
-    const vx = flip < 0 ? -7 : -2;
-    ctx.fillRect(vx, Math.round(-16 - bob), 9, 4);
-    ctx.fillStyle = "#d8ff9e";
-    ctx.fillRect(vx + 1, Math.round(-15 - bob), 3, 2);
-    ctx.fillRect(vx + 5, Math.round(-15 - bob), 3, 2);
-
-    ctx.save();
-    ctx.translate(0, Math.round(-2 - bob));
-    ctx.rotate(Math.atan2(facingY, facingX));
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(8, -3, 16, 6);
-    ctx.fillRect(20, -10, 5, 20);
-    ctx.fillStyle = greenMain;
-    ctx.fillRect(9, -2, 14, 4);
-    ctx.fillRect(21, -9, 3, 18);
-    ctx.fillStyle = "#c8ff80";
-    ctx.fillRect(23, -1, 6, 2);
-    ctx.restore();
-    ctx.restore();
-    return;
-  }
-
-  if (arch === "matriarch-30") {
-    const blueMain = flash ? "#ffffff" : "#3a66f2";
-    const blueDark = flash ? "#ffffff" : "#182e8a";
-    const cyanEye = flash ? "#ffffff" : "#80e8ff";
-    const flap = Math.sin(nowMs * 0.015) * 3;
-
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(-24, Math.round(-14 - bob + flap), 14, 12);
-    ctx.fillRect(10, Math.round(-14 - bob + flap), 14, 12);
-    ctx.fillStyle = blueMain;
-    ctx.fillRect(-23, Math.round(-13 - bob + flap), 12, 9);
-    ctx.fillRect(11, Math.round(-13 - bob + flap), 12, 9);
-
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(-11, Math.round(-18 - bob), 22, 22);
-    ctx.fillStyle = blueMain;
-    ctx.fillRect(-10, Math.round(-16 - bob), 20, 19);
-    ctx.fillRect(-8, Math.round(-21 - bob), 3, 4);
-    ctx.fillRect(-1, Math.round(-22 - bob), 3, 5);
-    ctx.fillRect(5, Math.round(-21 - bob), 3, 4);
-
-    ctx.fillStyle = blueDark;
-    ctx.fillRect(-7, Math.round(-12 - bob), 14, 11);
-    ctx.fillStyle = cyanEye;
-    ctx.fillRect(-5, Math.round(-10 - bob), 2, 2);
-    ctx.fillRect(-1, Math.round(-11 - bob), 2, 2);
-    ctx.fillRect(3, Math.round(-10 - bob), 2, 2);
-    ctx.fillRect(-3, Math.round(-6 - bob), 2, 2);
-    ctx.fillRect(1, Math.round(-6 - bob), 2, 2);
-
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(-12, Math.round(7 - bob), 6, 6);
-    ctx.fillRect(-3, Math.round(8 - bob), 6, 6);
-    ctx.fillRect(6, Math.round(7 - bob), 6, 6);
-    ctx.fillStyle = blueMain;
-    ctx.fillRect(-11, Math.round(8 - bob), 4, 4);
-    ctx.fillRect(-2, Math.round(9 - bob), 4, 4);
-    ctx.fillRect(7, Math.round(8 - bob), 4, 4);
-
-    ctx.restore();
-    return;
-  }
-
-  const armorDark = flash ? "#ffffff" : bossSpec.secondaryColor;
-  const armorMain = flash ? "#ffffff" : bossSpec.primaryColor;
-  const glow = flash ? "#ffffff" : bossSpec.glowColor;
-
-  if (tier >= 4) {
-    const pulse = Math.sin(nowMs * 0.008) * 2;
-    ctx.strokeStyle = glow;
-    ctx.globalAlpha = 0.35;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(0, -4 - bob, 16 + pulse, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-  }
-
-  const stride = Math.sin(nowMs * 0.009) * 2;
-  ctx.fillStyle = armorDark;
-  ctx.fillRect(-6, Math.round(4 - stride * 0.4), 5, 9);
-  ctx.fillRect(1, Math.round(4 + stride * 0.4), 5, 9);
-
-  ctx.fillStyle = armorDark;
-  ctx.fillRect(-10, Math.round(-9 - bob), 20, 14);
-  ctx.fillStyle = armorMain;
-  ctx.fillRect(-9, Math.round(-8 - bob), 18, 12);
-
-  ctx.fillStyle = armorDark;
-  ctx.fillRect(-3, Math.round(-5 - bob), 6, 6);
-  ctx.fillStyle = glow;
-  ctx.fillRect(-2, Math.round(-4 - bob), 4, 4);
-
-  ctx.fillStyle = armorDark;
-  ctx.fillRect(-8, Math.round(-20 - bob), 16, 11);
-  ctx.fillStyle = armorMain;
-  ctx.fillRect(-7, Math.round(-19 - bob), 14, 9);
-
-  ctx.fillStyle = glow;
-  ctx.fillRect(-8, Math.round(-24 - bob), 3, 5);
-  ctx.fillRect(5, Math.round(-24 - bob), 3, 5);
-
-  ctx.fillStyle = "#080b0d";
-  ctx.fillRect(flip < 0 ? -6 : -1, Math.round(-16 - bob), 7, 3);
-  ctx.fillStyle = glow;
-  ctx.fillRect(flip < 0 ? -5 : 0, Math.round(-15 - bob), 5, 2);
-
-  ctx.save();
-  ctx.translate(0, Math.round(-2 - bob));
-  ctx.rotate(Math.atan2(facingY, facingX));
-  drawPixelWeapon(ctx, "Executioner", tier >= 8 ? "Legendary" : "Epic", false);
-  ctx.restore();
-
-  ctx.restore();
+  return (
+    <canvas
+      ref={canvasRef}
+      width={104}
+      height={104}
+      className="rounded-lg border border-[#2d4a40] bg-[#070c0a] shrink-0"
+      style={{ imageRendering: "pixelated" }}
+    />
+  );
 }
 
 export function BossMiniPreviewCanvas({ bossSpec }: { bossSpec: BossSpec }) {
@@ -693,10 +427,9 @@ export function BossMiniPreviewCanvas({ bossSpec }: { bossSpec: BossSpec }) {
           ctx.stroke();
         }
 
-        drawExactBoss(ctx, canvas.width / 2, canvas.height * 0.68, -1, 0, bossSpec, now, {
-          scaleOverride: 1.9,
+        drawExactBoss(ctx, canvas.width / 2, canvas.height * 0.72, -1, 0, bossSpec, now, {
+          scaleOverride: 1.75,
         });
-
       }
       raf = window.requestAnimationFrame(render);
     };
@@ -707,318 +440,12 @@ export function BossMiniPreviewCanvas({ bossSpec }: { bossSpec: BossSpec }) {
   return (
     <canvas
       ref={canvasRef}
-      width={112}
-      height={112}
+      width={104}
+      height={104}
       className="rounded-lg border border-[#2d4a40] bg-[#070c0a] shrink-0"
       style={{ imageRendering: "pixelated" }}
     />
   );
-}
-
-function draw25DEnemySprite(ctx: CanvasRenderingContext2D, enemy: Enemy, nowMs: number) {
-  if (enemy.health <= 0) return;
-
-  const isBoss = enemy.kind === "boss";
-  const flash = enemy.hitFlashMs > 0;
-  const x = Math.round(enemy.x);
-  const y = Math.round(enemy.y);
-  const zOffset = Math.round(enemy.z);
-  const bob = Math.abs(Math.sin(nowMs * 0.008 + enemy.id)) * (isBoss ? 2.5 : 1.8);
-  const flip = enemy.facingX < 0 ? -1 : 1;
-
-  if (enemy.specialWindupMs > 0) {
-    const pct = 1 - enemy.specialWindupMs / Math.max(1, enemy.maxSpecialWindupMs);
-    ctx.save();
-    if (enemy.specialType === "laser-tp") {
-      ctx.strokeStyle = `rgba(242, 56, 255, ${0.45 + pct * 0.5})`;
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.moveTo(x, y - 6);
-      ctx.lineTo(enemy.aimTargetX, enemy.aimTargetY);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(enemy.aimTargetX, enemy.aimTargetY, 12 * (1 - pct * 0.4), 0, Math.PI * 2);
-      ctx.stroke();
-    } else if (enemy.specialType === "slam") {
-      ctx.strokeStyle = `rgba(99, 210, 255, ${0.35 + pct * 0.55})`;
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.arc(enemy.aimTargetX, enemy.aimTargetY, 34 * pct, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-    ctx.restore();
-  } else if (enemy.windupMs > 0) {
-    const pct = 1 - enemy.windupMs / Math.max(1, enemy.maxWindupMs);
-    ctx.save();
-    ctx.strokeStyle = `rgba(255, 207, 86, ${0.45 + pct * 0.5})`;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    const ang = Math.atan2(enemy.facingY, enemy.facingX);
-    ctx.arc(x, y, (isBoss ? 52 : 38) * (0.6 + pct * 0.4), ang - 0.75, ang + 0.75);
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  if (isBoss) {
-    const spec = enemy.bossSpec ?? getBossSpecForFloor(10);
-    draw25DBossSprite(ctx, x, y, enemy.facingX, enemy.facingY, spec, nowMs, { flash });
-    if (enemy.stunMs > 0) {
-      ctx.fillStyle = "#79f2cc";
-      ctx.font = "bold 9px monospace";
-      ctx.textAlign = "center";
-      ctx.fillText("STUNNED", x, y - 42);
-    }
-    return;
-  }
-
-  ctx.fillStyle = "rgba(0, 0, 0, 0.48)";
-  ctx.beginPath();
-  ctx.ellipse(x, y + 13, enemy.kind === "brute" ? 14 : 11, 4.5, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.save();
-  ctx.translate(x, y - zOffset);
-
-  const stride = Math.sin(nowMs * 0.012 + enemy.id) * 2.5;
-
-  if (enemy.kind === "flyer") {
-    const blueBody = flash ? "#ffffff" : "#3a66f2";
-    const blueDark = flash ? "#ffffff" : "#19308c";
-    const wingOpen = Math.floor(nowMs / 130) % 2 === 0;
-    ctx.fillStyle = "#0a0d0f";
-    if (wingOpen) ctx.fillRect(-15, Math.round(-10 - bob), 30, 8);
-    else ctx.fillRect(-11, Math.round(-6 - bob), 22, 10);
-    ctx.fillStyle = blueBody;
-    if (wingOpen) ctx.fillRect(-14, Math.round(-9 - bob), 28, 6);
-    else ctx.fillRect(-10, Math.round(-5 - bob), 20, 8);
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(-7, Math.round(-12 - bob), 14, 14);
-    ctx.fillStyle = blueBody;
-    ctx.fillRect(-6, Math.round(-11 - bob), 12, 12);
-    ctx.fillStyle = blueDark;
-    ctx.fillRect(-4, Math.round(-9 - bob), 8, 8);
-    ctx.fillStyle = "#80e8ff";
-    ctx.fillRect(-3, Math.round(-8 - bob), 2, 2);
-    ctx.fillRect(1, Math.round(-8 - bob), 2, 2);
-    ctx.fillRect(-3, Math.round(-5 - bob), 2, 2);
-    ctx.fillRect(1, Math.round(-5 - bob), 2, 2);
-    if (enemy.groundedVulnerableMs > 0) {
-      ctx.fillStyle = "#ffcf56";
-      ctx.font = "bold 8px monospace";
-      ctx.textAlign = "center";
-      ctx.fillText("HIT!", 0, -16);
-    }
-  } else if (enemy.kind === "bandit") {
-    const goldBody = flash ? "#ffffff" : "#f5c425";
-    const goldDark = flash ? "#ffffff" : "#9c6e0c";
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(-5, Math.round(4 - stride * 0.5), 4, 7);
-    ctx.fillRect(1, Math.round(4 + stride * 0.5), 4, 7);
-    ctx.fillStyle = goldDark;
-    ctx.fillRect(-4, Math.round(5 - stride * 0.5), 2, 5);
-    ctx.fillRect(2, Math.round(5 + stride * 0.5), 2, 5);
-
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(-8, Math.round(-7 - bob), 16, 12);
-    ctx.fillStyle = goldBody;
-    ctx.fillRect(-6, Math.round(-6 - bob), 12, 10);
-
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(-7, Math.round(-17 - bob), 14, 10);
-    ctx.fillStyle = goldBody;
-    ctx.fillRect(-6, Math.round(-16 - bob), 12, 8);
-    ctx.fillRect(-6, Math.round(-19 - bob), 2, 3);
-    ctx.fillRect(-1, Math.round(-20 - bob), 2, 4);
-    ctx.fillRect(4, Math.round(-19 - bob), 2, 3);
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(flip < 0 ? -5 : -1, Math.round(-14 - bob), 6, 4);
-    ctx.fillStyle = "#fff380";
-    const px = flip < 0 ? -3 : 1;
-    ctx.fillRect(px, Math.round(-14 - bob), 1, 4);
-    ctx.fillRect(px - 1, Math.round(-13 - bob), 3, 2);
-
-    if (enemy.stolenGold > 0 || enemy.stolenDiamonds > 0) {
-      ctx.fillStyle = "#d99b1e";
-      ctx.fillRect(flip < 0 ? 6 : -12, Math.round(-9 - bob), 6, 8);
-    }
-  } else if (enemy.kind === "brute") {
-    const redMain = flash ? "#ffffff" : "#e62e2e";
-    const redDark = flash ? "#ffffff" : "#8f1111";
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(-6, Math.round(4 - stride * 0.4), 5, 8);
-    ctx.fillRect(1, Math.round(4 + stride * 0.4), 5, 8);
-    ctx.fillStyle = redDark;
-    ctx.fillRect(-5, Math.round(5 - stride * 0.4), 3, 6);
-    ctx.fillRect(2, Math.round(5 + stride * 0.4), 3, 6);
-
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(-10, Math.round(-8 - bob), 20, 13);
-    ctx.fillStyle = redMain;
-    ctx.fillRect(-9, Math.round(-7 - bob), 18, 11);
-    ctx.fillStyle = redDark;
-    ctx.fillRect(-8, Math.round(-3 - bob), 16, 6);
-
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(-8, Math.round(-18 - bob), 16, 10);
-    ctx.fillStyle = redMain;
-    ctx.fillRect(-7, Math.round(-17 - bob), 14, 8);
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(flip < 0 ? -7 : -1, Math.round(-15 - bob), 8, 3);
-    ctx.fillStyle = "#ffb8b8";
-    ctx.fillRect(flip < 0 ? -6 : 0, Math.round(-14 - bob), 6, 2);
-
-    ctx.save();
-    ctx.translate(0, Math.round(-2 - bob));
-    ctx.rotate(Math.atan2(enemy.facingY, enemy.facingX));
-    drawPixelWeapon(ctx, "Broadsword", "Rare", enemy.windupMs > 0 && enemy.windupMs < 130);
-    ctx.restore();
-  } else if (enemy.kind === "archer") {
-    const greenMain = flash ? "#ffffff" : "#80eb28";
-    const greenDark = flash ? "#ffffff" : "#227a26";
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(-5, Math.round(4 - stride * 0.5), 4, 7);
-    ctx.fillRect(1, Math.round(4 + stride * 0.5), 4, 7);
-    ctx.fillStyle = greenDark;
-    ctx.fillRect(-4, Math.round(5 - stride * 0.5), 2, 5);
-    ctx.fillRect(2, Math.round(5 + stride * 0.5), 2, 5);
-
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(-7, Math.round(-6 - bob), 14, 11);
-    ctx.fillStyle = greenMain;
-    ctx.fillRect(-6, Math.round(-5 - bob), 12, 9);
-
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(-7, Math.round(-16 - bob), 14, 10);
-    ctx.fillStyle = greenMain;
-    ctx.fillRect(-6, Math.round(-15 - bob), 12, 8);
-    ctx.fillStyle = "#0a0d0f";
-    const vx = flip < 0 ? -5 : -1;
-    ctx.fillRect(vx, Math.round(-13 - bob), 6, 3);
-    ctx.fillStyle = "#d8ff9e";
-    ctx.fillRect(vx + 1, Math.round(-12 - bob), 2, 2);
-    ctx.fillRect(vx + 4, Math.round(-12 - bob), 2, 2);
-
-    ctx.save();
-    ctx.translate(0, Math.round(-2 - bob));
-    ctx.rotate(Math.atan2(enemy.facingY, enemy.facingX));
-    ctx.strokeStyle = greenMain;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(6, 0, 9, -1.1, 1.1);
-    ctx.stroke();
-    ctx.restore();
-  } else if (enemy.kind === "phaser") {
-    const purpMain = flash ? "#ffffff" : "#8028eb";
-    const purpDark = flash ? "#ffffff" : "#3a117a";
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(-5, Math.round(4 - stride * 0.5), 4, 7);
-    ctx.fillRect(1, Math.round(4 + stride * 0.5), 4, 7);
-    ctx.fillStyle = purpDark;
-    ctx.fillRect(-4, Math.round(5 - stride * 0.5), 2, 5);
-    ctx.fillRect(2, Math.round(5 + stride * 0.5), 2, 5);
-
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(-7, Math.round(-6 - bob), 14, 11);
-    ctx.fillStyle = purpMain;
-    ctx.fillRect(-6, Math.round(-5 - bob), 12, 9);
-
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(-7, Math.round(-16 - bob), 14, 10);
-    ctx.fillStyle = purpMain;
-    ctx.fillRect(-6, Math.round(-15 - bob), 12, 8);
-    ctx.fillStyle = "#f238ff";
-    const tx = flip < 0 ? -5 : -1;
-    ctx.fillRect(tx, Math.round(-13 - bob), 6, 2);
-    ctx.fillRect(tx + 2, Math.round(-13 - bob), 2, 5);
-
-    ctx.save();
-    ctx.translate(0, Math.round(-2 - bob));
-    ctx.rotate(Math.atan2(enemy.facingY, enemy.facingX));
-    drawPixelWeapon(ctx, "Plasma Cleaver", "Epic", enemy.windupMs > 0 && enemy.windupMs < 130);
-    ctx.restore();
-  } else {
-    const redMain = flash ? "#ffffff" : "#e62e2e";
-    const redDark = flash ? "#ffffff" : "#8f1111";
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(-5, Math.round(4 - stride * 0.5), 4, 7);
-    ctx.fillRect(1, Math.round(4 + stride * 0.5), 4, 7);
-    ctx.fillStyle = redDark;
-    ctx.fillRect(-4, Math.round(5 - stride * 0.5), 2, 5);
-    ctx.fillRect(2, Math.round(5 + stride * 0.5), 2, 5);
-
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(-7, Math.round(-6 - bob), 14, 11);
-    ctx.fillStyle = redMain;
-    ctx.fillRect(-6, Math.round(-5 - bob), 12, 9);
-
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(-7, Math.round(-16 - bob), 14, 10);
-    ctx.fillStyle = redMain;
-    ctx.fillRect(-6, Math.round(-15 - bob), 12, 8);
-    ctx.fillStyle = "#0a0d0f";
-    ctx.fillRect(flip < 0 ? -5 : -1, Math.round(-13 - bob), 6, 3);
-    ctx.fillStyle = "#ffb8b8";
-    ctx.fillRect(flip < 0 ? -4 : 0, Math.round(-12 - bob), 4, 2);
-
-    ctx.save();
-    ctx.translate(0, Math.round(-2 - bob));
-    ctx.rotate(Math.atan2(enemy.facingY, enemy.facingX));
-    drawPixelWeapon(ctx, "Sword", "Uncommon", enemy.windupMs > 0 && enemy.windupMs < 130);
-    ctx.restore();
-  }
-
-  ctx.restore();
-
-  const barW = 26;
-  const barY = y - zOffset - 24 - Math.round(bob);
-  ctx.fillStyle = "rgba(8, 13, 12, 0.85)";
-  ctx.fillRect(x - barW / 2 - 1, barY - 1, barW + 2, 5);
-  const hpPct = Math.max(0, enemy.health / Math.max(1, enemy.maxHealth));
-  ctx.fillStyle = enemy.kind === "bandit" ? "#ffcf56" : "#ff6b5e";
-  ctx.fillRect(x - barW / 2, barY, Math.round(barW * hpPct), 3);
-
-  if (enemy.stunMs > 0) {
-    ctx.fillStyle = "#79f2cc";
-    ctx.font = "bold 9px monospace";
-    ctx.textAlign = "center";
-    ctx.fillText("STUNNED", x, barY - 4);
-  }
-}
-
-function draw25DBlocker(ctx: CanvasRenderingContext2D, blocker: RoomBlocker, biomeTrim: string, biomeAccent: string) {
-  const extrudeH = 18;
-  const bx = Math.round(blocker.x);
-  const by = Math.round(blocker.y);
-  const bw = Math.round(blocker.width);
-  const bh = Math.round(blocker.height);
-
-  ctx.fillStyle = "rgba(0, 0, 0, 0.36)";
-  ctx.fillRect(bx + 6, by + 6, bw, bh);
-
-  const topY = by - extrudeH;
-  ctx.fillStyle = biomeTrim;
-  ctx.fillRect(bx, topY, bw, bh);
-
-  ctx.fillStyle = "#192623";
-  ctx.fillRect(bx, topY + bh, bw, extrudeH);
-  ctx.strokeStyle = "rgba(255,255,255,0.12)";
-  ctx.lineWidth = 1;
-  ctx.strokeRect(bx + 0.5, topY + 0.5, bw - 1, bh + extrudeH - 1);
-
-  ctx.fillStyle = biomeAccent;
-  if (blocker.shape === "octagon-reactor") {
-    ctx.beginPath();
-    ctx.arc(bx + bw / 2, topY + bh / 2, Math.min(bw, bh) * 0.24, 0, Math.PI * 2);
-    ctx.fill();
-  } else if (blocker.shape === "relay-console") {
-    ctx.fillRect(bx + 8, topY + 8, bw - 16, 4);
-    ctx.fillStyle = "#ffcf56";
-    ctx.fillRect(bx + 8, topY + 16, 10, 4);
-  } else if (blocker.shape === "diamond-monolith") {
-    ctx.fillRect(bx + bw / 2 - 4, topY + 6, 8, bh - 12);
-  } else {
-    ctx.fillRect(bx + 6, topY + bh / 2 - 2, bw - 12, 4);
-  }
 }
 
 function render25DScene(
@@ -1041,7 +468,7 @@ function render25DScene(
 
   if (state.status === "title") {
     const walkX = 120 + ((nowMs * 0.05) % (WORLD_WIDTH - 240));
-    drawPixelSurveyorSprite(
+    drawExactSurveyor(
       ctx,
       walkX,
       WORLD_HEIGHT * 0.58,
@@ -1064,7 +491,7 @@ function render25DScene(
     ctx.strokeRect(shaftX, 26, 86, WORLD_HEIGHT - 52);
 
     const walkX = 80 + cutsceneProgress * (shaftX - 55);
-    drawPixelSurveyorSprite(
+    drawExactSurveyor(
       ctx,
       walkX,
       WORLD_HEIGHT / 2 + 12,
@@ -1089,7 +516,8 @@ function render25DScene(
   ctx.fillStyle = state.roomCleared ? "#79f2cc" : "#ff8a75";
   ctx.font = "bold 9px monospace";
   ctx.textAlign = "center";
-  ctx.fillText(state.roomCleared ? "EXTRACT" : "LOCKED", liftX + 27, liftY - 6);
+  const exitLabel = state.status === "training" ? (state.roomCleared ? "CAVE ENTRANCE" : "DRILLS") : state.roomCleared ? "EXTRACT" : "LOCKED";
+  ctx.fillText(exitLabel, liftX + 27, liftY - 6);
 
   if (state.currentRoom.rareChest) {
     const ch = state.currentRoom.rareChest;
@@ -1106,66 +534,43 @@ function render25DScene(
     }
   }
 
-  // Biome-Evolving Props + Floor 21+ Coolant Pipe Perch Trees venting cold cryo-gas!
   for (const prop of state.currentRoom.props) {
     drawPixelProp(ctx, prop, biome.id, biome.accentColor, nowMs);
   }
 
-  // Animated Spinning Gold Coins & Faceted Blue Gems (matching image_B8csuq.png)
+  // Exact Thin/Oval Gold Coins & Pointed Sapphire Gems (matching friend's sprite sheet)
   const hoverBob = Math.sin(nowMs * 0.008) * 2;
   const coinSpinPhase = Math.floor(nowMs / 170) % 2 === 0;
   for (const pk of state.pickups) {
     const px = Math.round(pk.x);
     const py = Math.round(pk.y - pk.z + hoverBob);
-    ctx.fillStyle = "rgba(0,0,0,0.38)";
-    ctx.beginPath();
-    ctx.ellipse(px, Math.round(pk.y + 10), 7, 3, 0, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillStyle = "rgba(0,0,0,0.42)";
+    ctx.fillRect(px - 6, Math.round(pk.y + 9), 12, 3);
 
     if (pk.goldAmount) {
       if (coinSpinPhase) {
-        // Full round gold coin frame
-        ctx.fillStyle = "#0a0d0f";
+        ctx.fillStyle = "#8c6208";
         ctx.fillRect(px - 5, py - 6, 10, 12);
-        ctx.fillStyle = "#e6a817";
+        ctx.fillStyle = "#f5c425";
         ctx.fillRect(px - 4, py - 5, 8, 10);
-        ctx.fillStyle = "#ffe45e";
-        ctx.fillRect(px - 3, py - 4, 6, 8);
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(px - 2, py - 3, 2, 2);
+        ctx.fillStyle = "#fff380";
+        ctx.fillRect(px - 3, py - 4, 3, 4);
       } else {
-        // Edge-on spinning coin frame
-        ctx.fillStyle = "#0a0d0f";
-        ctx.fillRect(px - 3, py - 6, 6, 12);
-        ctx.fillStyle = "#ffe45e";
-        ctx.fillRect(px - 2, py - 5, 4, 10);
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(px - 1, py - 4, 2, 3);
+        ctx.fillStyle = "#8c6208";
+        ctx.fillRect(px - 2, py - 6, 4, 12);
+        ctx.fillStyle = "#fff380";
+        ctx.fillRect(px - 1, py - 5, 2, 10);
       }
     } else if (pk.diamondAmount) {
-      // Faceted sapphire-blue gem (image_B8csuq.png)
-      ctx.fillStyle = "#0a0d0f";
-      ctx.beginPath();
-      ctx.moveTo(px, py - 9);
-      ctx.lineTo(px + 7, py);
-      ctx.lineTo(px, py + 9);
-      ctx.lineTo(px - 7, py);
-      ctx.closePath();
-      ctx.fill();
-
-      ctx.fillStyle = "#2b7de9";
-      ctx.beginPath();
-      ctx.moveTo(px, py - 7);
-      ctx.lineTo(px + 5, py);
-      ctx.lineTo(px, py + 7);
-      ctx.lineTo(px - 5, py);
-      ctx.closePath();
-      ctx.fill();
-
-      ctx.fillStyle = "#70c8ff";
-      ctx.fillRect(px - 2, py - 4, 3, 4);
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(px - 2, py - 4, 2, 2);
+      ctx.fillStyle = "#10216b";
+      ctx.fillRect(px - 2, py - 8, 4, 16);
+      ctx.fillRect(px - 4, py - 6, 8, 12);
+      ctx.fillRect(px - 6, py - 4, 12, 8);
+      ctx.fillStyle = "#3a66f2";
+      ctx.fillRect(px - 2, py - 6, 4, 12);
+      ctx.fillRect(px - 4, py - 4, 8, 8);
+      ctx.fillStyle = "#80e8ff";
+      ctx.fillRect(px - 2, py - 4, 2, 4);
     } else if (pk.tapeId) {
       ctx.fillStyle = "#ffcf56";
       ctx.fillRect(px - 7, py - 5, 14, 10);
@@ -1196,11 +601,12 @@ function render25DScene(
 
   for (const entry of depthList) {
     if (entry.kind === "blocker") {
-      drawPixelBlocker(ctx, entry.blocker, biome.trimColor, biome.accentColor);
+      drawPixelBlocker(ctx, entry.blocker, biome.trimColor, biome.accentColor, biome.id);
     } else if (entry.kind === "enemy") {
       drawExactEnemy(ctx, entry.enemy, nowMs);
     } else {
       const moving = Math.hypot(state.player.vx, state.player.vy) > 10;
+      const chargeRatio = state.player.chargeHoldMs / CHARGE_FULL_MS;
       drawExactSurveyor(
         ctx,
         state.player.x,
@@ -1214,22 +620,28 @@ function render25DScene(
           guarding: state.player.guarding,
           attacking: state.player.attackMs > 0,
           invulnerable: state.player.invulnerableMs > 0,
+          chargeRatio,
         },
       );
 
       if (state.player.attackMs > 0) {
         const ang = Math.atan2(state.player.facingY, state.player.facingX);
         ctx.save();
-        ctx.strokeStyle = "#6fe3c1";
-        ctx.lineWidth = 3;
+        ctx.strokeStyle = state.player.lastSwingCharged ? "#ffcf56" : "#6fe3c1";
+        ctx.lineWidth = state.player.lastSwingCharged ? 5 : 3;
         ctx.beginPath();
-        ctx.arc(state.player.x, state.player.y - 2, 34, ang - 0.85, ang + 0.85);
+        ctx.arc(
+          state.player.x,
+          state.player.y - 2,
+          state.player.lastSwingCharged ? 46 : 34,
+          ang - (state.player.lastSwingCharged ? 1.2 : 0.85),
+          ang + (state.player.lastSwingCharged ? 1.2 : 0.85),
+        );
         ctx.stroke();
         ctx.restore();
       }
     }
   }
-
 
   for (const proj of state.projectiles) {
     if (proj.isArrow) {
@@ -1237,7 +649,7 @@ function render25DScene(
       ctx.save();
       ctx.translate(proj.x, proj.y);
       ctx.rotate(ang);
-      ctx.fillStyle = "#0a0d0f";
+      ctx.fillStyle = "#144d17";
       ctx.fillRect(-8, -2, 16, 4);
       ctx.fillStyle = proj.color;
       ctx.fillRect(-7, -1, 14, 2);
@@ -1286,7 +698,12 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [confirmWipe, setConfirmWipe] = useState<boolean>(false);
   const [showArmory, setShowArmory] = useState<boolean>(false);
-  const [armoryTab, setArmoryTab] = useState<"vault" | "fusion" | "index" | "skins">("vault");
+  const [armoryTab, setArmoryTab] = useState<"vault" | "fusion" | "book">("vault");
+  const [bookChapter, setBookChapter] = useState<"map" | "index" | "suits" | "enemies" | "bosses">("map");
+  const [selectedIndexBaseKey, setSelectedIndexBaseKey] = useState<string>(FULL_ITEM_CATALOG[0]!.baseKey);
+  const [selectedEnemyCodexId, setSelectedEnemyCodexId] = useState<EnemyClassId>("stalker");
+  const [selectedBossFloor, setSelectedBossFloor] = useState<number>(10);
+  const [previewSuitId, setPreviewSuitId] = useState<string>(() => loadSurveyorProfile().activeSkin);
   const [vaultPage, setVaultPage] = useState<number>(0);
   const [vaultSellRarity, setVaultSellRarity] = useState<GearRarity | "all">("all");
   const [upgradeQty, setUpgradeQty] = useState<number | "MAX">(1);
@@ -1333,7 +750,7 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
     const biomeId = runState.currentRoom.biome.id;
     if (runState.status === "title" || runState.status === "entering-cave") {
       deepSignalAudio.updateMusicState("menu", biomeId);
-    } else if (runState.status === "playing") {
+    } else if (runState.status === "playing" || runState.status === "training") {
       const hasBoss = runState.enemies.some((e) => e.kind === "boss" && e.health > 0);
       const hasEnemies = runState.enemies.some((e) => e.health > 0);
       deepSignalAudio.updateMusicState(hasBoss ? "boss" : hasEnemies ? "combat" : "explore", biomeId);
@@ -1386,6 +803,7 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
     return () => window.cancelAnimationFrame(raf);
   }, [runState.status, selectedStartFloor]);
 
+  // Q or I/Tab closes/toggles the Armory & Field Book without exiting browser fullscreen!
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const code = e.code;
@@ -1394,8 +812,8 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
         setShowArmory((prev) => !prev);
         return;
       }
-      if (code === "Escape") {
-        setShowArmory(false);
+      if (code === "KeyQ") {
+        setShowArmory((prev) => (prev ? false : prev));
         return;
       }
       keysRef.current[code] = true;
@@ -1403,6 +821,7 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
     const onKeyUp = (e: KeyboardEvent) => {
       keysRef.current[e.code] = false;
     };
+
     const onFsChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
@@ -1441,14 +860,13 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
         moveY,
         lookX,
         lookY,
-
         attack: Boolean(keys["KeyJ"] || keys["MouseLeft"]),
         guard: Boolean(keys["KeyK"] || keys["ShiftLeft"] || keys["ShiftRight"] || keys["MouseRight"]),
         dodge: Boolean(keys["Space"]),
         interact: Boolean(keys["KeyE"]),
       };
 
-      if (!showArmory && runStateRef.current.status === "playing") {
+      if (!showArmory && (runStateRef.current.status === "playing" || runStateRef.current.status === "training")) {
         if (input.attack && !runStateRef.current.attackWasDown && runStateRef.current.player.attackCooldownMs <= 0) {
           deepSignalAudio.playWeaponSwing(runStateRef.current.equippedGear.weapon?.weaponType);
         }
@@ -1482,6 +900,7 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
         prev.player.stats,
         nextProfile.equippedGear,
         nextProfile.slotUpgradeLevels,
+        nextProfile.activeSkin,
       );
       return {
         ...prev,
@@ -1537,6 +956,7 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
     runState.player.stats,
     runState.equippedGear,
     runState.profile.slotUpgradeLevels,
+    runState.profile.activeSkin,
   );
 
   const activeBoss = runState.enemies.find((e) => e.kind === "boss" && e.health > 0) ?? null;
@@ -1556,17 +976,24 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
       ? FULL_ITEM_CATALOG
       : FULL_ITEM_CATALOG.filter((bp) => bp.slot === indexSlotFilter);
 
-  const floorNum = runState.roomIndex + 1;
+  const floorNum = runState.status === "training" ? 0 : runState.roomIndex + 1;
   const hpPct = Math.max(0, Math.min(100, (runState.player.health / Math.max(1, runState.player.maxHealth)) * 100));
   const staPct = Math.max(0, Math.min(100, (runState.player.stamina / Math.max(1, runState.player.maxStamina)) * 100));
+  const chargePct = Math.min(100, Math.round((runState.player.chargeHoldMs / CHARGE_FULL_MS) * 100));
+  const totalMinutesPlayed = Math.floor(runState.profile.totalTimePlayedMs / 60000);
+  const formattedPlayTime = `${Math.floor(totalMinutesPlayed / 60)}h ${String(totalMinutesPlayed % 60).padStart(2, "0")}m`;
+
+  const selectedIndexBlueprint =
+    FULL_ITEM_CATALOG.find((b) => b.baseKey === selectedIndexBaseKey) ?? FULL_ITEM_CATALOG[0]!;
+  const selectedIndexPreviewGear = makeGearFromBlueprint(selectedIndexBlueprint, Math.max(1, floorNum));
 
   return (
     <div
       ref={containerRef}
-      className="min-h-screen bg-[#070d0b] text-[#e6f5ee] font-mono flex flex-col items-center justify-center p-3 select-none"
+      className="min-h-screen bg-[#070d0b] text-[#e6f5ee] font-mono flex flex-col items-center justify-center p-2.5 select-none"
     >
       {/* Top Arcade & Currency Header */}
-      <div className="w-full max-w-4xl flex flex-wrap items-center justify-between gap-2 mb-2 px-1">
+      <div className="w-full max-w-5xl flex flex-wrap items-center justify-between gap-2 mb-2 px-1">
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -1574,20 +1001,20 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
               deepSignalAudio.updateMusicState("off", "outer-bunker");
               onBackToArcade();
             }}
-            className="px-3 py-2 rounded-lg bg-[#121f1b] hover:bg-[#1a2e28] border border-[#2b453c] text-xs font-bold text-[#9be8cf]"
+            className="px-3 py-1.5 rounded-lg bg-[#121f1b] hover:bg-[#1a2e28] border border-[#2b453c] text-xs font-bold text-[#9be8cf]"
           >
             ← JB PLAYNET
           </button>
           <span className="text-xs font-extrabold tracking-widest text-[#6fe3c1]">
-            THE SIGNAL BELOW · v3.0
+            THE SIGNAL BELOW · v4.0
           </span>
         </div>
 
-        <div className="flex items-center gap-2 text-xs">
-          <span className="px-3 py-1.5 rounded-lg bg-[#1d190c] border border-[#6e5619] text-[#ffcf4d] font-bold">
+        <div className="flex items-center gap-1.5 text-xs">
+          <span className="px-2.5 py-1.5 rounded-lg bg-[#1d190c] border border-[#6e5619] text-[#ffcf4d] font-bold">
             GOLD: {runState.profile.gold + runState.carriedGold}
           </span>
-          <span className="px-3 py-1.5 rounded-lg bg-[#0c1b26] border border-[#23567a] text-[#5ec8ff] font-bold">
+          <span className="px-2.5 py-1.5 rounded-lg bg-[#0c1b26] border border-[#23567a] text-[#5ec8ff] font-bold">
             GEMS: {runState.profile.diamonds + runState.carriedDiamonds}
           </span>
           <button
@@ -1595,38 +1022,38 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
             onClick={() => setShowArmory((prev) => !prev)}
             className="px-3.5 py-1.5 rounded-lg bg-[#6fe3c1] hover:bg-[#8cf2d4] text-[#06120e] font-extrabold"
           >
-            {showArmory ? "CLOSE ARMORY [I]" : "ARMORY & INDEX [I]"}
+            {showArmory ? "RESUME [Q]" : "ARMORY & BOOK [I]"}
           </button>
           <button
             type="button"
             onClick={() => setIsMuted(deepSignalAudio.toggleMute())}
-            className="px-3 py-1.5 rounded-lg bg-[#121f1b] border border-[#2b453c] text-[#b8d8cc] font-bold"
+            className="px-2.5 py-1.5 rounded-lg bg-[#121f1b] border border-[#2b453c] text-[#b8d8cc] font-bold"
           >
-            {isMuted ? "AUDIO OFF" : "AUDIO ON"}
+            {isMuted ? "🔇" : "🔊"}
           </button>
           <button
             type="button"
             onClick={toggleFullscreen}
-            className="px-3 py-1.5 rounded-lg bg-[#121f1b] border border-[#2b453c] text-[#b8d8cc] font-bold"
+            className="px-2.5 py-1.5 rounded-lg bg-[#121f1b] border border-[#2b453c] text-[#b8d8cc] font-bold"
           >
-            {isFullscreen ? "EXIT FULL" : "FULLSCREEN"}
+            {isFullscreen ? "EXIT FULL" : "FULL"}
           </button>
           <button
             type="button"
             onClick={() => setTouchMode((prev) => !prev)}
-            className={`px-3 py-1.5 rounded-lg border text-xs font-bold ${
+            className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold ${
               touchMode
                 ? "bg-[#19382e] border-[#6fe3c1] text-[#8ef7d8]"
                 : "bg-[#121f1b] border-[#2b453c] text-[#b8d8cc]"
             }`}
           >
-            {touchMode ? "TOUCH ON" : "TOUCH OFF"}
+            {touchMode ? "TOUCH ON" : "TOUCH"}
           </button>
         </div>
       </div>
 
-      {/* Main 2.5D Viewport Frame */}
-      <div className="relative w-full max-w-4xl rounded-xl overflow-hidden border-2 border-[#263f36] bg-[#080f0d] shadow-2xl">
+      {/* Main 2.5D Viewport Frame (Slightly Bigger max-w-5xl so menus fit with ZERO scrolling) */}
+      <div className="relative w-full max-w-5xl rounded-xl overflow-hidden border-2 border-[#263f36] bg-[#080f0d] shadow-2xl">
         {runState.status !== "title" && runState.status !== "entering-cave" && (
           <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 bg-[#0c1613] border-b border-[#1d302a] text-xs">
             <div className="flex items-center gap-3">
@@ -1647,6 +1074,12 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
                 </div>
               </div>
 
+              {chargePct > 5 && (
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-black ${chargePct >= 100 ? "bg-[#ffcf56] text-[#171203]" : "bg-[#142b24] text-[#6fe3c1]"}`}>
+                  {chargePct >= 100 ? "2X READY!" : `CHARGE ${chargePct}%`}
+                </span>
+              )}
+
               <span className="text-[#ffcf56] font-bold">ATK {computedStats.totalAttack}</span>
               <span className="text-[#9bc4b4]">LV.{runState.player.level}</span>
             </div>
@@ -1656,12 +1089,31 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
             </div>
 
             <div className="text-[11px] text-[#9bc4b4]">
-              RUN HAUL: <span className="text-[#ffcf4d] font-bold">{runState.carriedGold}G</span> ·{" "}
+              HAUL: <span className="text-[#ffcf4d] font-bold">{runState.carriedGold}G</span> ·{" "}
               <span className="text-[#5ec8ff] font-bold">{runState.carriedDiamonds} GEM</span> ·{" "}
               <span className="text-[#e6f5ee] font-bold">
                 {runState.carriedGear.reduce((a, b) => a + b.count, 0)} GEAR
               </span>
             </div>
+          </div>
+        )}
+
+        {/* Sector 0 Interactive Training Dummy Quest Banner */}
+        {runState.status === "training" && !showArmory && (
+          <div className="px-4 py-2 bg-[#0d1c17] border-b border-[#2e5245] flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded bg-[#ffcf56] text-[#171203] font-black text-[10px]">
+                SECTOR 0 · TRAINING DRILL {runState.enemies.length === 0 ? "4/4 DONE" : `${runState.tutorialStep}/4`}
+              </span>
+              <span className="font-bold text-[#e6f5ee]">{runState.message}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setRunState((prev) => skipTrainingTutorial(prev))}
+              className="px-2.5 py-1 rounded bg-[#182b24] hover:bg-[#233d33] border border-[#3d6959] text-[10px] font-black text-[#9be8cf]"
+            >
+              SKIP TO FLOOR 01 →
+            </button>
           </div>
         )}
 
@@ -1711,11 +1163,12 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
           onContextMenu={(e) => e.preventDefault()}
           className="w-full h-auto block cursor-crosshair"
         />
-        {touchMode && runState.status === "playing" && !showArmory && (
+
+        {touchMode && (runState.status === "playing" || runState.status === "training") && !showArmory && (
           <div className="absolute inset-0 pointer-events-none flex items-end justify-between p-4 z-10 select-none">
             <div
               onTouchStart={(e) => {
-                const t = e.changedTouches[0];
+                const t = e.changedTouches.item(0);
                 if (!t) return;
                 const rect = e.currentTarget.getBoundingClientRect();
                 touchStickRef.current = {
@@ -1728,7 +1181,6 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
                 };
                 setStickKnob({ x: 0, y: 0 });
               }}
-
               onTouchMove={(e) => {
                 const st = touchStickRef.current;
                 if (!st.active) return;
@@ -1871,13 +1323,13 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
 
             <div className="text-center my-auto">
               <div className="text-xs tracking-[0.3em] text-[#6fe3c1] font-bold mb-1">
-                JB PLAYNET FLAGSHIP EXTRACTION ARPG · v3.0
+                JB PLAYNET FLAGSHIP EXTRACTION ARPG · v4.0
               </div>
               <h1 className="text-4xl sm:text-5xl font-black tracking-wider text-[#f2fff9] drop-shadow-[0_3px_0_#133027]">
                 THE SIGNAL BELOW
               </h1>
               <p className="text-xs text-[#9ec4b5] mt-2 max-w-md mx-auto">
-                Push through 100 subterranean floors. Slay unique sector guardians for Gold &amp; Gems, fuse duplicates (3 → 9 → 27), and extract alive.
+                Push through 12 subterranean sectors. Charge-cleave (2x DMG), invincible-dash through hazards, and extract alive.
               </p>
 
               {runState.profile.unlockedSignalLinks.length > 1 && (
@@ -1916,13 +1368,13 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
                   onClick={() => setShowArmory(true)}
                   className="px-6 py-3.5 rounded-xl bg-[#13221d] hover:bg-[#1b3029] border-2 border-[#34574b] text-[#d8eee4] font-extrabold text-sm"
                 >
-                  ARMORY, FUSION &amp; INDEX
+                  ARMORY &amp; FIELD BOOK
                 </button>
               </div>
             </div>
 
             <div className="text-center text-[11px] text-[#7ca394]">
-              MOVE: WASD / ARROWS · SLASH: CLICK / J · GUARD (65% BLOCK / PARRY): RIGHT-CLICK / SHIFT · DASH: SPACE · ARMORY: [I]
+              MOVE: WASD · SLASH / HOLD 0.9s (2X CHARGE): CLICK / J · SHIELD PARRY: RIGHT-CLICK / SHIFT · INVINCIBLE DASH: SPACE · MENU: [I] / CLOSE: [Q]
             </div>
           </div>
         )}
@@ -1930,7 +1382,7 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
         {runState.status === "entering-cave" && (
           <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-5">
             <div className="text-xs font-extrabold tracking-widest text-[#6fe3c1]">
-              DESCENDING INTO SUB-LEVEL SHAFT · FLOOR {String(selectedStartFloor).padStart(2, "0")}...
+              ENTERING BTC SUBTERRANEAN COMPLEX · FLOOR {String(selectedStartFloor).padStart(2, "0")}...
             </div>
             <div className="self-end pointer-events-auto">
               <button
@@ -2010,6 +1462,7 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
                     key={offer.id}
                     className="p-3.5 rounded-lg bg-[#0d1c26] border border-[#2a4f66] flex flex-col justify-between gap-2.5"
                   >
+                  
                     <div>
                       <div className="text-xs font-extrabold text-[#e6f6ff]">{offer.label}</div>
                       <div className="text-[11px] text-[#8fb3c7] mt-1">{offer.description}</div>
@@ -2116,7 +1569,7 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
                   onClick={() => setShowArmory(true)}
                   className="px-6 py-3 rounded-xl bg-[#13221d] border-2 border-[#6fe3c1] text-[#d8eee4] text-sm font-extrabold"
                 >
-                  OPEN ARMORY &amp; FUSION
+                  OPEN ARMORY &amp; FIELD BOOK
                 </button>
                 {runState.status === "victory-ending" && (
                   <button
@@ -2145,23 +1598,31 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
             </div>
           )}
 
+        {/* ZERO-SCROLL ARMORY & 5-BOOKMARK SURVEYOR FIELD BOOK */}
         {showArmory && (
-          <div className="absolute inset-0 bg-[#060b09]/98 flex flex-col p-3 gap-2.5 overflow-y-auto z-30">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#1d322b] pb-2">
-              <div className="flex flex-wrap gap-1.5">
+          <div className="absolute inset-0 bg-[#060b09]/98 flex flex-col p-2.5 gap-2 overflow-hidden z-30">
+            {/* Single-Row Top Bar (3 Tabs + Q Close) */}
+            <div className="flex items-center justify-between gap-2 border-b border-[#1d322b] pb-1.5 shrink-0">
+              <div className="flex items-center gap-1.5">
                 {(
                   [
-                    { id: "vault", label: "EQUIP & VAULT (4 PAGES)" },
+                    { id: "vault", label: "GEAR & VAULT" },
                     { id: "fusion", label: "FUSION (3 → 9 → 27)" },
-                    { id: "index", label: `ITEM INDEX (${runState.profile.discoveredItems.length}/${FULL_ITEM_CATALOG.length})` },
-                    { id: "skins", label: "SUITS, BOSSES & TAPES" },
+                    { id: "book", label: "FIELD BOOK (5 CHAPTERS)" },
                   ] as const
                 ).map((t) => (
                   <button
                     key={t.id}
                     type="button"
-                    onClick={() => setArmoryTab(t.id)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-extrabold border ${
+                    onClick={() => {
+                      setArmoryTab(t.id);
+                      if (t.id === "book") {
+                        setSelectedBossFloor(
+                          Math.min(100, Math.max(10, Math.ceil(Math.max(1, runState.profile.lastBattledFloor) / 10) * 10)),
+                        );
+                      }
+                    }}
+                    className={`px-3 py-1 rounded-lg text-xs font-extrabold border ${
                       armoryTab === t.id
                         ? "bg-[#6fe3c1] text-[#06120e] border-[#6fe3c1]"
                         : "bg-[#0e1a16] text-[#9bc4b4] border-[#253f36] hover:bg-[#152620]"
@@ -2175,92 +1636,84 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
               <button
                 type="button"
                 onClick={() => setShowArmory(false)}
-                className="px-3.5 py-1.5 rounded-lg bg-[#182923] border border-[#3a5e51] text-[#e6f5ee] text-xs font-extrabold"
+                className="px-3 py-1 rounded-lg bg-[#182923] hover:bg-[#233b32] border border-[#3a5e51] text-[#e6f5ee] text-xs font-extrabold"
               >
-                CLOSE [ESC]
+                CLOSE [Q]
               </button>
             </div>
 
-            {runState.profile.unlockedSignalLinks.length > 1 && (
-              <div className="px-2.5 py-1.5 rounded bg-[#0c1714] border border-[#223b32] flex flex-wrap items-center justify-between gap-2 text-[11px]">
-                <span className="font-extrabold text-[#6fe3c1]">SIGNAL LINK WARP:</span>
-                <div className="flex flex-wrap items-center gap-1">
-                  {runState.profile.unlockedSignalLinks.map((fl) => (
-                    <button
-                      key={fl}
-                      type="button"
-                      onClick={() => {
-                        setSelectedStartFloor(fl);
-                        setRunState((prev) => startDeepSignalRun(prev, fl));
-                        setShowArmory(false);
-                        showToast(`WARPED TO FLOOR ${String(fl).padStart(2, "0")}`);
-                      }}
-                      className={`px-2 py-0.5 rounded font-extrabold border ${
-                        floorNum === fl
-                          ? "bg-[#6fe3c1] text-[#06120e] border-[#6fe3c1]"
-                          : "bg-[#101f1a] hover:bg-[#193028] text-[#bfe3d5] border-[#2b4a3f]"
-                      }`}
-                    >
-                      F{String(fl).padStart(2, "0")}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
+            {/* TAB 1: GEAR & VAULT (Live Mini-Surveyor Paperdoll + 7 Slots on Left; 8x8 Grid + Bottom Page Bar on Right) */}
             {armoryTab === "vault" && (
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 flex-1 min-h-0">
-                <div className="md:col-span-5 bg-[#0b1411] border border-[#1f362e] rounded-lg p-2.5 flex flex-col gap-2">
-                  <div className="flex flex-wrap items-center justify-between gap-1.5">
-                    <span className="text-xs font-black text-[#6fe3c1]">EQUIPPED LOADOUT</span>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const nextRun = equipBestGearFromBank(runState);
-                          updateProfile(nextRun.profile);
-                          deepSignalAudio.playUiChime("upgrade");
-                          showToast("EQUIPPED BEST GEAR");
-                        }}
-                        className="px-2 py-1 rounded bg-[#6fe3c1] text-[#06120e] text-[10px] font-black"
-                      >
-                        ★ EQUIP BEST
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const nextRun = unequipAllSlotsToBank(runState);
-                          updateProfile(nextRun.profile);
-                          deepSignalAudio.playUiChime("shop");
-                          showToast("UNEQUIPPED ALL SLOTS");
-                        }}
-                        className="px-2 py-1 rounded bg-[#182923] hover:bg-[#233b32] border border-[#36594d] text-[#bfe3d5] text-[10px] font-extrabold"
-                      >
-                        UNEQUIP ALL
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between gap-1 bg-[#080e0c] border border-[#1a2e27] rounded px-2 py-1">
-                    <span className="text-[10px] font-bold text-[#ffcf4d]">UPGRADE QTY:</span>
-                    <div className="flex items-center gap-1">
-                      {([1, 5, 10, 20, "MAX"] as const).map((qty) => (
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 flex-1 min-h-0 overflow-hidden">
+                {/* Left Column: Live Mini-Surveyor + Current Floor + 7 Slots */}
+                <div className="md:col-span-5 bg-[#0b1411] border border-[#1f362e] rounded-lg p-2 flex flex-col justify-between gap-1.5 overflow-hidden">
+                  <div className="flex items-center gap-2.5 bg-[#080e0c] border border-[#1a2e27] rounded-lg p-1.5">
+                    <SurveyorPaperdollCanvas
+                      skinId={runState.profile.activeSkin}
+                      equipped={runState.profile.equippedGear}
+                      width={78}
+                      height={78}
+                    />
+                    <div className="flex-1 min-w-0 flex flex-col gap-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-black text-[#6fe3c1]">
+                          FLOOR {String(floorNum).padStart(2, "0")} · LV.{runState.player.level}
+                        </span>
+                        <span className="text-[10px] font-bold text-[#ffcf4d]">
+                          ATK {computedStats.totalAttack} · HP {computedStats.maxHealth}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1">
                         <button
-                          key={String(qty)}
                           type="button"
-                          onClick={() => setUpgradeQty(qty)}
-                          className={`px-1.5 py-0.5 rounded text-[9px] font-black border ${
-                            upgradeQty === qty
-                              ? "bg-[#ffcf4d] text-[#171203] border-[#ffcf4d]"
-                              : "bg-[#111c18] text-[#9bc4b4] border-[#253f36]"
-                          }`}
+                          onClick={() => {
+                            const nextRun = equipBestGearFromBank(runState);
+                            updateProfile(nextRun.profile);
+                            updateProfile(nextRun.profile);
+                            deepSignalAudio.playUiChime("upgrade");
+                            showToast("EQUIPPED BEST GEAR");
+                          }}
+                          className="flex-1 py-1 rounded bg-[#6fe3c1] hover:bg-[#8cf2d4] text-[#06120e] text-[10px] font-black"
                         >
-                          {qty === "MAX" ? "MAX" : `${qty}x`}
+                          ★ EQUIP BEST
                         </button>
-                      ))}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const nextRun = unequipAllSlotsToBank(runState);
+                            updateProfile(nextRun.profile);
+                            deepSignalAudio.playUiChime("shop");
+                            showToast("UNEQUIPPED ALL");
+                          }}
+                          className="flex-1 py-1 rounded bg-[#182923] hover:bg-[#233b32] border border-[#36594d] text-[#bfe3d5] text-[10px] font-extrabold"
+                        >
+                          UNEQUIP ALL
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-[9px] font-bold text-[#ffcf4d]">UPGRADE:</span>
+                        <div className="flex items-center gap-0.5">
+                          {([1, 5, 10, 20, "MAX"] as const).map((qty) => (
+                            <button
+                              key={String(qty)}
+                              type="button"
+                              onClick={() => setUpgradeQty(qty)}
+                              className={`px-1.5 py-0.5 rounded text-[9px] font-black border ${
+                                upgradeQty === qty
+                                  ? "bg-[#ffcf4d] text-[#171203] border-[#ffcf4d]"
+                                  : "bg-[#111c18] text-[#9bc4b4] border-[#253f36]"
+                              }`}
+                            >
+                              {qty === "MAX" ? "MAX" : `${qty}x`}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-1.5 overflow-y-auto">
+                  {/* All 7 Equipped Slots (Compact so all 7 fit with ZERO scrolling) */}
+                  <div className="flex flex-col gap-1 flex-1 justify-between">
                     {ALL_GEAR_SLOTS.map((slot) => {
                       const item = runState.profile.equippedGear[slot];
                       const slotLv = runState.profile.slotUpgradeLevels[slot] ?? 1;
@@ -2275,43 +1728,44 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
                       return (
                         <div
                           key={slot}
-                          className={`p-2 rounded border flex items-center justify-between gap-2 ${
+                          className={`px-2 py-1 rounded border flex items-center justify-between gap-1.5 ${
                             item
                               ? `${RARITY_STYLES[item.rarity].border} ${RARITY_STYLES[item.rarity].bg}`
                               : "border-[#1d302a] bg-[#080e0c]"
                           }`}
                         >
-                          <div className="flex items-center gap-2 min-w-0">
+                          <div className="flex items-center gap-1.5 min-w-0">
                             {item ? (
-                              <PixelGearIcon slot={slot} rarity={item.rarity} weaponType={item.weaponType} size={28} />
+                              <PixelGearIcon slot={slot} rarity={item.rarity} weaponType={item.weaponType} size={20} />
                             ) : (
-                              <div className="w-7 h-7 rounded bg-[#101c18] border border-[#223830] flex items-center justify-center text-[9px] text-[#557066]">
+                              <div className="w-5 h-5 rounded bg-[#101c18] border border-[#223830] flex items-center justify-center text-[8px] text-[#557066]">
                                 —
                               </div>
                             )}
                             <div className="min-w-0">
-                              <div className="text-[10px] text-[#7ca394] font-bold">
-                                {SLOT_LABELS[slot]} · <span className="text-[#ffcf4d]">LV.{slotLv}</span>
+                              <div className="text-[10px] font-extrabold truncate flex items-center gap-1">
+                                <span className="text-[#7ca394]">{SLOT_LABELS[slot]}</span>
+                                <span className="text-[#ffcf4d]">LV.{slotLv}</span>
+                                {item ? (
+                                  <span className={RARITY_STYLES[item.rarity].text}>
+                                    · {item.name} {item.ascensionRank > 0 ? `★${item.ascensionRank}` : ""}
+                                  </span>
+                                ) : (
+                                  <span className="text-[#557066]">· Empty</span>
+                                )}
                               </div>
-                              {item ? (
-                                <>
-                                  <div className={`text-xs font-extrabold truncate ${RARITY_STYLES[item.rarity].text}`}>
-                                    {item.name} {item.ascensionRank > 0 ? `★${item.ascensionRank}` : ""}
-                                  </div>
-                                  <div className="text-[10px] text-[#b8d8cc]">
-                                    {eff && eff.attack > 0 ? `+${eff.attack} ATK ` : ""}
-                                    {eff && eff.health > 0 ? `+${eff.health} HP ` : ""}
-                                    {eff && eff.guard > 0 ? `+${eff.guard} STA ` : ""}
-                                    {eff && eff.agility > 0 ? `+${eff.agility} SPD` : ""}
-                                  </div>
-                                </>
-                              ) : (
-                                <div className="text-[11px] text-[#557066]">Empty Slot</div>
+                              {eff && (
+                                <div className="text-[9px] text-[#9bc4b4] leading-none">
+                                  {eff.attack > 0 ? `+${eff.attack} ATK ` : ""}
+                                  {eff.health > 0 ? `+${eff.health} HP ` : ""}
+                                  {eff.guard > 0 ? `+${eff.guard} STA ` : ""}
+                                  {eff.agility > 0 ? `+${eff.agility} SPD` : ""}
+                                </div>
                               )}
                             </div>
                           </div>
 
-                          <div className="flex flex-col items-end gap-1 shrink-0">
+                          <div className="flex items-center gap-1 shrink-0">
                             <button
                               type="button"
                               disabled={!canUpgrade}
@@ -2327,7 +1781,7 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
                                   showToast(`${SLOT_LABELS[slot]} +${plan.levelsGained} LV (-${plan.totalCost}G)`);
                                 }
                               }}
-                              className={`px-2 py-0.5 rounded text-[10px] font-extrabold ${
+                              className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold ${
                                 canUpgrade
                                   ? "bg-[#ffcf4d] hover:bg-[#ffe082] text-[#171203]"
                                   : "bg-[#1a241e] text-[#5c6e64]"
@@ -2337,7 +1791,7 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
                                 ? "MAX"
                                 : plan.levelsGained > 0
                                   ? `+${plan.levelsGained} (${plan.totalCost}G)`
-                                  : "LOW GOLD"}
+                                  : "LOW G"}
                             </button>
                             {item && (
                               <button
@@ -2345,7 +1799,7 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
                                 onClick={() => updateProfile(unequipSlotToBank(runState.profile, slot))}
                                 className="px-1.5 py-0.5 rounded bg-[#15241f] border border-[#2b473d] text-[9px] text-[#9bc4b4]"
                               >
-                                UNEQUIP
+                                ✕
                               </button>
                             )}
                           </div>
@@ -2355,33 +1809,11 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
                   </div>
                 </div>
 
-                <div className="md:col-span-7 bg-[#0b1411] border border-[#1f362e] rounded-lg p-2.5 flex flex-col gap-2">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-xs font-black text-[#6fe3c1]">
-                      VAULT STACKS ({runState.profile.bankedGear.length}/{VAULT_PAGE_SIZE * VAULT_TOTAL_PAGES})
-                    </span>
-
+                {/* Right Column: Filter Bar + Zero-Scroll 8x8 Vault Grid + Bottom Page Bar */}
+                <div className="md:col-span-7 bg-[#0b1411] border border-[#1f362e] rounded-lg p-2 flex flex-col justify-between gap-1.5 overflow-hidden">
+                  {/* Top Rarity Filter & Bulk Sell */}
+                  <div className="flex flex-wrap items-center justify-between gap-1 bg-[#080e0c] border border-[#1a2e27] rounded px-2 py-1 shrink-0">
                     <div className="flex items-center gap-1">
-                      {Array.from({ length: VAULT_TOTAL_PAGES }).map((_, pIdx) => (
-                        <button
-                          key={pIdx}
-                          type="button"
-                          onClick={() => setVaultPage(pIdx)}
-                          className={`px-2 py-0.5 rounded text-[10px] font-extrabold border ${
-                            vaultPage === pIdx
-                              ? "bg-[#6fe3c1] text-[#06120e] border-[#6fe3c1]"
-                              : "bg-[#0e1a16] text-[#8fb5a6] border-[#253f36]"
-                          }`}
-                        >
-                          P{pIdx + 1}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center justify-between gap-1.5 bg-[#080e0c] border border-[#1a2e27] rounded px-2 py-1">
-                    <div className="flex flex-wrap items-center gap-1">
-                      <span className="text-[9px] font-bold text-[#8fb5a6]">FILTER:</span>
                       {(["all", "Common", "Uncommon", "Rare", "Epic", "Legendary"] as const).map((rar) => (
                         <button
                           key={rar}
@@ -2393,7 +1825,7 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
                               : "bg-[#101c18] text-[#9bc4b4] border-[#253f36]"
                           }`}
                         >
-                          {rar === "all" ? "ALL" : rar.toUpperCase()}
+                          {rar === "all" ? "ALL" : rar.slice(0, 4).toUpperCase()}
                         </button>
                       ))}
                     </div>
@@ -2407,187 +1839,227 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
                         if (nextRun !== runState) {
                           updateProfile(nextRun.profile);
                           deepSignalAudio.playUiChime("sell");
-                          showToast(`SOLD FILTERED ITEMS (+${nextRun.profile.gold - runState.profile.gold}G)`);
+                          showToast(`SOLD FILTERED (+${nextRun.profile.gold - runState.profile.gold}G)`);
                         } else {
                           showToast("NO ITEMS MATCH FILTER");
                         }
                       }}
-                      className="px-2 py-0.5 rounded bg-[#361614] hover:bg-[#4a1e1b] border border-[#9c362f] text-[#ff9b94] text-[9px] font-black"
-                    >
-                      SELL FILTERED ({vaultSellRarity === "all" ? "ALL" : vaultSellRarity.toUpperCase()})
-                    </button>
-                  </div>
+                    className="px-2 py-0.5 rounded bg-[#361614] hover:bg-[#4a1e1b] border border-[#9c362f] text-[#ff9b94] text-[9px] font-black"
+                  >
+                    SELL {vaultSellRarity === "all" ? "ALL" : vaultSellRarity.toUpperCase()}
+                  </button>
+                </div>
 
-                  <div className="grid grid-cols-8 gap-1">
-                    {Array.from({ length: VAULT_PAGE_SIZE }).map((_, idx) => {
-                      const item = pageItems.at(idx);
-                      const matchesFilter = !item || vaultSellRarity === "all" || item.rarity === vaultSellRarity;
-                      const isSelected = item && selectedVaultItem?.id === item.id;
-                      const canFuseStack = item && item.count >= ASCENSION_MERGE_COUNT;
+                {/* 8x8 Vault Grid (Proportioned height so all 64 slots fit with ZERO scrolling) */}
+                <div className="grid grid-cols-8 gap-1 flex-1 min-h-0">
+                  {Array.from({ length: VAULT_PAGE_SIZE }).map((_, idx) => {
+                    const item = pageItems.at(idx);
+                    const matchesFilter = !item || vaultSellRarity === "all" || item.rarity === vaultSellRarity;
+                    const isSelected = item && selectedVaultItem?.id === item.id;
+                    const canFuseStack = item && item.count >= ASCENSION_MERGE_COUNT;
 
-                      return (
-                        <button
-                          key={item ? item.id : `empty-${vaultPage}-${idx}`}
-                          type="button"
-                          onClick={() => item && setSelectedVaultItemId(item.id)}
-                          onDoubleClick={() => {
-                            if (item) {
-                              updateProfile(equipFromBankToSlot(runState.profile, item.id));
-                              deepSignalAudio.playPickup("gear");
-                            }
-                          }}
-                          className={`aspect-square rounded border relative flex items-center justify-center transition ${
-                            item
-                              ? `${RARITY_STYLES[item.rarity].border} ${RARITY_STYLES[item.rarity].bg} ${
-                                  isSelected ? "ring-2 ring-[#ffffff]" : ""
-                                } ${matchesFilter ? "" : "opacity-30"}`
-                              : "border-[#162621] bg-[#070d0b]"
-                          }`}
-                        >
-                          {item && (
-                            <>
-                              <PixelGearIcon
-                                slot={item.slot}
-                                rarity={item.rarity}
-                                weaponType={item.weaponType}
-                                size={24}
-                              />
-                              {item.ascensionRank > 0 && (
-                                <span className="absolute top-0.5 left-0.5 px-1 rounded bg-[#1f1329] text-[#eabfff] text-[8px] font-black leading-tight">
-                                  ★{item.ascensionRank}
-                                </span>
-                              )}
-                              {canFuseStack && (
-                                <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-[#d18ce8] animate-pulse" />
-                              )}
-                              <span className="absolute bottom-0.5 right-1 text-[9px] font-black text-[#ffffff] drop-shadow-[0_1px_1px_#000]">
-                                x{item.count}
+                    return (
+                      <button
+                        key={item ? item.id : `empty-${vaultPage}-${idx}`}
+                        type="button"
+                        onClick={() => item && setSelectedVaultItemId(item.id)}
+                        onDoubleClick={() => {
+                          if (item) {
+                            updateProfile(equipFromBankToSlot(runState.profile, item.id));
+                            deepSignalAudio.playPickup("gear");
+                          }
+                        }}
+                        className={`h-8 rounded border relative flex items-center justify-center transition ${
+                          item
+                            ? `${RARITY_STYLES[item.rarity].border} ${RARITY_STYLES[item.rarity].bg} ${
+                                isSelected ? "ring-2 ring-[#ffffff]" : ""
+                              } ${matchesFilter ? "" : "opacity-30"}`
+                            : "border-[#162621] bg-[#070d0b]"
+                        }`}
+                      >
+                        {item && (
+                          <>
+                            <PixelGearIcon
+                              slot={item.slot}
+                              rarity={item.rarity}
+                              weaponType={item.weaponType}
+                              size={20}
+                            />
+                            {item.ascensionRank > 0 && (
+                              <span className="absolute top-0 left-0.5 text-[#eabfff] text-[8px] font-black leading-none">
+                                ★{item.ascensionRank}
                               </span>
-                            </>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
+                            )}
+                            {canFuseStack && (
+                              <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-[#d18ce8]" />
+                            )}
+                            <span className="absolute bottom-0 right-0.5 text-[8px] font-black text-[#ffffff] leading-none">
+                              x{item.count}
+                            </span>
+                          </>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
 
-                  {selectedVaultItem ? (
-                    <div
-                      className={`p-2.5 rounded border flex flex-wrap items-center justify-between gap-2 ${
-                        RARITY_STYLES[selectedVaultItem.rarity].border
-                      } ${RARITY_STYLES[selectedVaultItem.rarity].bg}`}
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <PixelGearIcon
-                          slot={selectedVaultItem.slot}
-                          rarity={selectedVaultItem.rarity}
-                          weaponType={selectedVaultItem.weaponType}
-                          size={34}
-                        />
-                        <div>
-                          <div className={`text-xs font-black ${RARITY_STYLES[selectedVaultItem.rarity].text}`}>
-                            {selectedVaultItem.name}{" "}
-                            {selectedVaultItem.ascensionRank > 0 ? `(★${selectedVaultItem.ascensionRank})` : ""} · STACK x
-                            {selectedVaultItem.count}
-                          </div>
-                          <div className="text-[10px] text-[#b8d8cc]">
-                            {selectedVaultItem.rarity.toUpperCase()} {SLOT_LABELS[selectedVaultItem.slot]} · Base Copies:{" "}
-                            {getBaseCopiesEquivalent(selectedVaultItem.ascensionRank)}x · Sell:{" "}
-                            <span className="text-[#ffcf4d] font-bold">{getGearSellValue(selectedVaultItem)}G</span> each
-                          </div>
+                {/* Selected Item Action Bar */}
+                {selectedVaultItem ? (
+                  <div
+                    className={`px-2 py-1.5 rounded border flex flex-wrap items-center justify-between gap-1.5 shrink-0 ${
+                      RARITY_STYLES[selectedVaultItem.rarity].border
+                    } ${RARITY_STYLES[selectedVaultItem.rarity].bg}`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <PixelGearIcon
+                        slot={selectedVaultItem.slot}
+                        rarity={selectedVaultItem.rarity}
+                        weaponType={selectedVaultItem.weaponType}
+                        size={24}
+                      />
+                      <div className="min-w-0">
+                        <div className={`text-[11px] font-black truncate ${RARITY_STYLES[selectedVaultItem.rarity].text}`}>
+                          {selectedVaultItem.name}{" "}
+                          {selectedVaultItem.ascensionRank > 0 ? `(★${selectedVaultItem.ascensionRank})` : ""} · x
+                          {selectedVaultItem.count}
+                        </div>
+                        <div className="text-[9px] text-[#b8d8cc]">
+                          {SLOT_LABELS[selectedVaultItem.slot]} · Sell: {getGearSellValue(selectedVaultItem)}G
                         </div>
                       </div>
+                    </div>
 
-                      <div className="flex flex-wrap items-center gap-1.5">
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          updateProfile(equipFromBankToSlot(runState.profile, selectedVaultItem.id));
+                          deepSignalAudio.playPickup("gear");
+                          showToast(`EQUIPPED ${selectedVaultItem.name.toUpperCase()}`);
+                        }}
+                        className="px-2 py-1 rounded bg-[#6fe3c1] hover:bg-[#8cf2d4] text-[#06120e] text-[9px] font-black"
+                      >
+                        EQUIP
+                      </button>
+
+                      {selectedVaultItem.count >= ASCENSION_MERGE_COUNT && (
                         <button
                           type="button"
                           onClick={() => {
-                            updateProfile(equipFromBankToSlot(runState.profile, selectedVaultItem.id));
-                            deepSignalAudio.playPickup("gear");
-                            showToast(`EQUIPPED ${selectedVaultItem.name.toUpperCase()}`);
+                            const nextRun = fuseGearStackInVault(runState, selectedVaultItem.id);
+                            if (nextRun.lastAscensionResult) {
+                              updateProfile(nextRun.profile);
+                              deepSignalAudio.playUiChime("ascend");
+                              showToast(`FUSED -> ★${nextRun.lastAscensionResult.newRank}!`);
+                            }
                           }}
-                          className="px-2.5 py-1 rounded bg-[#6fe3c1] hover:bg-[#8cf2d4] text-[#06120e] text-[10px] font-black"
+                          className="px-2 py-1 rounded bg-[#d18ce8] text-[#17071f] text-[9px] font-black"
                         >
-                          EQUIP
+                          ✦ FUSE 3
                         </button>
+                      )}
 
-                        {selectedVaultItem.count >= ASCENSION_MERGE_COUNT && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const nextRun = fuseGearStackInVault(runState, selectedVaultItem.id);
-                              if (nextRun.lastAscensionResult) {
-                                updateProfile(nextRun.profile);
-                                deepSignalAudio.playUiChime("ascend");
-                                showToast(
-                                  `FUSED ${nextRun.lastAscensionResult.itemName.toUpperCase()} -> ★${nextRun.lastAscensionResult.newRank}!`,
-                                );
-                              }
-                            }}
-                            className="px-2.5 py-1 rounded bg-[#d18ce8] hover:bg-[#e3aef5] text-[#17071f] text-[10px] font-black"
-                          >
-                            ✦ FUSE 3 → ★{selectedVaultItem.ascensionRank + 1}
-                          </button>
-                        )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextRun = sellBankItemStack(runState, selectedVaultItem.id, 1);
+                          const goldEarned = nextRun.profile.gold - runState.profile.gold;
+                          if (goldEarned > 0) {
+                            updateProfile(nextRun.profile);
+                            deepSignalAudio.playUiChime("sell");
+                            showToast(`+${goldEarned}G`);
+                          }
+                        }}
+                        className="px-2 py-1 rounded bg-[#2b220d] border border-[#8f6d1d] text-[#ffcf4d] text-[9px] font-extrabold"
+                      >
+                        SELL 1
+                      </button>
 
+                      {selectedVaultItem.count > 1 && (
                         <button
                           type="button"
                           onClick={() => {
-                            const nextRun = sellBankItemStack(runState, selectedVaultItem.id, 1);
+                            const nextRun = sellBankItemStack(runState, selectedVaultItem.id, selectedVaultItem.count);
                             const goldEarned = nextRun.profile.gold - runState.profile.gold;
                             if (goldEarned > 0) {
                               updateProfile(nextRun.profile);
                               deepSignalAudio.playUiChime("sell");
-                              showToast(`SOLD 1 FOR +${goldEarned}G`);
+                              showToast(`+${goldEarned}G`);
                             }
                           }}
-                          className="px-2 py-1 rounded bg-[#2b220d] hover:bg-[#3d3012] border border-[#8f6d1d] text-[#ffcf4d] text-[10px] font-extrabold"
+                          className="px-2 py-1 rounded bg-[#361614] border border-[#9c362f] text-[#ff9b94] text-[9px] font-extrabold"
                         >
-                          SELL 1 (+{getGearSellValue(selectedVaultItem)}G)
+                          SELL ALL
                         </button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="px-2 py-1.5 rounded border border-[#1a2e27] bg-[#080e0c] text-[10px] text-[#6d8f82] shrink-0">
+                    Click any stack in your Vault to Equip, Fuse (3 → ★), or Sell.
+                  </div>
+                )}
 
-                        {selectedVaultItem.count > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const nextRun = sellBankItemStack(runState, selectedVaultItem.id, selectedVaultItem.count);
-                              const goldEarned = nextRun.profile.gold - runState.profile.gold;
-                              if (goldEarned > 0) {
-                                updateProfile(nextRun.profile);
-                                deepSignalAudio.playUiChime("sell");
-                                showToast(`SOLD ALL FOR +${goldEarned}G`);
-                              }
-                            }}
-                            className="px-2 py-1 rounded bg-[#361614] hover:bg-[#4a1e1b] border border-[#9c362f] text-[#ff9b94] text-[10px] font-extrabold"
-                          >
-                            SELL ALL (+{getGearSellValue(selectedVaultItem) * selectedVaultItem.count}G)
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="p-2.5 rounded border border-[#1a2e27] bg-[#080e0c] text-[11px] text-[#6d8f82]">
-                      Select any stack in your Vault to Equip, Fuse (3 copies → +1 Star), or Sell for Gold.
-                    </div>
-                  )}
+                {/* Bottom Vault Page Bar */}
+                <div className="flex items-center justify-between pt-1 border-t border-[#1a2e27] shrink-0">
+                  <span className="text-[10px] font-bold text-[#8fb5a6]">
+                    VAULT STACKS: {runState.profile.bankedGear.length}/{VAULT_PAGE_SIZE * VAULT_TOTAL_PAGES}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setVaultPage((p) => Math.max(0, p - 1))}
+                      disabled={vaultPage === 0}
+                      className="px-2 py-0.5 rounded bg-[#101c18] border border-[#253f36] text-[10px] font-black text-[#9bc4b4] disabled:opacity-40"
+                    >
+                      ◀
+                    </button>
+                    {Array.from({ length: VAULT_TOTAL_PAGES }).map((_, pIdx) => (
+                      <button
+                        key={pIdx}
+                        type="button"
+                        onClick={() => setVaultPage(pIdx)}
+                        className={`px-2.5 py-0.5 rounded text-[10px] font-black border ${
+                          vaultPage === pIdx
+                            ? "bg-[#6fe3c1] text-[#06120e] border-[#6fe3c1]"
+                            : "bg-[#0e1a16] text-[#8fb5a6] border-[#253f36]"
+                        }`}
+                      >
+                        PAGE {pIdx + 1}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setVaultPage((p) => Math.min(VAULT_TOTAL_PAGES - 1, p + 1))}
+                      disabled={vaultPage === VAULT_TOTAL_PAGES - 1}
+                      className="px-2 py-0.5 rounded bg-[#101c18] border border-[#253f36] text-[10px] font-black text-[#9bc4b4] disabled:opacity-40"
+                    >
+                      ▶
+                    </button>
+                  </div>
                 </div>
               </div>
-            )}
-            {armoryTab === "fusion" && (
-              <div className="flex flex-col gap-3">
-                <div className="p-2.5 rounded-lg bg-[#170f21] border border-[#4a2b6b]">
-                  <div className="text-xs font-black text-[#eabfff]">
-                    ✦ EXPONENTIAL ASCENSION FORGE (3 → 9 → 27 → 81...)
-                  </div>
-                  <div className="text-[11px] text-[#c7a9de]">
-                    Merge <strong>3 identical rank copies</strong> into <strong>1 higher-star item</strong> (+28% multiplicative power per star, unlimited ranks).
-                  </div>
-                </div>
+            </div>
+          )}
 
-                <div className="bg-[#0b1411] border border-[#1f362e] rounded-lg p-2.5">
-                  <div className="text-xs font-extrabold text-[#6fe3c1] mb-2">
-                    EQUIPPED ITEMS (FUSE USING 2 MATCHING COPIES FROM VAULT)
+          {/* TAB 2: FUSION (3 -> 9 -> 27) */}
+          {armoryTab === "fusion" && (
+            <div className="flex flex-col gap-2.5 flex-1 min-h-0 overflow-hidden">
+              <div className="p-2 rounded-lg bg-[#170f21] border border-[#4a2b6b] shrink-0">
+                <div className="text-xs font-black text-[#eabfff]">
+                  ✦ EXPONENTIAL ASCENSION FORGE (3 → 9 → 27 → 81...)
+                </div>
+                <div className="text-[11px] text-[#c7a9de]">
+                  Merge <strong>3 identical rank copies</strong> into <strong>1 higher-star item</strong> (+28% multiplicative power per star).
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 flex-1 min-h-0 overflow-hidden">
+                <div className="bg-[#0b1411] border border-[#1f362e] rounded-lg p-2.5 flex flex-col gap-1.5 overflow-hidden">
+                  <div className="text-xs font-extrabold text-[#6fe3c1]">
+                    EQUIPPED GEAR (FUSE WITH 2 VAULT COPIES)
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1.5">
                     {ALL_GEAR_SLOTS.map((slot) => {
                       const eq = runState.profile.equippedGear[slot];
                       if (!eq) return null;
@@ -2605,17 +2077,17 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
                       return (
                         <div
                           key={slot}
-                          className={`p-2 rounded border flex items-center justify-between gap-2 ${
+                          className={`px-2 py-1.5 rounded border flex items-center justify-between gap-2 ${
                             RARITY_STYLES[eq.rarity].border
                           } ${RARITY_STYLES[eq.rarity].bg}`}
                         >
                           <div className="flex items-center gap-2 min-w-0">
-                            <PixelGearIcon slot={eq.slot} rarity={eq.rarity} weaponType={eq.weaponType} size={26} />
+                            <PixelGearIcon slot={eq.slot} rarity={eq.rarity} weaponType={eq.weaponType} size={22} />
                             <div className="min-w-0">
                               <div className={`text-xs font-extrabold truncate ${RARITY_STYLES[eq.rarity].text}`}>
                                 {eq.name} ★{eq.ascensionRank}
                               </div>
-                              <div className="text-[10px] text-[#9bc4b4]">
+                              <div className="text-[9px] text-[#9bc4b4]">
                                 Copies: {1 + vaultMatches}/{ASCENSION_MERGE_COUNT} ({getBaseCopiesEquivalent(eq.ascensionRank)}x base)
                               </div>
                             </div>
@@ -2648,27 +2120,28 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
                   </div>
                 </div>
 
-                <div className="bg-[#0b1411] border border-[#1f362e] rounded-lg p-2.5">
-                  <div className="text-xs font-extrabold text-[#6fe3c1] mb-2">
-                    VAULT STACKS (3+ COPIES MERGE INTO 1 STAR-UP ITEM)
+                <div className="bg-[#0b1411] border border-[#1f362e] rounded-lg p-2.5 flex flex-col gap-1.5 overflow-hidden">
+                  <div className="text-xs font-extrabold text-[#6fe3c1]">
+                    READY VAULT STACKS (3+ IDENTICAL COPIES)
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 gap-1.5">
                     {runState.profile.bankedGear
                       .filter((g) => g.count >= ASCENSION_MERGE_COUNT)
+                      .slice(0, 7)
                       .map((g) => (
                         <div
                           key={g.id}
-                          className={`p-2 rounded border flex items-center justify-between gap-2 ${
+                          className={`px-2 py-1.5 rounded border flex items-center justify-between gap-2 ${
                             RARITY_STYLES[g.rarity].border
                           } ${RARITY_STYLES[g.rarity].bg}`}
                         >
                           <div className="flex items-center gap-2 min-w-0">
-                            <PixelGearIcon slot={g.slot} rarity={g.rarity} weaponType={g.weaponType} size={24} />
+                            <PixelGearIcon slot={g.slot} rarity={g.rarity} weaponType={g.weaponType} size={22} />
                             <div className="min-w-0">
                               <div className={`text-xs font-extrabold truncate ${RARITY_STYLES[g.rarity].text}`}>
                                 {g.name} ★{g.ascensionRank}
                               </div>
-                              <div className="text-[10px] text-[#b8d8cc]">
+                              <div className="text-[9px] text-[#b8d8cc]">
                                 Stack: x{g.count} · Base: {getBaseCopiesEquivalent(g.ascensionRank)}x
                               </div>
                             </div>
@@ -2685,157 +2158,514 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
                                 );
                               }
                             }}
-                            className="px-2 py-1 rounded bg-[#d18ce8] hover:bg-[#e5aef7] text-[#17071f] text-[10px] font-black shrink-0"
+                            className="px-2.5 py-1 rounded bg-[#d18ce8] hover:bg-[#e5aef7] text-[#17071f] text-[10px] font-black shrink-0"
                           >
                             3 → ★{g.ascensionRank + 1}
                           </button>
                         </div>
                       ))}
+                    {runState.profile.bankedGear.filter((g) => g.count >= ASCENSION_MERGE_COUNT).length === 0 && (
+                      <div className="p-3 rounded bg-[#080e0c] border border-[#1a2e27] text-[11px] text-[#6d8f82]">
+                        Collect 3 copies of any gear piece to fuse it into a higher star rank!
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
-            {armoryTab === "index" && (
-              <div className="flex flex-col gap-2.5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="text-xs font-black text-[#6fe3c1]">
-                    SUBTERRANEAN ITEM INDEX ({runState.profile.discoveredItems.length} / {FULL_ITEM_CATALOG.length} DISCOVERED)
+          {/* TAB 3: UNIFIED 5-BOOKMARK FIELD BOOK (1. MAP, 2. INDEX, 3. SUITS, 4. ENEMIES, 5. BOSSES) */}
+          {armoryTab === "book" && (
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 flex-1 min-h-0 overflow-hidden">
+              {/* Left Spine: Live Mini-Surveyor Paperdoll + Context Career Telemetry */}
+              <div className="md:col-span-4 bg-[#0b1411] border border-[#1f362e] rounded-lg p-2.5 flex flex-col justify-between gap-2 overflow-hidden">
+                <div className="flex flex-col items-center text-center gap-1.5 bg-[#080e0c] border border-[#1a2e27] rounded-lg p-2">
+                  <div className="text-[10px] font-black tracking-widest text-[#6fe3c1]">
+                    SURVEYOR DOSSIER · LV.{runState.player.level}
                   </div>
-                  <div className="flex flex-wrap gap-1">
-                    {(["all", ...ALL_GEAR_SLOTS] as const).map((slotKey) => (
-                      <button
-                        key={slotKey}
-                        type="button"
-                        onClick={() => setIndexSlotFilter(slotKey)}
-                        className={`px-2 py-0.5 rounded text-[10px] font-extrabold border ${
-                          indexSlotFilter === slotKey
-                            ? "bg-[#6fe3c1] text-[#06120e] border-[#6fe3c1]"
-                            : "bg-[#0e1a16] text-[#9bc4b4] border-[#253f36]"
-                        }`}
-                      >
-                        {slotKey === "all" ? "ALL (105)" : SLOT_LABELS[slotKey]}
-                      </button>
-                    ))}
+                  <SurveyorPaperdollCanvas
+                    skinId={bookChapter === "suits" ? previewSuitId : runState.profile.activeSkin}
+                    equipped={runState.profile.equippedGear}
+                    previewItem={bookChapter === "index" ? selectedIndexPreviewGear : null}
+                    width={116}
+                    height={116}
+                  />
+                  <div className="text-[10px] text-[#9bc4b4]">
+                    {bookChapter === "index"
+                      ? `HOLDING: ${selectedIndexBlueprint.name.toUpperCase()}`
+                      : `SUIT: ${SURVEYOR_SKINS.find((s) => s.id === (bookChapter === "suits" ? previewSuitId : runState.profile.activeSkin))?.name ?? "STANDARD"}`}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5 max-h-[300px] overflow-y-auto pr-1">
-                  {filteredCatalog.map((bp) => {
-                    const discovered = runState.profile.discoveredItems.includes(bp.baseKey);
-                    return (
-                      <div
-                        key={bp.baseKey}
-                        className={`p-2 rounded border flex items-center gap-2 ${
-                          discovered
-                            ? `${RARITY_STYLES[bp.rarity].border} ${RARITY_STYLES[bp.rarity].bg}`
-                            : "border-[#182923] bg-[#080e0c] opacity-60"
-                        }`}
-                      >
-                        <div className={discovered ? "" : "brightness-0 invert opacity-25"}>
-                          <PixelGearIcon slot={bp.slot} rarity={bp.rarity} weaponType={bp.weaponType} size={24} />
+                {/* Context-Sensitive Stats on Left Page */}
+                <div className="bg-[#080e0c] border border-[#1a2e27] rounded-lg p-2 flex flex-col gap-1 text-[10px] flex-1 justify-center">
+                  <div className="flex justify-between">
+                    <span className="text-[#7ca394]">TIME PLAYED:</span>
+                    <span className="font-bold text-[#e6f5ee]">{formattedPlayTime}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#7ca394]">DEEPEST FLOOR:</span>
+                    <span className="font-bold text-[#6fe3c1]">F{String(runState.profile.deepestFloor).padStart(2, "0")}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#7ca394]">TOTAL GOLD GAINED:</span>
+                    <span className="font-bold text-[#ffcf4d]">{runState.profile.totalGoldEarned.toLocaleString()}G</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#7ca394]">TOTAL GEMS GAINED:</span>
+                    <span className="font-bold text-[#5ec8ff]">{runState.profile.totalDiamondsEarned.toLocaleString()} ◆</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#7ca394]">HUSKS / BOSSES SLAIN:</span>
+                    <span className="font-bold text-[#ff8a80]">
+                      {Object.values(runState.profile.enemyRecords).reduce((a, b) => a + b.kills, 0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#7ca394]">ITEMS FOUND / MERGED:</span>
+                    <span className="font-bold text-[#d4a8ff]">
+                      {runState.profile.totalItemsFound} / {runState.profile.totalItemsMerged}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Pages + 5 Chapter Bookmarks (1. MAP, 2. INDEX, 3. SUITS, 4. ENEMIES, 5. BOSSES) */}
+              <div className="md:col-span-8 flex flex-col gap-2 min-h-0 overflow-hidden">
+                {/* 5 Colored Chapter Bookmarks */}
+                <div className="grid grid-cols-5 gap-1 shrink-0">
+                  {(
+                    [
+                      { id: "map", label: "1. MAP" },
+                      { id: "index", label: "2. INDEX" },
+                      { id: "suits", label: "3. SUITS" },
+                      { id: "enemies", label: "4. ENEMIES" },
+                      { id: "bosses", label: "5. BOSSES" },
+                    ] as const
+                  ).map((bm) => (
+                    <button
+                      key={bm.id}
+                      type="button"
+                      onClick={() => setBookChapter(bm.id)}
+                      className={`py-1.5 rounded-t-lg text-[10px] font-black border-b-2 transition ${
+                        bookChapter === bm.id
+                          ? "bg-[#142922] text-[#6fe3c1] border-[#6fe3c1]"
+                          : "bg-[#0a120f] text-[#7ca394] border-[#1f362e] hover:text-[#cfe8de]"
+                      }`}
+                    >
+                      {bm.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* CHAPTER 1: COMPLEX MAP (Sectors 0–11 + Deploy / Continue Sector Button) */}
+                {bookChapter === "map" && (
+                  <div className="bg-[#0b1411] border border-[#1f362e] rounded-lg p-2.5 flex flex-col justify-between gap-2 flex-1 min-h-0 overflow-hidden">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <div className="text-xs font-black text-[#6fe3c1]">
+                          BTC SUBTERRANEAN COMPLEX SCHEMATIC (SECTORS 0–11)
                         </div>
-                        <div className="min-w-0">
-                          <div
-                            className={`text-[10px] font-extrabold truncate ${
-                              discovered ? RARITY_STYLES[bp.rarity].text : "text-[#587067]"
-                            }`}
-                          >
-                            {discovered ? bp.name : "??? UNDISCOVERED"}
-                          </div>
-                          <div className="text-[9px] text-[#7ca394]">
-                            {bp.rarity} · {SLOT_LABELS[bp.slot]}
-                          </div>
+                        <div className="text-[10px] text-[#9bc4b4]">
+                          Defeat each Sector Guardian (F10, F20, ..., F100) to permanently link the next floor!
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          deepSignalAudio.playUiChime("extract");
+                          setRunState((prev) => startDeepSignalRun(prev, selectedStartFloor));
+                          setShowArmory(false);
+                          showToast(`DEPLOYING TO FLOOR ${String(selectedStartFloor).padStart(2, "0")}`);
+                        }}
+                        className="px-3.5 py-2 rounded-lg bg-[#6fe3c1] hover:bg-[#8cf2d4] text-[#06120e] text-[11px] font-black shrink-0 shadow"
+                      >
+                        ▶ DEPLOY SECTOR (F{String(selectedStartFloor).padStart(2, "0")})
+                      </button>
+                    </div>
 
-            {armoryTab === "skins" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                <div className="bg-[#0b1411] border border-[#1f362e] rounded-lg p-2.5 flex flex-col gap-2">
-                <div className="font-black text-[#6fe3c1]">SURVEYOR EXPEDITION SUITS</div>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {SURVEYOR_SKINS.map((sk) => {
-                      const unlocked = runState.profile.unlockedSkins.includes(sk.id);
-                      const active = runState.profile.activeSkin === sk.id;
-                      return (
-                        <button
-                          key={sk.id}
-                          type="button"
-                          disabled={!unlocked}
-                          onClick={() => updateProfile(setSurveyorSkin(runState.profile, sk.id))}
-                          className={`p-2 rounded border text-left ${
-                            active
-                              ? "border-[#6fe3c1] bg-[#132922]"
-                              : unlocked
-                                ? "border-[#253f36] bg-[#09110e]"
-                                : "border-[#16241f] bg-[#070c0a] opacity-55"
-                          }`}
-                        >
-                          <div className="font-extrabold text-[11px] text-[#e6f5ee]">{sk.name}</div>
-                          <div className="text-[9px] text-[#8fb5a6]">{unlocked ? "UNLOCKED" : sk.unlockNote}</div>
-                        </button>
-                      );
-                    })}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 flex-1">
+                      {BIOMES.map((b) => {
+                        const deployTarget = b.minFloor === 0 ? 1 : b.minFloor;
+                        const unlocked = b.minFloor <= 1 || runState.profile.unlockedSignalLinks.includes(deployTarget);
+                        const isSelected =
+                          (b.minFloor === 0 && selectedStartFloor === 1 && !runState.profile.introWatched) ||
+                          (selectedStartFloor >= Math.max(1, b.minFloor) && selectedStartFloor <= b.maxFloor);
+
+                        return (
+                          <button
+                            key={b.id}
+                            type="button"
+                            disabled={!unlocked && b.minFloor > 0}
+                            onClick={() => {
+                              if (b.minFloor === 0) {
+                                setSelectedStartFloor(1);
+                                setRunState((prev) => ({
+                                  ...prev,
+                                  profile: { ...prev.profile, introWatched: false },
+                                }));
+                                showToast("TRAINING YARD SELECTED");
+                              } else if (unlocked) {
+                                setSelectedStartFloor(deployTarget);
+                              }
+                            }}
+                            className={`p-2 rounded border text-left flex flex-col justify-between transition ${
+                              isSelected
+                                ? "border-[#6fe3c1] bg-[#132922]"
+                                : unlocked || b.minFloor === 0
+                                  ? "border-[#253f36] bg-[#080e0c] hover:bg-[#101c18]"
+                                  : "border-[#16241f] bg-[#070b0a] opacity-45"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="text-[10px] font-black text-[#e6f5ee] truncate">
+                                S{b.sectorNumber}: {b.name}
+                              </span>
+                              <span
+                                className="w-2.5 h-2.5 rounded-sm shrink-0"
+                                style={{ backgroundColor: b.accentColor }}
+                              />
+                            </div>
+                            <div className="text-[9px] font-bold text-[#ffcf4d]">
+                              {b.floorRangeLabel}
+                            </div>
+                            <div className="text-[9px] text-[#8fb5a6] truncate">
+                              {unlocked || b.minFloor === 0 ? b.ambientNote : `🔒 Defeat F${b.minFloor - 1} Boss`}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
+                )}
 
-                  <div className="font-black text-[#6fe3c1] mt-1">HOSTILE ARCHIVES</div>
-                  <div className="flex flex-col gap-1.5 max-h-44 overflow-y-auto">
-                    {Object.values(ENEMY_LORE_CODEX).map((entry) => {
-                      const seen = runState.profile.discoveredEnemies.includes(entry.id);
-                      return (
-                        <div key={entry.id} className="p-2 rounded bg-[#080e0c] border border-[#1a2e27]">
-                          <div className="font-bold text-[11px] text-[#e6f5ee]">
-                            {seen ? `${entry.title} · ${entry.abilityName}` : "🔒 UNIDENTIFIED SIGNAL"}
-                          </div>
-                          {seen && <div className="text-[10px] text-[#9bc4b4] mt-0.5">{entry.lore}</div>}
+                {/* CHAPTER 2: ITEM INDEX (Compact 15x7 Matrix + Live Item-In-Hand Preview & Stats) */}
+                {bookChapter === "index" && (
+                  <div className="bg-[#0b1411] border border-[#1f362e] rounded-lg p-2 flex flex-col justify-between gap-1.5 flex-1 min-h-0 overflow-hidden">
+                    <div className="flex items-center justify-between gap-1 shrink-0">
+                      <span className="text-[10px] font-black text-[#6fe3c1]">
+                        CATALOG ({runState.profile.discoveredItems.length}/{FULL_ITEM_CATALOG.length})
+                      </span>
+                      <div className="flex flex-wrap gap-1">
+                        {(["all", ...ALL_GEAR_SLOTS] as const).map((slotKey) => (
+                          <button
+                            key={slotKey}
+                            type="button"
+                            onClick={() => setIndexSlotFilter(slotKey)}
+                            className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold border ${
+                              indexSlotFilter === slotKey
+                                ? "bg-[#6fe3c1] text-[#06120e] border-[#6fe3c1]"
+                                : "bg-[#0e1a16] text-[#9bc4b4] border-[#253f36]"
+                            }`}
+                            >
+                              {slotKey === "all" ? "ALL" : SLOT_LABELS[slotKey]}
+                            </button>
+                          ))}
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                      </div>
 
-                <div className="bg-[#0b1411] border border-[#1f362e] rounded-lg p-2.5 flex flex-col gap-2">
-                  <div className="font-black text-[#ffcf56]">SECTOR GUARDIANS &amp; SIGNAL TAPES</div>
-                  <div className="flex flex-col gap-2 max-h-80 overflow-y-auto pr-1">
-                    {SIGNAL_TAPES_DB.map((t) => {
-                      const unlocked =
-                        runState.profile.decodedTapes.includes(t.id) ||
-                        runState.profile.unlockedSignalLinks.includes(t.floorFound);
-                      const bossSpec = getBossSpecForFloor(t.floorFound);
-                      return (
-                        <div
-                          key={t.id}
-                          className="p-2 rounded bg-[#080e0c] border border-[#1f362e] flex items-center gap-2.5"
-                        >
-                          {unlocked ? (
-                            <BossMiniPreviewCanvas bossSpec={bossSpec} />
-                          ) : (
-                            <div className="w-[112px] h-[112px] rounded-lg border border-[#1a2e27] bg-[#060a09] flex items-center justify-center text-xs text-[#4b695e] shrink-0">
-                              LOCKED F{t.floorFound}
-                            </div>
-                          )}
-                          <div className="min-w-0">
-                            <div className="font-black text-[11px] text-[#ffdf6b]">
-                              {unlocked ? bossSpec.name : `🔒 GUARDIAN F${t.floorFound}`}
-                            </div>
-                            <div className="text-[10px] font-bold text-[#6fe3c1]">
-                              {unlocked ? `${bossSpec.title} · ${bossSpec.abilityLabel}` : "Defeat Floor Boss to Decode"}
-                            </div>
-                            {unlocked && (
-                              <div className="text-[10px] text-[#9bc4b4] mt-1 leading-snug">
-                                “{t.transcript}”
+                      {/* Compact Zero-Scroll 15-Column Icon Matrix */}
+                      <div className="grid grid-cols-15 gap-0.5 flex-1 min-h-0 content-start" style={{ gridTemplateColumns: "repeat(15, minmax(0, 1fr))" }}>
+                        {filteredCatalog.map((bp) => {
+                          const discovered = runState.profile.discoveredItems.includes(bp.baseKey);
+                          const isSelected = bp.baseKey === selectedIndexBaseKey;
+                          return (
+                            <button
+                              key={bp.baseKey}
+                              type="button"
+                              onClick={() => setSelectedIndexBaseKey(bp.baseKey)}
+                              className={`h-7 rounded border flex items-center justify-center ${
+                                isSelected ? "ring-2 ring-[#ffffff]" : ""
+                              } ${
+                                discovered
+                                  ? `${RARITY_STYLES[bp.rarity].border} ${RARITY_STYLES[bp.rarity].bg}`
+                                  : "border-[#182923] bg-[#080e0c] opacity-55"
+                              }`}
+                            >
+                              <div className={discovered ? "" : "brightness-0 invert opacity-25"}>
+                                <PixelGearIcon slot={bp.slot} rarity={bp.rarity} weaponType={bp.weaponType} size={16} />
                               </div>
-                            )}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Selected Item Stats, Found Count & Kills With Item */}
+                      {(() => {
+                        const discovered = runState.profile.discoveredItems.includes(selectedIndexBlueprint.baseKey);
+                        const foundTimes = runState.profile.itemFoundCount[selectedIndexBlueprint.baseKey] ?? 0;
+                        const killsWithItem = runState.profile.itemKillsCount[selectedIndexBlueprint.baseKey] ?? 0;
+                        return (
+                          <div className="p-2 rounded bg-[#080e0c] border border-[#1f362e] flex items-center justify-between gap-2 shrink-0">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className={discovered ? "" : "brightness-0 invert opacity-30"}>
+                                <PixelGearIcon
+                                  slot={selectedIndexBlueprint.slot}
+                                  rarity={selectedIndexBlueprint.rarity}
+                                  weaponType={selectedIndexBlueprint.weaponType}
+                                  size={28}
+                                />
+                              </div>
+                              <div className="min-w-0">
+                                <div className={`text-xs font-black truncate ${discovered ? RARITY_STYLES[selectedIndexBlueprint.rarity].text : "text-[#6d8f82]"}`}>
+                                  {discovered ? selectedIndexBlueprint.name : "??? UNDISCOVERED RELIC"}
+                                </div>
+                                <div className="text-[10px] text-[#9bc4b4]">
+                                  {selectedIndexBlueprint.rarity.toUpperCase()} {SLOT_LABELS[selectedIndexBlueprint.slot]} ·{" "}
+                                  {selectedIndexPreviewGear.attackBonus > 0 ? `+${selectedIndexPreviewGear.attackBonus} ATK ` : ""}
+                                  {selectedIndexPreviewGear.healthBonus > 0 ? `+${selectedIndexPreviewGear.healthBonus} HP ` : ""}
+                                  {selectedIndexPreviewGear.guardBonus > 0 ? `+${selectedIndexPreviewGear.guardBonus} STA ` : ""}
+                                  {selectedIndexPreviewGear.agilityBonus > 0 ? `+${selectedIndexPreviewGear.agilityBonus} SPD` : ""}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="text-right text-[10px] shrink-0">
+                              <div className="text-[#ffcf4d] font-bold">FOUND: {foundTimes}x</div>
+                              <div className="text-[#ff8a80] font-bold">SLAIN WITH IT: {killsWithItem}</div>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {/* CHAPTER 3: 10 MILESTONE SUITS (Unlocked Every 10 Floors + History & Tiny Buffs) */}
+                  {bookChapter === "suits" && (
+                    <div className="bg-[#0b1411] border border-[#1f362e] rounded-lg p-2.5 flex flex-col justify-between gap-2 flex-1 min-h-0 overflow-hidden">
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
+                        {SURVEYOR_SKINS.map((sk) => {
+                          const unlocked =
+                            runState.profile.unlockedSkins.includes(sk.id) ||
+                            runState.profile.deepestFloor >= sk.unlockFloor;
+                          const active = runState.profile.activeSkin === sk.id;
+                          const selected = previewSuitId === sk.id;
+                          return (
+                            <button
+                              key={sk.id}
+                              type="button"
+                              onClick={() => setPreviewSuitId(sk.id)}
+                              className={`p-1.5 rounded border text-left flex flex-col justify-between ${
+                                selected
+                                  ? "border-[#ffcf56] bg-[#1c1a0e]"
+                                  : active
+                                    ? "border-[#6fe3c1] bg-[#132922]"
+                                    : unlocked
+                                      ? "border-[#253f36] bg-[#080e0c]"
+                                      : "border-[#16241f] bg-[#070b0a] opacity-55"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span
+                                  className="w-3 h-3 rounded-sm border border-black"
+                                  style={{ backgroundColor: sk.body }}
+                                />
+                                <span className="text-[9px] font-black text-[#ffcf4d]">F{sk.unlockFloor}</span>
+                              </div>
+                              <div className="text-[9px] font-extrabold text-[#e6f5ee] truncate mt-1">
+                                {sk.name}
+                              </div>
+                              <div className="text-[8px] text-[#6fe3c1] truncate">{sk.buffLabel}</div>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {(() => {
+                        const suit = SURVEYOR_SKINS.find((s) => s.id === previewSuitId) ?? SURVEYOR_SKINS[0]!;
+                        const unlocked =
+                          runState.profile.unlockedSkins.includes(suit.id) ||
+                          runState.profile.deepestFloor >= suit.unlockFloor;
+                        const active = runState.profile.activeSkin === suit.id;
+                        return (
+                          <div className="p-2.5 rounded bg-[#080e0c] border border-[#1f362e] flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="text-xs font-black text-[#ffdf6b]">
+                                {suit.name} · <span className="text-[#6fe3c1]">{suit.buffLabel}</span>
+                              </div>
+                              <div className="text-[10px] text-[#a5ccc0] mt-0.5 leading-snug">
+                                {suit.history}
+                              </div>
+                              <div className="text-[9px] text-[#7ca394] mt-1">
+                                UNLOCK CONDITION: {suit.unlockNote}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              disabled={!unlocked || active}
+                              onClick={() => {
+                                updateProfile(setSurveyorSkin(runState.profile, suit.id));
+                                deepSignalAudio.playUiChime("upgrade");
+                                showToast(`EQUIPPED ${suit.name}`);
+                              }}
+                              className={`px-3.5 py-2 rounded-lg text-[10px] font-black shrink-0 ${
+                                active
+                                  ? "bg-[#19382e] text-[#6fe3c1] border border-[#6fe3c1]"
+                                  : unlocked
+                                    ? "bg-[#6fe3c1] hover:bg-[#8cf2d4] text-[#06120e]"
+                                    : "bg-[#141f1c] text-[#5c736b]"
+                              }`}
+                            >
+                              {active ? "EQUIPPED" : unlocked ? "EQUIP SUIT" : "LOCKED"}
+                            </button>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {/* CHAPTER 4: ENEMIES (All 6 Husk Classes + Kills, Deaths To & Loot Recovered) */}
+                  {bookChapter === "enemies" && (
+                    <div className="bg-[#0b1411] border border-[#1f362e] rounded-lg p-2.5 flex flex-col justify-between gap-2 flex-1 min-h-0 overflow-hidden">
+                      <div className="grid grid-cols-3 sm:grid-cols-6 gap-1">
+                        {(["stalker", "brute", "archer", "phaser", "flyer", "bandit"] as const).map((eid) => {
+                          const entry = ENEMY_LORE_CODEX[eid];
+                          const selected = selectedEnemyCodexId === eid;
+                          return (
+                            <button
+                              key={eid}
+                              type="button"
+                              onClick={() => setSelectedEnemyCodexId(eid)}
+                              className={`py-1.5 px-1 rounded border text-[9px] font-black truncate ${
+                                selected
+                                  ? "border-[#6fe3c1] bg-[#132922] text-[#6fe3c1]"
+                                  : "border-[#253f36] bg-[#080e0c] text-[#9bc4b4]"
+                              }`}
+                            >
+                              {entry.title.replace("Husk ", "").replace("Mutant ", "")}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {(() => {
+                        const entry = ENEMY_LORE_CODEX[selectedEnemyCodexId];
+                        const rec = runState.profile.enemyRecords[selectedEnemyCodexId] ?? {
+                          kills: 0,
+                          deathsTo: 0,
+                          goldDropped: 0,
+                          gemsDropped: 0,
+                        };
+                        return (
+                          <div className="p-3 rounded bg-[#080e0c] border border-[#1f362e] flex flex-col sm:flex-row items-center gap-3 flex-1">
+                            <EnemyMiniPreviewCanvas enemyKind={selectedEnemyCodexId} />
+                            <div className="flex-1 min-w-0 space-y-1.5">
+                              <div className="text-sm font-black text-[#e6f5ee]">{entry.title}</div>
+                              <div className="text-[10px] font-bold text-[#6fe3c1]">
+                                ABILITY: {entry.abilityName} · WEAPON: {entry.weapon}
+                              </div>
+                              <p className="text-[11px] text-[#a5ccc0] leading-snug">{entry.lore}</p>
+                              <div className="grid grid-cols-4 gap-1.5 pt-1 text-[10px]">
+                                <div className="p-1.5 rounded bg-[#0d1714] border border-[#1f362e]">
+                                  <div className="text-[#7ca394] text-[8px]">SLAIN</div>
+                                  <div className="font-black text-[#6fe3c1]">{rec.kills}</div>
+                                </div>
+                                <div className="p-1.5 rounded bg-[#0d1714] border border-[#1f362e]">
+                                  <div className="text-[#7ca394] text-[8px]">DEATHS TO</div>
+                                  <div className="font-black text-[#ff786b]">{rec.deathsTo}</div>
+                                </div>
+                                <div className="p-1.5 rounded bg-[#0d1714] border border-[#1f362e]">
+                                  <div className="text-[#7ca394] text-[8px]">GOLD LOOT</div>
+                                  <div className="font-black text-[#ffcf4d]">{rec.goldDropped}G</div>
+                                </div>
+                                <div className="p-1.5 rounded bg-[#0d1714] border border-[#1f362e]">
+                                  <div className="text-[#7ca394] text-[8px]">GEMS / TIER</div>
+                                  <div className="font-black text-[#5ec8ff]">
+                                    {rec.gemsDropped}◆ {rec.bestRarity ? `(${rec.bestRarity.slice(0, 3)})` : ""}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {/* CHAPTER 5: BOSSES (F10–F100 Guardians + Kills, Deaths To, Loot & Signal Tapes) */}
+                  {bookChapter === "bosses" && (
+                    <div className="bg-[#0b1411] border border-[#1f362e] rounded-lg p-2.5 flex flex-col justify-between gap-2 flex-1 min-h-0 overflow-hidden">
+                      <div className="grid grid-cols-5 sm:grid-cols-10 gap-1">
+                        {SIGNAL_TAPES_DB.map((t) => {
+                          const selected = selectedBossFloor === t.floorFound;
+                          const unlocked =
+                            runState.profile.decodedTapes.includes(t.id) ||
+                            runState.profile.unlockedSignalLinks.includes(t.floorFound + 1);
+                          return (
+                            <button
+                              key={t.id}
+                              type="button"
+                              onClick={() => setSelectedBossFloor(t.floorFound)}
+                              className={`py-1 rounded border text-[9px] font-black ${
+                                selected
+                                  ? "border-[#ffcf56] bg-[#241e0d] text-[#ffdf6b]"
+                                  : unlocked
+                                    ? "border-[#2b4a3f] bg-[#0e1a16] text-[#9bc4b4]"
+                                    : "border-[#16241f] bg-[#070b0a] text-[#4e695f]"
+                              }`}
+                            >
+                              F{t.floorFound}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {(() => {
+                        const bossSpec = getBossSpecForFloor(selectedBossFloor);
+                        const tape = SIGNAL_TAPES_DB.find((t) => t.floorFound === selectedBossFloor);
+                        const rec = runState.profile.enemyRecords[`boss-${selectedBossFloor}`] ?? {
+                          kills: 0,
+                          deathsTo: 0,
+                          goldDropped: 0,
+                          gemsDropped: 0,
+                        };
+                        const unlocked =
+                          rec.kills > 0 ||
+                          (tape && runState.profile.decodedTapes.includes(tape.id)) ||
+                          runState.profile.unlockedSignalLinks.includes(selectedBossFloor + 1);
+
+                        return (
+                          <div className="p-3 rounded bg-[#080e0c] border border-[#1f362e] flex flex-col sm:flex-row items-center gap-3 flex-1">
+                            <BossMiniPreviewCanvas bossSpec={bossSpec} />
+                            <div className="flex-1 min-w-0 space-y-1">
+                              <div className="text-sm font-black text-[#ffdf6b]">
+                                {bossSpec.name} <span className="text-[10px] text-[#6fe3c1]">(FLOOR {selectedBossFloor})</span>
+                              </div>
+                              <div className="text-[10px] font-bold text-[#9bc4b4]">
+                                {bossSpec.title} · {bossSpec.abilityLabel}
+                              </div>
+                              <p className="text-[10px] text-[#a5ccc0] leading-snug">
+                                {unlocked && tape
+                                  ? `“${tape.transcript}”`
+                                  : "Defeat this Sector Guardian to decode its Signal Tape transmission."}
+                              </p>
+                              <div className="grid grid-cols-4 gap-1.5 pt-1 text-[10px]">
+                                <div className="p-1.5 rounded bg-[#0d1714] border border-[#1f362e]">
+                                  <div className="text-[#7ca394] text-[8px]">VICTORIES</div>
+                                  <div className="font-black text-[#6fe3c1]">{rec.kills}</div>
+                                </div>
+                                <div className="p-1.5 rounded bg-[#0d1714] border border-[#1f362e]">
+                                  <div className="text-[#7ca394] text-[8px]">DEATHS TO</div>
+                                  <div className="font-black text-[#ff786b]">{rec.deathsTo}</div>
+                                </div>
+                                <div className="p-1.5 rounded bg-[#0d1714] border border-[#1f362e]">
+                                  <div className="text-[#7ca394] text-[8px]">GOLD LOOT</div>
+                                  <div className="font-black text-[#ffcf4d]">{rec.goldDropped}G</div>
+                                </div>
+                                <div className="p-1.5 rounded bg-[#0d1714] border border-[#1f362e]">
+                                  <div className="text-[#7ca394] text-[8px]">GEMS / TIER</div>
+                                  <div className="font-black text-[#5ec8ff]">
+                                    {rec.gemsDropped}◆ {rec.bestRarity ? `(${rec.bestRarity.slice(0, 3)})` : ""}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -2847,3 +2677,5 @@ export function BuriedComplexGame({ onBackToArcade }: { onBackToArcade: () => vo
 }
 
 export default BuriedComplexGame;
+
+
