@@ -1,0 +1,36 @@
+# Copy to %USERPROFILE%\.aiderignore-signal. start-helper.cmd passes it with --aiderignore.
+# Gitignore-style patterns, relative to the game repo root [test this first].
+# Leading "/" = only the top-level folder (so src/lib/ stays visible).
+# Keeps the repo map small and keeps Replit leftovers and agent notes out of the chat.
+node_modules/
+/dist/
+/build/
+/coverage/
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.svg
+*.ico
+*.mp3
+*.wav
+*.ogg
+*.woff
+*.woff2
+*.ttf
+/.agents/
+/.claude/
+/.mm3/
+.continue/
+.vscode/
+.github/
+/artifacts/
+/lib/
+/scripts/
+.replit*
+replit.md
+.env*

@@ -1,0 +1,9 @@
+# Extensions Corey has approved for the son's VSCodium: NONE.
+# VSCodium is used as a plain editor. The coding helper is Aider (aider/ folder), which runs in
+# a terminal and needs no extension. settings.json enforces this with
+#   "extensions.allowed": { "*": false }
+#
+# To approve one later: Corey downloads the file on Ubuntu, hashes it with sha256sum, writes the
+# hash in kaggle/PINS.md, adds its exact ID and version to "extensions.allowed", and installs it
+# from that file. Anything else (lookalike names, "recommended" pop-ups, a VSIX from a friend)
+# is a stop-and-ask-Corey moment.

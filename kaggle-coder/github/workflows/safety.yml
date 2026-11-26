@@ -1,0 +1,165 @@
+# Safety checks for every pull request into the game repo.
+# Copy to .github/workflows/safety.yml in the game repo, and github/gitleaks.toml to
+# .github/gitleaks.toml (GUIDE-COREY-UBUNTU.md, part C).
+#
+# These checks are ADVICE, not the gate. A pull request can edit this very file and turn the
+# checks green, so a green tick only means "no indicators found by these checks". The real gate
+# is Corey's review on Ubuntu with his own scanner (part D of the guide).
+#
+# Rules this file keeps:
+#   - runs on pull_request only (never pull_request_target), read-only token, no secrets
+#   - never builds, installs or starts the game's code or its package scripts
+#   - every third-party piece is pinned: checkout by commit, gitleaks by version + sha256
+# Not tested yet.
+
+name: safety
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: safety-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  # Folder (inside the repo) that holds the game's package.json. "." = repo root.
+  GAME_DIR: "."
+  GITLEAKS_VERSION: "8.30.1"
+  GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+  # Packages allowed to carry install scripts (same list as Corey's scan/allowlist.txt).
+  INSTALL_SCRIPT_OK: "esbuild fsevents"
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out (no saved credentials, full history for the diff)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Stop on files that change how tools behave
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          OWNER: ${{ github.repository_owner }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --name-only "$BASE_SHA...$HEAD_SHA" > changed.txt
+          echo "Changed files:"; cat changed.txt
+          # 1. Files that hold or redirect keys: always fail, whoever opened the pull request.
+          KEY_RE='(^|/)\.env($|\.)|(^|/)\.aider|(^|/)kaggle\.json$|(^|/)access_token$|(^|/)\.kaggle/|\.(key|pem)$'
+          if grep -E "$KEY_RE" changed.txt > keyfiles.txt; then
+            echo "::error::Key, address or helper-config files must never be committed:"; cat keyfiles.txt
+            exit 1
+          fi
+          # 2. Editor, AI-helper, CI and git-attribute folders, hooks, npm config, Replit leftovers.
+          STOP_RE='(^|/)\.(continue|vscode|github|husky)/|(^|/)\.gitattributes$|(^|/)\.npmrc$|(^|/)\.replit$|(^|/)scripts/post-merge\.sh$|(^|/)tasks\.json$'
+          if grep -E "$STOP_RE" changed.txt > stops.txt; then
+            echo "::error::These paths need Corey to look first:"; cat stops.txt
+            if [ "$PR_AUTHOR" = "$OWNER" ]; then
+              echo "::warning::PR is from the repo owner; reported, not failed."
+            else
+              exit 1
+            fi
+          fi
+
+      - name: package.json - install scripts, odd sources, floating versions, --host
+        shell: bash
+        run: |
+          set -euo pipefail
+          PJ="$GAME_DIR/package.json"
+          [ -f "$PJ" ] || { echo "no package.json at $PJ"; exit 0; }
+          fail=0
+          hooks=$(jq -r '(.scripts // {}) | keys[] | select(test("^(pre|post)?(install|prepare|prepack|postpack)$"))' "$PJ")
+          if [ -n "$hooks" ]; then echo "::error::lifecycle scripts: $hooks"; fail=1; fi
+          host=$(jq -r '(.scripts // {}) | to_entries[] | select(.value | test("--host")) | .key' "$PJ")
+          if [ -n "$host" ]; then echo "::error::scripts that expose the dev server (--host): $host"; fail=1; fi
+          bad=$(jq -r '[.dependencies, .devDependencies, .optionalDependencies, .peerDependencies]
+                 | map(. // {}) | add | to_entries[]
+                 | select(.value == "latest" or .value == "*" or .value == "" or .value == "x"
+                          or (.value | test("^(git|git\\+|github:|gitlab:|bitbucket:|https?:|file:|link:)"))
+                          or (.value | test("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")))
+                 | "\(.key)@\(.value)"' "$PJ")
+          if [ -n "$bad" ]; then echo "::error::floating or non-registry dependencies:"; echo "$bad"; fail=1; fi
+          ranges=$(jq -r '[.dependencies, .devDependencies] | map(. // {}) | add | to_entries[]
+                   | select(.value | test("^[~^]")) | .key' "$PJ" | wc -l)
+          echo "::notice::$ranges dependencies use ^ or ~ ranges (the lockfile pins the exact version)."
+          exit $fail
+
+      - name: Lockfile - registry, integrity, install scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          LOCK="$GAME_DIR/package-lock.json"
+          if [ ! -f "$LOCK" ]; then
+            if [ -f "$GAME_DIR/package.json" ]; then echo "::error::package.json without package-lock.json"; exit 1; fi
+            exit 0
+          fi
+          jq -r --arg ok "$INSTALL_SCRIPT_OK" '
+            ($ok | split(" ")) as $allowed
+            | (.packages // {}) | to_entries[]
+            | select(.key != "" and (.value.link != true) and (.value.inBundle != true))
+            | (.key | split("node_modules/") | last) as $name
+            | (if ((.value.resolved // "") | startswith("https://registry.npmjs.org/")) | not
+                 then "\(.key): resolved from \(.value.resolved // "nowhere")" else empty end),
+              (if (.value.integrity // "") == "" then "\(.key): no integrity hash" else empty end),
+              (if .value.hasInstallScript == true and ($allowed | index($name)) == null
+                 then "\(.key): has an install script and is not on the list" else empty end)
+          ' "$LOCK" > lock-problems.txt
+          if [ -s lock-problems.txt ]; then echo "::error::lockfile problems:"; cat lock-problems.txt; exit 1; fi
+          echo "lockfile: every package from registry.npmjs.org with an integrity hash"
+
+      - name: vite.config - dev server exposure
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=$(ls "$GAME_DIR"/vite.config.* 2>/dev/null || true)
+          [ -n "$files" ] || exit 0
+          if grep -nE "allowedHosts[[:space:]]*:[[:space:]]*true|host[[:space:]]*:[[:space:]]*(true|['\"]0\.0\.0\.0['\"])" $files; then
+            echo "::error::vite.config opens the dev server to the network (host / allowedHosts)."
+            exit 1
+          fi
+
+      - name: Known vulnerabilities (lockfile only, nothing is installed)
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ -f "$GAME_DIR/package-lock.json" ] || exit 0
+          # Copy only the two manifest files to an empty folder, so no project npm config is used.
+          W=$(mktemp -d)
+          cp "$GAME_DIR/package.json" "$GAME_DIR/package-lock.json" "$W/"
+          cd "$W"
+          NPM_CONFIG_USERCONFIG=/dev/null npm audit --package-lock-only --ignore-scripts \
+            --registry=https://registry.npmjs.org/ --audit-level=high
+
+      - name: Secrets (gitleaks, pinned and hash-checked)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          T=$(mktemp -d)
+          curl -sSfL -o "$T/gl.tgz" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  $T/gl.tgz" | sha256sum -c -
+          tar -xzf "$T/gl.tgz" -C "$T" gitleaks
+          # Rules come from .github/gitleaks.toml on the BASE branch, so this pull request cannot
+          # weaken them for itself. Falls back to the pull request's copy only if base has none.
+          if ! git show "$BASE_SHA:.github/gitleaks.toml" > "$T/gitleaks.toml" 2>/dev/null; then
+            echo "::warning::no .github/gitleaks.toml on the base branch; using this pull request's copy"
+            cp .github/gitleaks.toml "$T/gitleaks.toml"
+          fi
+          # New commits in this pull request, then every file in the tree.
+          "$T/gitleaks" git --no-banner --redact --config "$T/gitleaks.toml" \
+            --log-opts="$BASE_SHA..$HEAD_SHA" .
+          "$T/gitleaks" dir --no-banner --redact --config "$T/gitleaks.toml" "$GAME_DIR"

@@ -1,0 +1,25 @@
+# Dependabot for the game repo. Copy to .github/dependabot.yml (GUIDE-COREY-UBUNTU.md, part F).
+#
+# npm: open-pull-requests-limit 0 turns OFF routine version-bump pull requests, so new package
+# code does not arrive every week. Security fixes still come as Dependabot security updates
+# (Settings > Code security) [test this first: that the 0 limit leaves security updates on].
+# Every Dependabot pull request is reviewed like any other: it changes code that runs when the
+# game runs.
+#
+# github-actions: keeps the commit-pinned actions in .github/workflows up to date, weekly.
+# A cooldown waits 7 days after a release before proposing it [test this first: cooldown support].
+# Not tested yet.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"               # folder holding package.json; change if the game is in a subfolder
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 2

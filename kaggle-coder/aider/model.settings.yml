@@ -1,0 +1,15 @@
+# Copy to %USERPROFILE%\.aider.model.settings.yml. start-helper.cmd passes this file with
+# --model-settings-file. Aider loads files in order home, git root, current folder, then this
+# one, and a later entry with the same name replaces an earlier one (aider/models.py at
+# v0.86.2), so this entry wins over any repo copy for openai/kaggle-coder [test this first].
+# Field names from the ModelSettings class at v0.86.2. Not tested yet.
+- name: openai/kaggle-coder
+  edit_format: diff            # switch to "whole" with /chat-mode whole only for tiny files
+  weak_model_name: openai/kaggle-coder
+  editor_model_name: openai/kaggle-coder
+  editor_edit_format: diff
+  use_repo_map: true
+  streaming: false
+  use_temperature: true
+  extra_params:
+    max_tokens: 800            # per answer; the server also caps at 1024 (-n)

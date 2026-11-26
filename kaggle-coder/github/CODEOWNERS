@@ -1,0 +1,25 @@
+# Copy to .github/CODEOWNERS in the game repo and replace the placeholder with Corey's
+# GitHub username (keep the leading at-sign).
+# ADVICE ONLY unless the repo is PUBLIC, Corey owns it, and branch protection has
+# "Require review from Code Owners" and "Do not allow bypassing" turned on. On a private
+# Free repo, or for the repo owner by default, nothing here is enforced.
+# Last matching line wins; every line names Corey, so the explicit paths below are a list of
+# what deserves the closest look, not a different rule.
+*                          @corey-github-username-here
+
+# Key, address and helper-config files (the safety workflow also fails on these)
+.env*                      @corey-github-username-here
+.aider*                    @corey-github-username-here
+**/kaggle.json             @corey-github-username-here
+**/access_token            @corey-github-username-here
+
+# Files that change how tools behave
+/.github/                  @corey-github-username-here
+/.vscode/                  @corey-github-username-here
+/.continue/                @corey-github-username-here
+/.husky/                   @corey-github-username-here
+.gitattributes             @corey-github-username-here
+.npmrc                     @corey-github-username-here
+package.json               @corey-github-username-here
+package-lock.json          @corey-github-username-here
+vite.config.*              @corey-github-username-here

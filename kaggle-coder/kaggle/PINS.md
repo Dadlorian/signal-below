@@ -1,0 +1,79 @@
+# Pins
+
+Every download is pinned to an exact version (or commit) and checked by sha256. Values here must
+match `kaggle/server.py`, `github/workflows/safety.yml` and the guides. Any value that says
+`UNPINNED - Corey must fill in` stops `server.py`.
+
+Looked up on 2026-11-26 from official metadata only: GitHub releases API (`digest` field),
+Hugging Face API (`lfs.sha256` of each file), PyPI JSON API, Open VSX API. Nothing was
+downloaded and nothing was tested. Releases were chosen at least two weeks old where possible.
+
+## Kaggle side: runtime and tunnel (used by server.py)
+
+| What | Pin | sha256 |
+|---|---|---|
+| llama.cpp build | `b12318`, published 2026-11-12, commit `7021f7e0993c2bae3860a9b7e6507bead16c90af` | |
+| llama.cpp asset | `llama-b12318-bin-ubuntu-cuda-12.8-x64.tar.gz` (197,999,267 bytes) | `e5c7ec6d5924059d6222cfad3b266d88fafdb3772700e23f8b0d23f7d68ce797` |
+| CUDA runtime asset | `cudart-llama-b12318-bin-ubuntu-cuda-12.8-x64.tar.gz` (594,371,580 bytes) | `caec3617f1fd440b85b80f0c2db031ef483f383a1939c684f0476d1d3086caea` |
+| cloudflared | `2026.11.0`, published 2026-11-12, `cloudflared-linux-amd64` (40,283,099 bytes); also matches the release-notes checksum list | `51f7c68b57ed7269164075d7e789efce5b59355982f06392deeb037d982a51fd` |
+
+[test this first] that build b12318 runs on Kaggle's T4 driver (CUDA 12.8 runtime, T4 is compute
+capability 7.5). If not: build from source with `-DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=75`.
+The new "v1.1.0" release has no Linux CUDA files; numbered builds are marked pre-release but carry them.
+
+## Model profiles (used by server.py; never `-hf`, never auto-pull)
+
+`server.py` picks **A** when nvidia-smi shows 2 GPUs with at least 15,000 MiB each, otherwise **B**.
+Set `PROFILE` in the notebook cell to force one. Download URL form:
+`https://huggingface.co/<repo>/resolve/<commit>/<file>`.
+
+| Profile | Repo @ commit | File (bytes) | sha256 | Licence | Server flags |
+|---|---|---|---|---|---|
+| A | `unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF` @ `b17cb02dd882d5b6ab62fc777ad2995f19668350` (third-party quantisation of `Qwen/Qwen3-Coder-30B-A3B-Instruct`) | `Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf` (18,556,689,568) | `fadc3e5f8d42bf7e894a785b05082e47daee4df26680389817e2093056f088ad` | apache-2.0 | `-c 16384`, `--temp 0.7 --top-p 0.8 --top-k 20 --repeat-penalty 1.05` |
+| A-small | same repo @ same commit | `Qwen3-Coder-30B-A3B-Instruct-UD-Q3_K_XL.gguf` (13,806,312,608) | `69cd7578d77dffc0b17e34bad9ef998d08ae0e20ccceef21bad4e7eb3d8c553b` | apache-2.0 | same as A |
+| B | `Qwen/Qwen2.5-Coder-14B-Instruct-GGUF` @ `d0a692ef765eefbf2fabb130b3cb2e8917e3d225` (official) | `qwen2.5-coder-14b-instruct-q4_k_m.gguf` (8,988,110,272; single file) | `c1e659736d89ac1065fb495330fb824d94001974a4bfa78e7270e43476a8d940` | apache-2.0 | `-c 16384`, sampling at server defaults [test this first] |
+
+Flags for every profile: `--alias kaggle-coder --host 127.0.0.1 --port 8080 --api-key-file <tmp file>
+--no-webui --no-slots --no-mmproj --offline --jinja -ngl all -sm layer -ts 1,1 -np 1 -n 1024
+--no-context-shift`. All flags exist in the b12318 README; values are starting points, not tested.
+Never add `--tools`, `--agent`, `--mcp-servers-*`, `--ui-mcp-proxy`, `--props` or `--metrics`.
+
+Later option (not researched): keep the model in a **private Kaggle dataset** so it is not
+downloaded every session (profile A is 18.6 GB each time).
+
+## Laptop side
+
+| What | Pin | sha256 |
+|---|---|---|
+| uv (installs Aider) | `0.13.8`, published 2026-11-12, `uv-x86_64-pc-windows-msvc.zip` (15,529,884 bytes) | `529e78a9cec6cd7e3e014f7ecd8bda0c113969d4ed0f2efeedb85c30943325b8` |
+| Aider | `aider-chat==0.86.2` on PyPI, uploaded 2026-02-12, Apache-2.0, needs Python 3.10-3.12; all 301 of its dependencies are pinned with `==` (including `litellm==1.81.10`, `openai==2.20.0`) | wheel `aider_chat-0.86.2-py3-none-any.whl`: `64f6a0c66c9f4633ad9f479bca3e64ebcba02b9da03c6b604b74a44736b2416e` |
+| VSCodium (plain editor, optional) | user installer from the VSCodium GitHub releases page, 1.96 or newer | Corey compares the `.sha256` file published next to it |
+| Python for Aider | uv-managed CPython 3.12 (`--python 3.12`) | `UNPINNED - Corey must fill in` if an exact patch version is wanted (uv picks one) |
+
+Install command (Corey, on the laptop, as the son's user):
+`uv tool install --python 3.12 --exclude-newer 2026-02-13 aider-chat==0.86.2`
+(`--exclude-newer` keeps any loose dependency to files uploaded before that date [test this first]).
+Do **not** use `aider-install`: it always installs `aider-chat@latest`.
+
+## GitHub Actions (safety.yml) and local pre-commit
+
+| What | Pin | sha256 |
+|---|---|---|
+| actions/checkout | `v7.0.1` = commit `3d3c42e5aac5ba805825da76410c181273ba90b1` | n/a (pinned by commit) |
+| gitleaks | `v8.30.1` (2026-03-21), `gitleaks_8.30.1_linux_x64.tar.gz` | `551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb` |
+
+## Not planned
+
+- **Laptop CPU fallback model.** 8 GB RAM is not enough for these models. (Research notes kept:
+  llama.cpp's single Windows CPU zip carries several CPU variants: x64, sse42, sandybridge
+  (AVX), haswell (AVX2) and newer.)
+- **Continue** (parked in `continue/`): final stable is 2.0.0; 2.1.0 on Open VSX is the
+  pre-release channel; the repo says it is read-only. Open VSX's `.sha256` for 2.0.0 was empty.
+
+## Changing a pin
+
+1. Pick a release at least two weeks old. Read its release notes.
+2. Copy the asset name and sha256 from the release page or API (for models: the file page or
+   the API at an exact commit), never from a blog or chat.
+3. Change the value here and in the file that uses it, in the same pull request.
+4. Corey reads the diff before anyone runs it.

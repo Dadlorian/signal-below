@@ -1,0 +1,39 @@
+# PARKED - NOT IN USE. Do not copy this to the laptop.
+# The chosen client is Aider (see ../aider/). This Continue 2.0.0 draft is kept only in case
+# Corey later picks a tool-calling client (open question in SAFETY-BRIDGE.md). Continue's repo
+# says it is read-only and no longer maintained. If revived: key name, apiBase and Agent-mode
+# tool policies (Ask First / Excluded, never Automatic) all need a fresh review.
+#
+# Continue settings for the Kaggle coding helper.
+# Goes in %USERPROFILE%\.continue\config.yaml on the laptop (C:\Users\<name>\.continue\).
+# No secrets in this file. The key lives only in %USERPROFILE%\.continue\.env
+# (see env.example). Never put a .env file inside the game folder.
+# Written for Continue 2.0.0. Not tested yet.
+
+# Required header. "schema: v1" is the config format version.
+name: kaggle-coder
+version: 0.0.1
+schema: v1
+
+models:
+  - name: Kaggle Coder               # the label you see in the Continue model menu
+    provider: openai                 # llama-server speaks the OpenAI chat format
+    model: kaggle-coder              # must match MODEL_ALIAS in server.py; if the name
+                                     # Continue shows is different, stop and ask Corey
+    # Each session: paste the address server.py printed, ending in /v1.
+    # Only use an address from YOUR OWN Kaggle screen (or from Corey in person).
+    apiBase: https://PASTE-TODAYS-ADDRESS.trycloudflare.com/v1
+    # Reads CODER_API_KEY from %USERPROFILE%\.continue\.env. Nothing secret is typed here.
+    apiKey: ${{ secrets.CODER_API_KEY }}
+    roles:                           # chat, plus edits you accept or reject yourself
+      - chat
+      - edit
+      - apply
+    # No "capabilities: tool_use" line on purpose: Agent tools stay off.
+    defaultCompletionOptions:
+      stream: false                  # quick tunnels cannot stream; [test this first]
+      contextLength: 16384           # matches CTX_SIZE in server.py
+      maxTokens: 1024                # keeps answers under the tunnel's time limit [test this first]
+      temperature: 0.2               # lower = steadier code answers
+    requestOptions:
+      timeout: 600                   # seconds (Continue multiplies by 1000)

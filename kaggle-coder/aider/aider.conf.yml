@@ -1,0 +1,46 @@
+# Aider 0.86.2 settings for the son's laptop. Owned by Corey.
+# Copy to %USERPROFILE%\.aider.conf.yml (C:\Users\<son>\.aider.conf.yml).
+# start-helper.cmd always passes --config with this exact file, so a .aider.conf.yml inside
+# a repo is never read. The safety-relevant switches are ALSO passed on the command line by
+# start-helper.cmd, because a repo .env can set AIDER_* values and the command line wins.
+# Key names checked against Aider's sample.aider.conf.yml at tag v0.86.2. Not tested yet.
+# No key and no address in this file: the key is the user environment variable
+# AIDER_OPENAI_API_KEY, the address is given to start-helper each session.
+
+# ---- Model: everything goes to the Kaggle server under one name ----
+model: openai/kaggle-coder
+weak-model: openai/kaggle-coder      # commit messages and summaries
+editor-model: openai/kaggle-coder    # the step that writes the edit in architect mode
+editor-edit-format: diff             # search/replace blocks; smaller than whole files
+timeout: 120                         # seconds; under the tunnel's ~125 s limit
+verify-ssl: true
+
+# ---- Ask before writing: plan first, then "Edit the files?" ----
+architect: true
+auto-accept-architect: false
+
+# ---- The tunnel cannot stream ----
+stream: false
+
+# ---- Never run commands ----
+suggest-shell-commands: false
+auto-lint: false
+auto-test: false
+notifications: false
+watch-files: false                   # do not act on "AI" comments found inside files
+yes-always: false
+
+# ---- No surprise downloads, upgrades, web pages or analytics ----
+check-update: false
+analytics-disable: true
+disable-playwright: true
+detect-urls: false
+
+# ---- Small context: keep the map and history short ----
+map-tokens: 1024
+max-chat-history-tokens: 4096
+restore-chat-history: false
+
+# ---- Git: every AI edit is its own commit, so /undo and review work ----
+auto-commits: true
+gitignore: true                      # offers to add .aider* to the repo's .gitignore

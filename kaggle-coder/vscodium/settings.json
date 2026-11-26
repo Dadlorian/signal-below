@@ -1,0 +1,37 @@
+// VSCodium USER settings for the son's laptop. VSCodium is a plain editor here: no AI
+// extension, no extensions at all. The coding helper is Aider in a terminal.
+// Corey puts this file at %APPDATA%\VSCodium\User\settings.json [test this first: path].
+// It is a safety net against mistakes, not a lock: he can change user settings himself.
+// Setting names come from the VS Code docs; VSCodium support for each line is
+// [test this first] on the real laptop.
+{
+  // ---- Workspace Trust: downloaded folders open in Restricted Mode ----
+  "security.workspace.trust.enabled": true,
+  "security.workspace.trust.startupPrompt": "once",
+  "security.workspace.trust.untrustedFiles": "prompt",
+  "security.workspace.trust.emptyWindow": false,
+  "terminal.integrated.allowInUntrustedWorkspace": false,
+
+  // ---- Never run tasks automatically when a folder opens (tasks.json "runOn": "folderOpen") ----
+  // The real setting name is task.allowAutomaticTasks (singular "task").
+  "task.allowAutomaticTasks": "off",
+
+  // ---- Extensions: none allowed, no prompts, no updates ----
+  // Needs VSCodium 1.96 or newer. Test: try to install any extension; it must be refused.
+  "extensions.allowed": {
+    "*": false
+  },
+  "extensions.autoUpdate": false,
+  "extensions.autoCheckUpdates": false,
+  "extensions.ignoreRecommendations": true,
+
+  // ---- Editor updates: Corey updates VSCodium by hand ----
+  "update.mode": "manual",
+
+  // ---- Telemetry off ----
+  "telemetry.telemetryLevel": "off",
+
+  // ---- Git: no background fetches, no opening a parent folder's repository ----
+  "git.autofetch": false,
+  "git.openRepositoryInParentFolders": "never"
+}

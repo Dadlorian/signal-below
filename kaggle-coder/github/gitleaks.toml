@@ -1,0 +1,25 @@
+# gitleaks rules for the game repo. Copy to .github/gitleaks.toml.
+# Used by .github/workflows/safety.yml (read from the BASE branch, so a pull request cannot
+# weaken it for itself) and by Corey's optional local pre-commit check.
+# The coding-helper key is random, so it matches no built-in pattern. These rules look for the
+# NAMES the key travels under, and for quick-tunnel addresses, instead.
+# Syntax per the gitleaks v8.30.1 README. Not tested yet [test this first].
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "kaggle-coder-key-name"
+description = "A key name (coder key, Kaggle, OpenAI, access_token) given a value in a committed file"
+regex = '''(?i)\b(CODER_API_KEY|AIDER_OPENAI_API_KEY|OPENAI_API_KEY|KAGGLE_API_TOKEN|KAGGLE_KEY|access_token)\b["']?\s*[:=]\s*["']?[^\s"'#,;)]{8,}'''
+keywords = ["coder_api_key", "openai_api_key", "kaggle_api_token", "kaggle_key", "access_token"]
+
+  [[rules.allowlists]]
+  regexTarget = "match"
+  regexes = ['''paste-the-key-here''', '''process\.env\.''', '''import\.meta\.env\.''']
+
+[[rules]]
+id = "quick-tunnel-address"
+description = "A trycloudflare.com address committed to the repo (it is a door to the model)"
+regex = '''(?i)[a-z0-9-]+\.trycloudflare\.com'''
+keywords = ["trycloudflare"]
