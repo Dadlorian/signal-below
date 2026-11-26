@@ -31,18 +31,25 @@ on the card.
 
 ## Installing tools without admin
 
-[SETUP-NO-ADMIN.md](SETUP-NO-ADMIN.md) and `loop/setup-tools.cmd` install Git, Node.js, VS Code
-and uv for your account only, into `%LOCALAPPDATA%\kc-tools`. Downloads come only from the
-pinned official URLs in `kaggle/PINS.md` ("Windows tools"), and each file's sha256 is checked
-**before** it is unpacked. No installer is run as administrator; anything asking for an admin
-password is a STOP. The user Path is changed for your account only, never the system Path.
+[SETUP-NO-ADMIN.md](SETUP-NO-ADMIN.md) has no install script on purpose: a script that
+downloads and installs by itself hides what is happening and teaches nothing. Instead each step
+shows the command and why. Git, VS Code and uv come from `winget` with `--scope user` (for your
+account only), pinned to a version with `--version`, and winget checks the download against
+Microsoft's manifest hash (never `--ignore-security-hash`). Node.js has no per-user winget
+package, so it is the official zip, scanned and checked against nodejs.org's `SHASUMS256.txt`.
+Anything asking for an admin password is a STOP. The user Path is changed for your account only,
+never the system Path and never with `setx PATH`.
 
-**Where the hashes come from:** VS Code's from Microsoft's update API, PortableGit's, uv's and
-Cline's from the GitHub releases API, Node's from nodejs.org's `SHASUMS256.txt`. Corey copies
-them into PINS.md from those sources. A hash read from the same web page you download from only
-proves the download was not damaged on the way; if that page itself were tampered with, file and
-hash could both be wrong. That is why the hashes live in PINS.md, reviewed by Corey, and not on
-the download page you happen to be looking at.
+**The scan habit:** every download is scanned with Microsoft Defender (right-click, Show more
+options) or, with no antivirus, with VirusTotal (upload, or look up the SHA-256 without
+uploading). A clean scan means no alarms found. It does not mean harmless: brand-new malware is
+not in the scanners yet, and VirusTotal shares what is uploaded with security researchers, so
+only files from official sites go there.
+
+**What this cannot rule out:** a hash read from the same page you download from only proves the
+file was not damaged on the way; if that page were tampered with, file and hash could both be
+wrong. Corey keeps a reference copy of the versions and hashes in `kaggle/PINS.md` to compare.
+Tools installed for one account still run as that account and can read that account's files.
 
 ## Where keys may live (and nowhere else)
 

@@ -1,148 +1,161 @@
-# Quick setup, no admin needed (Windows 11) ⚡
+# Set up your coding lab (no admin needed)
 
-Git, Node.js, VS Code and a coding helper, installed for **your account only**, in about
-**20 minutes plus download time**. Nothing here needs "Run as administrator".
+You will install four things. Every step shows **what to type** and **why**. Nothing is hidden:
+you can read every command before you run it.
 
-> [!IMPORTANT]
-> **If anything asks for an administrator password: STOP and ask Corey.** Don't click "Yes" to
-> get past it. That box means something wants to change the whole computer, and we never need that.
-
-Everything goes into one folder: **`%LOCALAPPDATA%\kc-tools`** (that's
-`C:\Users\<you>\AppData\Local\kc-tools`). Every download comes from the official link in
-[kaggle/PINS.md](kaggle/PINS.md) ("Windows tools"), and every file is checked against its sha256
-fingerprint before it is used. Nothing here has been tested yet: steps marked
-[test this first] are unconfirmed.
+> **Three rules**
+> 1. **Admin password pop-up? STOP.** Close it and tell Corey. You never need "Run as administrator".
+> 2. **Only the official site, or `winget`** (Microsoft's own installer tool). Never a link someone sent you.
+> 3. **Scan it before you run it** (Step 2).
 
 ---
 
-## 1. Check your account (2 min)
+## Step 1. Open a terminal
 
-1. Start > type **Terminal** > open it (normal click, **not** "Run as administrator").
-2. Type: `whoami /groups | findstr /c:"S-1-5-32-544"`
-   - **No output** = you are a standard user. Good.
-   - **A line with "Administrators"** = this account is an admin. Tell Corey before you go on.
-3. **Settings > Windows Update**: you should see a recent "Last checked" date. Old date or an
-   error? Tell Corey.
-4. **Windows Security > Virus & threat protection**: "Real-time protection" should be **On**.
-   Don't assume it is: look.
+Start menu, type **Terminal**, press Enter (a normal click, not "Run as administrator").
+Then type: `winget --version`
 
-## 2. Get the tools: fast path (5 min + downloads)
+*Why:* winget is already on Windows 11. If it prints a version number, you have it.
 
-Corey gives you `setup-tools.cmd` (from `loop/`). It downloads the pinned files, checks every
-fingerprint **before** unpacking, unpacks them into `kc-tools`, and adds them to *your* Path.
-It is marked UNTESTED: Corey runs it once with you first.
+## Step 2. The scan habit (do this for anything you download)
 
-1. Save `setup-tools.cmd` in your **Downloads** folder.
-2. In Terminal: `cd $HOME\Downloads` then `.\setup-tools.cmd`
-3. You should see `Hash OK` four times and `DONE`. Want the Terminal helper (step 5B) too? Use
-   `.\setup-tools.cmd with-aider`.
-4. `STOP: ... does not match` = the file is not the one the vendor published. **Do not work
-   around it.** Tell Corey.
-5. Git step says "tar could not unpack it"? Double-click the PortableGit file it names, set the
-   folder to `%LOCALAPPDATA%\kc-tools\git`, OK, then run `setup-tools.cmd` again. (It is a
-   self-unpacking archive, not an installer.)
+**Easiest: Windows already has a scanner.**
+Right-click the file, choose **Show more options**, then **Scan with Microsoft Defender**.
 
-**Close Terminal, open a new one**, then jump to step 4.
+**No antivirus, or want a second opinion? Use VirusTotal** (a free site that runs a file through
+dozens of scanners): <https://www.virustotal.com>
+- Click **File**, pick the file, wait for the results. Files up to 650 MB work.
+- Or look it up **without uploading**: run `certutil -hashfile "C:\path\to\file" SHA256` and paste
+  the long code (the file's *fingerprint*) into the search box.
+- **Only upload things from official sites.** VirusTotal shares what you upload with security
+  researchers. Never upload your own code, school work or anything private.
 
-## 3. Get the tools by hand (instead of step 2)
+**Reading the result**
+- Nobody flags it: no alarms. Good.
+- One or two small scanners flag a big company's file: that can be a false alarm. Ask Corey.
+- Defender, or lots of scanners, flag it: delete it and tell Corey.
 
-For each row in PINS.md "Windows tools" (VS Code ZIP, PortableGit, Node.js ZIP):
+A clean scan means **no alarms found**. It is not a promise: brand-new tricks are not in the
+scanners yet. That is why we also use only official sites and read what we run.
 
-1. Download it from the URL in PINS.md (copy-paste the link, don't search for it).
-2. Check the fingerprint: `certutil -hashfile $HOME\Downloads\<file> SHA256`
-   The long code must equal the one in PINS.md, every character. Different? Delete it, tell Corey.
-3. Unpack:
-   - **VS Code ZIP**: right-click > Extract All > `%LOCALAPPDATA%\kc-tools\vscode`. Then make a
-     new empty folder `data` inside `vscode` (that keeps VS Code "portable": settings live here).
-   - **PortableGit**: double-click it, folder `%LOCALAPPDATA%\kc-tools\git`, OK.
-   - **Node.js ZIP**: Extract All > `%LOCALAPPDATA%\kc-tools` (you get `node-v26.13.1-win-x64`).
+## Step 3. Install the tools
 
-## 4. Put the tools on your Path (2 min)
+For each tool pick the **quick way** (winget) or the **careful way** (download, scan, run).
 
-Your **user** Path tells Windows where your programs are. Only yours, no admin.
+### Git (saves versions of your code and sends it to GitHub)
 
-1. Start > type **environment** > click **Edit environment variables for your account**.
-2. Top box "User variables for <you>": click **Path** > **Edit**.
-3. Click **New** and paste each of these, one per line:
-   `%LOCALAPPDATA%\kc-tools\vscode\bin`
-   `%LOCALAPPDATA%\kc-tools\git\cmd`
-   `%LOCALAPPDATA%\kc-tools\node-v26.13.1-win-x64`
-   `%USERPROFILE%\.local\bin`   (for `loop.cmd`, `start-helper.cmd`, `aider`)
-4. OK, OK. Close Terminal and open a new one.
-
-Or in Terminal (adds one folder, only if it is missing):
-```powershell
-$d="$env:LOCALAPPDATA\kc-tools\git\cmd"; $p=[Environment]::GetEnvironmentVariable('Path','User'); if(($p -split ';') -notcontains $d){[Environment]::SetEnvironmentVariable('Path',($p.TrimEnd(';')+';'+$d).TrimStart(';'),'User')}
+Quick way:
 ```
-Never `setx PATH ...`: it copies the system Path into yours and cuts everything after 1024
-characters. [test this first: whether the one-liner keeps `%...%` entries in an existing Path]
+winget show --id Git.Git -e --version 2.56.1
+winget install --id Git.Git -e --version 2.56.1 --scope user
+```
+*Why each part:* `show` lets you read who made it and where it downloads from. `--version` picks a
+release that has been out a while. `--scope user` installs for **your account only** (no admin).
+winget checks the download's fingerprint against Microsoft's list. **Never add
+`--ignore-security-hash`**: that switches the check off.
 
-## 5. Is it working? (1 min)
+Careful way: download from <https://git-scm.com/download/win>, scan it (Step 2), run it.
+[test this first: it should install just for you when you are not an admin]
 
-New Terminal window, type each line. Each should print a version number:
+### VS Code (the editor where you write code)
+
+Quick way:
+```
+winget show --id Microsoft.VisualStudioCode -e --version 1.146.0
+winget install --id Microsoft.VisualStudioCode -e --version 1.146.0 --scope user
+```
+Careful way: <https://code.visualstudio.com/Download>, pick **User Installer** (not "System"), scan, run.
+
+Afterwards: open VS Code, Settings (`Ctrl+,`), search **telemetry**, set it to **off**.
+*Why:* it stops the editor sending usage reports.
+
+### Node.js (runs the tools that build the game)
+
+Node's winget package is installed for the whole computer, which needs admin, so use the zip:
+
+1. Open <https://nodejs.org/dist/v26.13.1/> and download `node-v26.13.1-win-x64.zip`.
+2. **Scan it** (Step 2).
+3. Check its fingerprint matches the official list. In the terminal:
+   `certutil -hashfile "$HOME\Downloads\node-v26.13.1-win-x64.zip" SHA256`
+   then open <https://nodejs.org/dist/v26.13.1/SHASUMS256.txt> and find the same file name.
+   The two codes must match exactly. If not, delete the file and tell Corey.
+4. Unzip it into your own folder:
+   ```
+   mkdir $HOME\tools
+   tar -xf $HOME\Downloads\node-v26.13.1-win-x64.zip -C $HOME\tools
+   ```
+   *Why:* `tar` is built into Windows 11. Your folder needs no admin rights.
+
+### uv (only if Corey says you are using the Aider helper)
+
+```
+winget show --id astral-sh.uv -e --version 0.13.8
+winget install --id astral-sh.uv -e --version 0.13.8
+```
+Then Corey gives you the one `uv tool install` line for the helper (it is in `kaggle/PINS.md`).
+
+## Step 4. Tell Windows where Node lives
+
+Windows finds commands by looking in the folders on your **Path**.
+Start menu, type **Edit environment variables for your account** (the *account* one, not the
+system one), then **Path**, **Edit**, **New**, and paste:
+`C:\Users\<your name>\tools\node-v26.13.1-win-x64`, then OK, OK.
+
+*Why this way:* it only changes **your** account. Please do not use `setx PATH`; it can cut your
+Path short and mix up settings.
+
+## Step 5. Is it working?
+
+**Close the terminal and open a new one** (so it reads the new Path), then:
 ```
 git --version
 node --version
 npm.cmd --version
 code --version
-loop help
-aider --version        (only if Corey chose the Terminal helper)
 ```
-(`npm.cmd` because PowerShell may block `npm`'s own `.ps1` script; Command Prompt can use plain
-`npm` [test this first].) "not recognized"? Re-check step 4 and open a new window.
+Each one should print a number. (We type `npm.cmd` because PowerShell can refuse `npm` itself.
+[test this first])
 
-## 6. VS Code settings (2 min)
+If one says "not recognized": close and reopen the terminal, then check the Path from Step 4.
 
-Corey copies the safety settings into `%LOCALAPPDATA%\kc-tools\vscode\data\user-data\User\settings.json`
-(from `vscodium/settings.json`: telemetry off, Restricted Mode for new folders, no automatic
-tasks, no extensions except the one he approves) [test this first: the setting names in VS Code].
-At least: File > Preferences > Settings > search **telemetry** > Telemetry Level: **off**.
+## Step 6. The coding helper
 
-## 7. The coding helper: Corey picks ONE after his test
+**Cline (the chat panel in VS Code):** press `Ctrl+Shift+X`, search **Cline**, check the publisher
+says **saoudrizwan**, click Install. Corey sets up its connection and turns the auto-approve
+switches **off**, so it always asks before it writes a file or runs a command.
 
-### 7A. Panel helper: Cline (inside VS Code)
-1. Corey gives you `cline-4.1.26.vsix`; check it with `certutil` like step 3 (hash in PINS.md).
-2. VS Code > Extensions (Ctrl+Shift+X) > **...** > **Install from VSIX...** > pick the file.
-   Publisher must read **saoudrizwan**, id `saoudrizwan.claude-dev`.
-3. In Cline's settings: provider **OpenAI Compatible**, base URL = your Kaggle address + `/v1`,
-   model `kaggle-coder`, and Corey types the key into **Cline's own key box** (not a file).
-4. Leave every **auto-approve** switch **off**: Cline then asks before each edit and command.
-   Say **no** to every command it wants to run; write it down for Corey.
-   [test this first: Cline may need streaming, which the quick tunnel cannot do]
+**Aider (the terminal helper):** Corey tells you if you are using this one. Its steps are in
+[GUIDE-WINDOWS.md](GUIDE-WINDOWS.md) steps 9 to 12.
 
-### 7B. Terminal helper: Aider (with `loop`)
-1. Needs `setup-tools.cmd with-aider` (or uv from PINS.md by hand into `kc-tools\uv`, on Path).
-2. New Terminal: `uv tool install --python 3.12 --exclude-newer 2026-02-13 aider-chat==0.86.2`
-3. Corey copies the helper files (GUIDE-WINDOWS step 10).
-4. **The key**: Start > **Edit environment variables for your account** > **New** > name
-   `AIDER_OPENAI_API_KEY`, value: Corey types it. OK.
+**The helper key** is a secret password. Put it in only the places Corey shows you (the Cline key
+box, or the Windows "Edit environment variables for your account" window). **Never** type it into
+the terminal, a file in your game folder, a chat or a screenshot: the terminal remembers what you
+type, and GitHub is public.
 
-**Never type the key in PowerShell** (it saves what you type in a history file) and never put
-it in any file in the game folder. Then use `loop` (see [loop/LOOP.md](loop/LOOP.md)).
-
-## 8. First clone and test (5 min)
+## Step 7. Get the game and try it
 
 ```
-git clone https://github.com/<owner>/<repo>.git $HOME\code\signal
+git clone https://github.com/Dadlorian/signal-below.git $HOME\code\signal
 cd $HOME\code\signal
 loop setup
 loop test
 ```
-Open http://127.0.0.1:4173 and play. That's your own copy running on your own machine.
-**You just set up a dev environment without admin rights. Nice.**
+*Why:* `clone` copies the game to your laptop. `loop setup` installs the game's own packages from
+its lock file. `loop test` builds it and shows it at <http://127.0.0.1:4173>. Corey puts
+`loop.cmd` on your Path for you. Then read [loop/LOOP.md](loop/LOOP.md): the 5-step loop.
 
-## Stuck? 🧭
+---
 
-| You see | Do |
+## Stuck?
+
+| Problem | Try |
 |---|---|
-| A password box for an administrator | **STOP.** Ask Corey. |
-| School or club laptop, downloads or programs blocked by "your organization" | It's locked by policy. Don't try to get around it. Tell Corey. |
-| Antivirus warning about a file you downloaded | Don't open it. Check its hash (step 3). Tell Corey either way. |
-| SmartScreen "Windows protected your PC" | Don't click "Run anyway". Check the hash, show Corey. |
-| Browser says the download is blocked | Tell Corey. Don't use another site. |
-| "running scripts is disabled on this system" | That's PowerShell's script rule for `.ps1` files. Our `loop.cmd`, `start-helper.cmd` and `setup-tools.cmd` are `.cmd` files, run by cmd, so it doesn't apply to them. For npm, type `npm.cmd`. |
-| `STOP:` from any of our scripts | It's protecting you. Read the line, tell Corey. |
+| A window asks for an admin password | Stop. Tell Corey. |
+| "winget is not recognized" | Tell Corey; Windows may need an update. |
+| Defender or SmartScreen blocks a file | Do not click around the warning. Tell Corey which file. |
+| Downloads are blocked (school or work laptop) | That laptop has its own rules. Tell Corey. |
+| "running scripts is disabled" | That rule is for PowerShell script files. Our `loop` commands are `.cmd` files, so it should not apply. [test this first] |
+| A scan flags a file | Step 2: delete it and tell Corey. |
 
-Passing these checks means **no indicators found by these checks**: the files match what the
-vendors published. That can't prove the tools are harmless, and tools you install still run
-as you and can read your files (see SAFETY-BRIDGE.md).
+Nothing here has been run on a real teen laptop yet. If a step does not match what you see, tell
+Corey exactly what the screen says. That is how we fix this page.

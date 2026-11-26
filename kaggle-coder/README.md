@@ -1,68 +1,70 @@
-# kaggle-coder
+# kaggle-coder: your coding lab
 
-A free coding helper for The Signal Below. A Qwen coding model runs on Kaggle's two T4 GPUs
-(llama.cpp `llama-server`). The son's Windows 11 laptop runs git, a plain editor and **Aider**,
-a terminal coding helper, which talks to the model through a temporary Cloudflare address. His
-code goes to GitHub as pull requests; Corey approves them before anything goes live.
+**Build The Signal Below with an AI teammate. Free tools. Your laptop. Your code.**
 
-```
-laptop: Aider 0.86.2 via start-helper (no streaming, asks before writing, never runs commands)
-   |  HTTPS, key required
-   v
-https://<random-words>.trycloudflare.com          (new address every session)
-   |
-   v
-Kaggle notebook (private): cloudflared -> llama-server on 127.0.0.1:8080
-                           -> Qwen3-Coder-30B-A3B (profile A) or Qwen2.5-Coder-14B (profile B), split over 2x T4
+A big AI model runs on a free Kaggle computer and helps you write code. You stay in charge: it
+suggests, **you** read, **you** decide. You send your work to GitHub, Corey checks it, and then
+your friends can play it.
 
-laptop --push--> GitHub pull request --checks + Corey's approval--> main
-                                      --Corey's Ubuntu review + scanner--> live game
+## The 5-step loop
+
+```text
+ 1 IDEA  >  2 DESIGN  >  3 CODE  >  4 TEST  >  5 PUSH
 ```
 
-**Status: needs a look before he uses it.** Nothing here has been run or tested. Corey tests it
-on his own Kaggle account first (GUIDE-COREY-UBUNTU, part J). Lines marked **[test this first]**
-are unconfirmed.
+| Step | You type | What happens |
+|---|---|---|
+| 1. **IDEA** | `loop idea boss-flash` | Makes your own branch and a tiny plan note |
+| 2. **DESIGN** | `loop design` | Ask the helper how to do it. It can only answer, not change anything |
+| 3. **CODE** | `loop code` | Change one small thing. The helper asks before it writes |
+| 4. **TEST** | `loop test` | Builds the game, runs the checks, lets you play it |
+| 5. **PUSH** | `loop push` | Sends your branch to GitHub for Corey to review |
 
-## The 3 rules
+Then Corey's pipeline takes over: scan, sealed box, test copy, live, undo button.
+One page with all of it: [loop/LOOP.md](loop/LOOP.md).
 
-1. **Plan first, read, then say yes.** `/ask` for a plan, read it, and only then let the helper
-   edit. Read `/diff` after. Nothing gets run, installed or downloaded because the helper said
-   so; new packages, downloads, zips and commands go to Corey (card in SAFETY-BRIDGE.md).
-2. **Keys never reach GitHub.** The helper key lives only in the Kaggle Secret
-   `CODER_API_KEY` and your Windows account setting `AIDER_OPENAI_API_KEY`. Never in the game
-   folder, a commit, a chat, a screenshot or a note. If one leaks, tell Corey at once.
-3. **Only your own address, and switch it off.** Use only the address your own private Kaggle
-   notebook printed. Stop the Kaggle session when you finish.
+## Start here
 
-## Where to go
-
-| Who | Read |
+| I want to... | Read |
 |---|---|
-| **Teen on Windows, no admin: start here** | [SETUP-NO-ADMIN.md](SETUP-NO-ADMIN.md) |
-| Son and friends: the daily 5-step loop | [loop/LOOP.md](loop/LOOP.md) |
-| Son (Windows 11) setup | [GUIDE-WINDOWS.md](GUIDE-WINDOWS.md) |
-| Corey (Ubuntu): key, GitHub, review, testing on his own Kaggle account | [GUIDE-COREY-UBUNTU.md](GUIDE-COREY-UBUNTU.md) |
-| Both: the layers, where keys live, the leak routine, the card to print | [SAFETY-BRIDGE.md](SAFETY-BRIDGE.md) |
-| Versions and hashes | [kaggle/PINS.md](kaggle/PINS.md) |
+| Set up my laptop (no admin password needed) | [SETUP-NO-ADMIN.md](SETUP-NO-ADMIN.md) |
+| Learn the daily loop | [loop/LOOP.md](loop/LOOP.md) |
+| Connect to the coding helper | [GUIDE-WINDOWS.md](GUIDE-WINDOWS.md) |
+| See what protects us from mistakes and tricks | [SAFETY-BRIDGE.md](SAFETY-BRIDGE.md) |
 
-## Files
+## Three rules
+
+1. **Read before you say yes.** The helper can be wrong or get tricked. Read every change. Say no
+   if you do not understand it. Never run something just because the helper (or a stranger) said so.
+2. **Keys are secrets.** The helper has a password-key. Never put it in your game folder, GitHub,
+   a chat, a screenshot or a note. If it leaks, tell Corey right away. That is not a punishment;
+   we just change the key.
+3. **Ask Corey first** for: a new package, anything you download, a zip, or any command you do not
+   understand. A good hacker checks before they run.
+
+## What is under the hood
+
+Your laptop talks to a model on Kaggle through a temporary web address that changes every
+session. It only answers when you send the key. Your code goes to GitHub as a pull request, and
+checks run on it before Corey approves.
+
+## For Corey (the grown-up docs)
+
+**Status: nothing here has been run or tested yet.** Lines marked **[test this first]** are
+unconfirmed. Passing every check means "no indicators found by these checks", not "harmless".
+What the checks cannot rule out is at the end of SAFETY-BRIDGE.md.
 
 | File | What it is |
 |---|---|
-| `kaggle/server.py` | Paste into a private Kaggle notebook: picks a model profile, checks pins and key, downloads and sha256-checks everything, starts llama-server, proves requests without the key get 401, opens the tunnel, prints only the address, stops itself when idle |
-| `kaggle/kernel-metadata.json` | For Corey's optional command-line launch on his own account |
-| `kaggle/PINS.md` | Exact versions, commits and sha256 values |
-| `aider/` | Corey's Aider settings and the `start-helper.cmd` launcher (normal or `ask` mode) for the laptop's home folder |
-| `SETUP-NO-ADMIN.md`, `loop/setup-tools.cmd` | One-page per-user setup (Git, Node, VS Code, helper) without admin; optional UNTESTED script that downloads the pinned files, checks hashes, unpacks into `%LOCALAPPDATA%\kc-tools` |
-| `loop/loop.cmd`, `loop/LOOP.md` | THE LOOP: `loop idea / design / code / test / push` (+ `setup`, `status`, `undo`, `help`), one page of docs |
-| `vscodium/` | Plain-editor safety settings (no extensions allowed); optional `user-tasks.json` for the Run Task menu |
-| `github/` | Pull-request checks (`safety.yml`, or the superset `loop-check.yml` that also builds), gitleaks rules, Dependabot, CODEOWNERS for the game repo |
-| `tests/smoke.sh` | Corey's check of a new address (key from the environment or a hidden prompt) |
-| `continue/` | **Parked, not in use** (earlier client draft) |
+| [TEST-CLINE.md](TEST-CLINE.md) | Your test of VS Code + Cline against the Kaggle server |
+| [GUIDE-COREY-UBUNTU.md](GUIDE-COREY-UBUNTU.md) | Key, GitHub setup, review routine, first run on your own Kaggle account |
+| `kaggle/server.py`, `kaggle/PINS.md` | The server script for a private Kaggle notebook, and every pinned version and hash |
+| `aider/` | Settings and launcher for the Aider terminal helper (the other one under test) |
+| `loop/` | `loop.cmd` and its one-page guide |
+| `github/` | Pull-request checks (`safety.yml`, or the superset `loop-check.yml`), gitleaks rules, CODEOWNERS |
+| `vscodium/` | Plain-editor settings; optional Run Task menu |
+| `tests/smoke.sh` | Checks a new Kaggle address, including whether streaming works through the tunnel |
+| `continue/` | Parked, not in use |
 
-Everything used is free. llama.cpp, cloudflared, the Qwen models (Apache-2.0), Aider
-(Apache-2.0), uv, VSCodium and gitleaks are open source. Kaggle, Cloudflare and GitHub are free
-services, not open source.
-
-Passing every check here means "no indicators found by these checks", not "harmless". What the
-checks cannot rule out is listed at the end of SAFETY-BRIDGE.md.
+Everything used is free. llama.cpp, cloudflared, the Qwen models, Cline, Aider, uv and gitleaks
+are open source. Kaggle, Cloudflare and GitHub are free services, not open source.

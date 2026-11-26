@@ -55,10 +55,15 @@ Install command (Corey, on the laptop, as the son's user):
 (`--exclude-newer` keeps any loose dependency to files uploaded before that date [test this first]).
 Do **not** use `aider-install`: it always installs `aider-chat@latest`.
 
-## Windows tools (no admin; used by SETUP-NO-ADMIN.md and loop/setup-tools.cmd)
+## Windows tools (no admin): Corey's reference copy for SETUP-NO-ADMIN.md
 
-All install per-user into `%LOCALAPPDATA%\kc-tools`. Picked at least two weeks old. Hashes are
-read from the vendor's own metadata (column "Hash read from"), never from a blog or chat.
+The teen page uses `winget install --scope user --version <v>` (Git 2.56.1, VS Code 1.146.0, uv
+0.13.8; all three versions have winget manifests, checked 2026-11-26) and, for Node, the official
+zip. This table is what Corey compares against: picked at least two weeks old, hashes read from
+the vendor's own metadata (column "Hash read from"), never from a blog or chat. The PortableGit
+and VS Code zip rows are alternatives no longer used by the page. Git and VS Code have `Scope:
+user` installers in winget's manifests; Node's winget package is machine-wide only (needs admin),
+which is why Node is the zip.
 
 | Tool | Version, date | File and official URL | sha256 | Hash read from |
 |---|---|---|---|---|
@@ -69,13 +74,9 @@ read from the vendor's own metadata (column "Hash read from"), never from a blog
 | uv (for Aider) | 0.13.8, 2026-11-12 | `uv-x86_64-pc-windows-msvc.zip` from `https://github.com/astral-sh/uv/releases/download/0.13.8/uv-x86_64-pc-windows-msvc.zip` | `529e78a9cec6cd7e3e014f7ecd8bda0c113969d4ed0f2efeedb85c30943325b8` | GitHub releases API `digest` |
 | Cline (VS Code extension, optional) | 4.1.26, 2026-10-26, publisher `saoudrizwan`, id `saoudrizwan.claude-dev`, Apache-2.0 | `cline-4.1.26.vsix` from `https://github.com/cline/cline/releases/download/v4.1.26/cline-4.1.26.vsix` | `d8ea4c3505052c48e7c7a5558e7213a53827b6ba1da7e56513c87d896df51c4d` | GitHub releases API `digest` [test this first: that this VSIX is the same build as the Marketplace's 4.1.26] |
 
-Why PortableGit and not MinGit: Git for Windows describes MinGit as "an intentionally minimal,
-non-interactive distribution" for other applications (gitforwindows.org/mingit.html), and it
-leaves out help and interactive commands. PortableGit is the full Git for Windows without an
-installer. It is a self-extracting 7-Zip `.exe`; `setup-tools.cmd` first tries Windows' own
-`tar.exe` on it and otherwise asks the teen to double-click it and pick the folder
-[test this first]. Windows ships `curl.exe` and `tar.exe` (bsdtar, libarchive) since Windows 10
-build 17063 (Microsoft "Tar and Curl Come to Windows!").
+Windows ships `curl.exe` and `tar.exe` (bsdtar, libarchive) since Windows 10 build 17063
+(Microsoft "Tar and Curl Come to Windows!"); the Node step uses `tar`. [test this first] on a
+real standard-user laptop.
 
 ## GitHub Actions (safety.yml / loop-check.yml) and local pre-commit
 
