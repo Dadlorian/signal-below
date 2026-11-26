@@ -29,6 +29,21 @@ address is staged. `loop design` starts the helper in ask-only mode; typing `/co
 switch to a mode that edits **without** the "Edit the files?" question, which is why `/code` is
 on the card.
 
+## Installing tools without admin
+
+[SETUP-NO-ADMIN.md](SETUP-NO-ADMIN.md) and `loop/setup-tools.cmd` install Git, Node.js, VS Code
+and uv for your account only, into `%LOCALAPPDATA%\kc-tools`. Downloads come only from the
+pinned official URLs in `kaggle/PINS.md` ("Windows tools"), and each file's sha256 is checked
+**before** it is unpacked. No installer is run as administrator; anything asking for an admin
+password is a STOP. The user Path is changed for your account only, never the system Path.
+
+**Where the hashes come from:** VS Code's from Microsoft's update API, PortableGit's, uv's and
+Cline's from the GitHub releases API, Node's from nodejs.org's `SHASUMS256.txt`. Corey copies
+them into PINS.md from those sources. A hash read from the same web page you download from only
+proves the download was not damaged on the way; if that page itself were tampered with, file and
+hash could both be wrong. That is why the hashes live in PINS.md, reviewed by Corey, and not on
+the download page you happen to be looking at.
+
 ## Where keys may live (and nowhere else)
 
 | Key | Lives only in |
@@ -116,6 +131,11 @@ Passing every layer means "no indicators found by these checks". It does not mea
   green build says nothing about what the code does in a browser.
 - **Building on the laptop.** `loop test` runs `npm run build`, which runs the project's own
   config and plugins with your account's rights, like any build.
+- **Per-user tools are still you.** Tools installed without admin run with your account's
+  rights: they can read and change your files and browser data. A matching hash proves a file
+  is what the vendor published, not that the vendor's code is harmless.
+- **Hashes from the download page.** If the teen reads a hash from the same page the file came
+  from, a tampered page could show a matching tampered hash. Use the hashes in PINS.md.
 - **GitHub's reach.** It only sees what you push. Push protection can be bypassed by whoever
   pushes, and it does not know a random key's shape.
 

@@ -55,6 +55,28 @@ Install command (Corey, on the laptop, as the son's user):
 (`--exclude-newer` keeps any loose dependency to files uploaded before that date [test this first]).
 Do **not** use `aider-install`: it always installs `aider-chat@latest`.
 
+## Windows tools (no admin; used by SETUP-NO-ADMIN.md and loop/setup-tools.cmd)
+
+All install per-user into `%LOCALAPPDATA%\kc-tools`. Picked at least two weeks old. Hashes are
+read from the vendor's own metadata (column "Hash read from"), never from a blog or chat.
+
+| Tool | Version, date | File and official URL | sha256 | Hash read from |
+|---|---|---|---|---|
+| VS Code (portable ZIP) | 1.146.0, 2026-11-10 | `VSCode-win32-x64-1.146.0.zip` from `https://vscode.download.prss.microsoft.com/dbazure/download/stable/69047191fc427f2f92828279aae1d90d8eeda7ab/VSCode-win32-x64-1.146.0.zip` | `0d47f5bbff72499c6a4a92f6d72dd8cc5ba4606185f624465032626614119d61` | `sha256hash` field of `https://update.code.visualstudio.com/api/versions/1.146.0/win32-x64-archive/stable` |
+| VS Code user installer (alternative) | 1.146.0 | `VSCodeUserSetup-x64-1.146.0.exe` from `https://vscode.download.prss.microsoft.com/dbazure/download/stable/69047191fc427f2f92828279aae1d90d8eeda7ab/VSCodeUserSetup-x64-1.146.0.exe` | `da5aad5fd88244ffc35d5f6c86c5214f9ceed6520888e4c5ccf3e8678e5bbf0a` | same API, platform `win32-x64-user` |
+| Git for Windows, PortableGit | 2.56.1 (`v2.56.1.windows.1`), 2026-11-10 | `PortableGit-2.56.1-64-bit.7z.exe` from `https://github.com/git-for-windows/git/releases/download/v2.56.1.windows.1/PortableGit-2.56.1-64-bit.7z.exe` | `9dd04a608ceb5f6ab32a73709e0ecb159d211da71b697c45ff81f6dd0c6b49c7` | GitHub releases API `digest` of that asset |
+| Node.js (ZIP) | 26.13.1 "Lithium" LTS, 2026-11-10 | `node-v26.13.1-win-x64.zip` from `https://nodejs.org/dist/v26.13.1/node-v26.13.1-win-x64.zip` | `e2edda75bfb089654705cf65a13b58933bfd5f57148e8ebda916f58a2474f1f7` | `https://nodejs.org/dist/v26.13.1/SHASUMS256.txt` (LTS line from `https://nodejs.org/dist/index.json`) |
+| uv (for Aider) | 0.13.8, 2026-11-12 | `uv-x86_64-pc-windows-msvc.zip` from `https://github.com/astral-sh/uv/releases/download/0.13.8/uv-x86_64-pc-windows-msvc.zip` | `529e78a9cec6cd7e3e014f7ecd8bda0c113969d4ed0f2efeedb85c30943325b8` | GitHub releases API `digest` |
+| Cline (VS Code extension, optional) | 4.1.26, 2026-10-26, publisher `saoudrizwan`, id `saoudrizwan.claude-dev`, Apache-2.0 | `cline-4.1.26.vsix` from `https://github.com/cline/cline/releases/download/v4.1.26/cline-4.1.26.vsix` | `d8ea4c3505052c48e7c7a5558e7213a53827b6ba1da7e56513c87d896df51c4d` | GitHub releases API `digest` [test this first: that this VSIX is the same build as the Marketplace's 4.1.26] |
+
+Why PortableGit and not MinGit: Git for Windows describes MinGit as "an intentionally minimal,
+non-interactive distribution" for other applications (gitforwindows.org/mingit.html), and it
+leaves out help and interactive commands. PortableGit is the full Git for Windows without an
+installer. It is a self-extracting 7-Zip `.exe`; `setup-tools.cmd` first tries Windows' own
+`tar.exe` on it and otherwise asks the teen to double-click it and pick the folder
+[test this first]. Windows ships `curl.exe` and `tar.exe` (bsdtar, libarchive) since Windows 10
+build 17063 (Microsoft "Tar and Curl Come to Windows!").
+
 ## GitHub Actions (safety.yml / loop-check.yml) and local pre-commit
 
 | What | Pin | sha256 |

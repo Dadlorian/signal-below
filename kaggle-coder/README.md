@@ -38,6 +38,7 @@ are unconfirmed.
 
 | Who | Read |
 |---|---|
+| **Teen on Windows, no admin: start here** | [SETUP-NO-ADMIN.md](SETUP-NO-ADMIN.md) |
 | Son and friends: the daily 5-step loop | [loop/LOOP.md](loop/LOOP.md) |
 | Son (Windows 11) setup | [GUIDE-WINDOWS.md](GUIDE-WINDOWS.md) |
 | Corey (Ubuntu): key, GitHub, review, testing on his own Kaggle account | [GUIDE-COREY-UBUNTU.md](GUIDE-COREY-UBUNTU.md) |
@@ -52,6 +53,7 @@ are unconfirmed.
 | `kaggle/kernel-metadata.json` | For Corey's optional command-line launch on his own account |
 | `kaggle/PINS.md` | Exact versions, commits and sha256 values |
 | `aider/` | Corey's Aider settings and the `start-helper.cmd` launcher (normal or `ask` mode) for the laptop's home folder |
+| `SETUP-NO-ADMIN.md`, `loop/setup-tools.cmd` | One-page per-user setup (Git, Node, VS Code, helper) without admin; optional UNTESTED script that downloads the pinned files, checks hashes, unpacks into `%LOCALAPPDATA%\kc-tools` |
 | `loop/loop.cmd`, `loop/LOOP.md` | THE LOOP: `loop idea / design / code / test / push` (+ `setup`, `status`, `undo`, `help`), one page of docs |
 | `vscodium/` | Plain-editor safety settings (no extensions allowed); optional `user-tasks.json` for the Run Task menu |
 | `github/` | Pull-request checks (`safety.yml`, or the superset `loop-check.yml` that also builds), gitleaks rules, Dependabot, CODEOWNERS for the game repo |

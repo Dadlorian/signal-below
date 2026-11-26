@@ -107,6 +107,12 @@ The address is new every session. Never post it, never commit it, never send it 
 
 ---
 
+> **No admin rights on this laptop, or want the quick way?** Steps 7 (Git), 8 (editor) and 9
+> (uv + Aider) can all be done per-user with [SETUP-NO-ADMIN.md](SETUP-NO-ADMIN.md) and the
+> optional `loop/setup-tools.cmd`: everything goes into `%LOCALAPPDATA%\kc-tools`, hashes are
+> checked before unpacking, and nothing asks for admin. Corey's parts below (hash checks,
+> settings, helper files, key) stay the same.
+
 ## Step 8. VSCodium, the plain editor (with Corey, once, optional)
 
 1. Install with the **user installer** (`VSCodiumUserSetup-x64-...exe`, GitHub releases page).
@@ -133,6 +139,9 @@ The address is new every session. Never post it, never commit it, never send it 
 ---
 
 ## Step 10. Copy Corey's helper files (Corey, once)
+
+(Same files whichever setup you used. With SETUP-NO-ADMIN, uv lives in `kc-tools\uv`; `aider`,
+`loop.cmd` and `start-helper.cmd` still go in `.local\bin`.)
 
 Into `C:\Users\<son>\` (names exactly as shown, including the leading dots):
 
