@@ -1,6 +1,6 @@
 # loop-check: the pull-request check for THE LOOP. TEMPLATE, not live.
 # Corey copies it to .github/workflows/loop-check.yml in the game repo only after branch
-# protection on main and CODEOWNERS are set (GUIDE-COREY-UBUNTU.md, part L).
+# protection on main and CODEOWNERS are set (docs/GUIDE-COREY-UBUNTU.md, part L).
 #
 # loop-check.yml is the SUPERSET of safety.yml: job "static" holds every safety.yml check
 # (two made diff-based, see below), plus the Rule 2 check. Job "build" then BUILDS the branch.

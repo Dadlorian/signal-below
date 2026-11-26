@@ -32,7 +32,7 @@ if "%CMD%"=="" set "CMD=help"
 if /i "%CMD%"=="help" goto help
 
 rem ---- Everything else needs git and must start in the game folder.
-where git >nul 2>nul || (echo !CR!git is not installed. GUIDE-WINDOWS step 7.!C0! & exit /b 2)
+where git >nul 2>nul || (echo !CR!git is not installed. See the README, Part 1.!C0! & exit /b 2)
 if not exist ".git\" (
   echo !CR!Start me from the game folder: the one that has a .git folder in it.!C0!
   exit /b 2

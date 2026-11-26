@@ -30,7 +30,7 @@ for %%F in (.env .aider.conf.yml .aider.model.settings.yml .aider.model.metadata
   )
 )
 if not defined AIDER_OPENAI_API_KEY (
-  echo STOP: the key is not set on this Windows account. Ask Corey, GUIDE-WINDOWS step 11.
+  echo STOP: the key is not set on this Windows account. Ask Corey (docs/GUIDE-WINDOWS.md, step 11).
   exit /b 2
 )
 if not exist "%H%\.aider-history\" mkdir "%H%\.aider-history"

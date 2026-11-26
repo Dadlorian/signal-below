@@ -31,7 +31,7 @@ on the card.
 
 ## Installing tools without admin
 
-[SETUP-NO-ADMIN.md](SETUP-NO-ADMIN.md) has no install script on purpose: a script that
+[The README, Part 1](../README.md) has no install script on purpose: a script that
 downloads and installs by itself hides what is happening and teaches nothing. Instead each step
 shows the command and why. Git, VS Code and uv come from `winget` with `--scope user` (for your
 account only), pinned to a version with `--version`, and winget checks the download against

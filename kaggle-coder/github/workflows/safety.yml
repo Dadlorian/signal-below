@@ -1,6 +1,6 @@
 # Safety checks for every pull request into the game repo.
 # Copy to .github/workflows/safety.yml in the game repo, and github/gitleaks.toml to
-# .github/gitleaks.toml (GUIDE-COREY-UBUNTU.md, part C).
+# .github/gitleaks.toml (docs/GUIDE-COREY-UBUNTU.md, part C).
 #
 # These checks are ADVICE, not the gate. A pull request can edit this very file and turn the
 # checks green, so a green tick only means "no indicators found by these checks". The real gate

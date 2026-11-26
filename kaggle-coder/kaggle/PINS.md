@@ -55,7 +55,7 @@ Install command (Corey, on the laptop, as the son's user):
 (`--exclude-newer` keeps any loose dependency to files uploaded before that date [test this first]).
 Do **not** use `aider-install`: it always installs `aider-chat@latest`.
 
-## Windows tools (no admin): Corey's reference copy for SETUP-NO-ADMIN.md
+## Windows tools (no admin): Corey's reference copy for the README (Part 1)
 
 The teen page uses `winget install --scope user --version <v>` (Git 2.56.1, VS Code 1.146.0, uv
 0.13.8; all three versions have winget manifests, checked 2026-11-26) and, for Node, the official

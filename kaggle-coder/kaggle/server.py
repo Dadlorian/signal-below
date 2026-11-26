@@ -219,7 +219,7 @@ def read_key():
              "(Add-ons > Secrets, then tick it)." % SECRET_LABEL)
     value = value.strip()
     if len(value) < MIN_KEY_LEN:
-        stop("the key is shorter than %d characters. Make a new one (GUIDE-COREY-UBUNTU.md, part B)." % MIN_KEY_LEN)
+        stop("the key is shorter than %d characters. Make a new one (docs/GUIDE-COREY-UBUNTU.md, part B)." % MIN_KEY_LEN)
     if re.search(r"[\s,#]", value):
         stop("the key contains spaces, commas or '#'. Make a new one.")
     return value

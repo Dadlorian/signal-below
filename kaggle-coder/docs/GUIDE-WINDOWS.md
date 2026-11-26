@@ -108,7 +108,7 @@ The address is new every session. Never post it, never commit it, never send it 
 ---
 
 > **No admin rights on this laptop, or want the quick way?** Steps 7 (Git), 8 (editor) and 9
-> (uv + Aider) can all be done per-user with [SETUP-NO-ADMIN.md](SETUP-NO-ADMIN.md): it shows
+> (uv + Aider) can all be done per-user with [the README, Part 1](../README.md): it shows
 > each command and why (winget with `--scope user`, or the official site, then a scan), and
 > nothing asks for admin. Corey's parts below (hash checks, settings, helper files, key) stay
 > the same.
@@ -140,7 +140,7 @@ The address is new every session. Never post it, never commit it, never send it 
 
 ## Step 10. Copy Corey's helper files (Corey, once)
 
-(Same files whichever setup you used. With SETUP-NO-ADMIN, uv comes from `winget` and Node
+(Same files whichever setup you used. With the README's Part 1, uv comes from `winget` and Node
 lives in `C:\Users\<son>\tools`; `aider`, `loop.cmd` and `start-helper.cmd` still go in
 `.local\bin`.)
 
@@ -188,7 +188,7 @@ saves what you type.) Every program you start can read it, so the card rules on 
 
 ## Step 13. Your daily loop: THE LOOP
 
-Daily work runs through `loop` (full page: [loop/LOOP.md](loop/LOOP.md)). Corey copies
+Daily work runs through `loop` (full page: [loop/LOOP.md](../loop/LOOP.md)). Corey copies
 `loop/loop.cmd` next to `start-helper.cmd` once (GUIDE-COREY-UBUNTU part L).
 
 0. Kaggle: run the notebook, copy the address. In the terminal, in the game folder:

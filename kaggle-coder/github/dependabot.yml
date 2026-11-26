@@ -1,4 +1,4 @@
-# Dependabot for the game repo. Copy to .github/dependabot.yml (GUIDE-COREY-UBUNTU.md, part F).
+# Dependabot for the game repo. Copy to .github/dependabot.yml (docs/GUIDE-COREY-UBUNTU.md, part F).
 #
 # npm: open-pull-requests-limit 0 turns OFF routine version-bump pull requests, so new package
 # code does not arrive every week. Security fixes still come as Dependabot security updates
