@@ -198,8 +198,8 @@ function Remove-Notebook {
     $check = (Invoke-Kaggle @('kernels', 'status', $notebook)).Text
     # Kaggle says "Cannot access" for a bad sign-in too, so the delete itself must also have worked.
     $deleted = $delete.Code -eq 0 -and $check -match '(?i)cannot access kernel|not found|404'
+    Remove-Item -LiteralPath $cardFile -Force -ErrorAction SilentlyContinue   # the settings belong to a run that is going away
     if ($deleted) { $s = Get-State; $s.notebook = $null; $s.pushedAt = 0; Save-State $s; Say "Deleted. Kaggle no longer shows the notebook." }
-    Remove-Item -LiteralPath $cardFile -Force -ErrorAction SilentlyContinue   # the settings belong to a run that is gone
     else { Write-Host "COULD NOT CONFIRM the delete. Look at $page and delete it there." -ForegroundColor Red }
     $fx = Get-Fixed
     if ($fx) { [void](Set-Upstream $fx $null) }   # the permanent address stops pointing at this run
@@ -229,7 +229,7 @@ if (Test-Path -LiteralPath $lockFile) {
 Set-Content -LiteralPath $lockFile -Value $PID -Encoding ASCII   # a lock left by a closed window is ignored next time
 
 Say "Checking everything first..."
-Set-Content -LiteralPath $runLog -Value "[start.cmd] run started $(Get-Date -Format s)" -Encoding ASCII   # a fresh log for this run
+try { Set-Content -LiteralPath $runLog -Value "[start.cmd] run started $(Get-Date -Format s)" -Encoding ASCII } catch { }   # a fresh log for this run (never fatal)
 try { [void](Invoke-WebRequest -Uri 'https://www.kaggle.com' -UseBasicParsing -TimeoutSec 8) }
 catch { if (-not $_.Exception.Response) { Stop-Here "no internet. Connect to Wi-Fi and double-click start.cmd again." } }
 $hours = Get-GpuHours
@@ -389,7 +389,7 @@ try {
                 if ($tries -lt $maxTries -and -not $tooLong -and ((Get-Date) - $t0).TotalMinutes -lt $startWithin) {
                     $tries++
                     Write-Host ("`r" + (' ' * 110) + "`rStill queued after $retryMinutes minutes. Trying again (try $tries of $maxTries)...") -ForegroundColor Yellow
-                    Add-Content -LiteralPath $runLog -Encoding ASCII -Value "[start.cmd] still queued after $retryMinutes minutes: pushing again (try $tries of $maxTries)"
+                    try { Add-Content -LiteralPath $runLog -Encoding ASCII -Value "[start.cmd] still queued after $retryMinutes minutes: pushing again (try $tries of $maxTries)" } catch { }   # a locked log must never stop a run
                     if (Test-Mine) { [void](Remove-Notebook) }
                     Start-Sleep -Seconds 10
                     Push-Run
