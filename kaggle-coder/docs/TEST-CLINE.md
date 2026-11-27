@@ -15,14 +15,35 @@ Lines marked **[test this first]** are unconfirmed; write down what actually hap
 
 ---
 
+## 0. Make a separate tunnel (once, Cloudflare dashboard)
+
+Cline needs streaming, and Cloudflare's docs say quick tunnels do not support it
+(https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/). Use your own named tunnel.
+**Leave the game's tunnel and the server's `cloudflared` alone.**
+
+1. Dashboard: **Networking > Tunnels**, create a **new** tunnel just for the helper.
+2. Do **not** run the install command it shows on any of your computers. Copy only the token from
+   it (the long value) into a Kaggle Secret named `KC_TUNNEL_TOKEN`.
+3. In the new tunnel: **Routes > Add route > Published application**. Hostname: a new name used
+   for nothing else. Service URL: `http://localhost:8080`.
+4. Do not write the token or the hostname into any file in this repo.
+
+The token is as sensitive as the key: whoever has it can serve your hostname and receive what
+Cline sends there, **including the key**. If it may have leaked, replace the token or delete the
+tunnel, and make a new key. Test on your own Kaggle account, and decide separately whether the
+token should ever sit in anyone else's. A fixed hostname is not a secret; the key still protects
+the server. Run one notebook at a time with the same token.
+
 ## 1. Start the server (Ubuntu or the Kaggle web page)
 
 Follow **GUIDE-COREY-UBUNTU part J, steps 1 to 5** (key, private T4 x2 notebook with internet on,
-paste `kaggle/server.py`, run, read the address). Before you run the cell, add two lines to the
-notebook so the window is big enough for Cline's own instructions:
+paste `kaggle/server.py`, run, read the address). Tick **both** secrets, `CODER_API_KEY` and
+`KC_TUNNEL_TOKEN`. Before you run the cell with the script, run these lines in a cell above it:
 
 ```python
 import os
+os.environ["KC_MODE"] = "named"
+os.environ["KC_TUNNEL_HOST"] = "your-helper-hostname"  # hostname only, no https://
 os.environ["KC_CTX"] = "32768"      # context window in tokens (default is 16384)   [test this first]
 os.environ["KC_MAX_OUT"] = "4096"   # longest single reply (default is 1024)
 ```
@@ -34,13 +55,15 @@ The notebook prints `context window: ...` so you can see what was used.
 
 ## 2. Does the tunnel stream? (the question that decides everything)
 
-On Ubuntu: `bash kaggle-coder/tests/smoke.sh https://<words>.trycloudflare.com` (key from `CODER_KEY`
-or the hidden prompt). Find the line that starts `INFO  stream:true:`.
+On Ubuntu: `CODER_HOST=<hostname> bash kaggle-coder/tests/smoke.sh https://<hostname>` (key from
+`CODER_KEY` or the hidden prompt). Find the line that starts `INFO  stream:true:`. Cloudflare's
+docs say a tunnel passes a stream through when the server marks it `text/event-stream`
+(https://developers.cloudflare.com/tunnel/troubleshooting/); this step shows whether it does here.
 
 | It says | Meaning | Next |
 |---|---|---|
-| `STREAMING WORKS` | Cline can talk to the quick tunnel as it is | go to step 3 |
-| `BUFFERED` | Cline streams by default and has **no setting to turn streaming off** (its request for one was closed "not planned") | stop and tell me; options are a named tunnel or the Continue fallback |
+| `STREAMING WORKS` | Cline should be able to stream through your tunnel | go to step 3 |
+| `BUFFERED` | Cline streams by default and has **no setting to turn streaming off** (its request for one was closed "not planned") | stop; check the tunnel's route, or stay with Aider |
 | `no data lines` or `UNCLEAR` | error, hang or a reply too short to judge | run it again once; if the same, treat as BUFFERED |
 
 Also record: do all the `PASS` lines pass? Was the large-prompt time under 100 s?
@@ -52,6 +75,11 @@ Also record: do all the `PASS` lines pass? Was the large-prompt time under 100 s
 2. Extensions (`Ctrl+Shift+X`): install **Cline**, publisher **saoudrizwan** (id
    `saoudrizwan.claude-dev`). Check the publisher before installing.
 3. Open your throwaway folder (File, Open Folder). When VS Code asks, trust **only this folder**.
+4. After the basic tasks work, try `../cline/settings.json` as your user settings (back up yours
+   first; it blocks every other extension) and copy `../cline/rules.md` to
+   `Documents\Cline\Rules\signal-below.md` (global rules, so nothing goes in the game folder).
+   Check: Copilot is gone, Cline still answers, another extension is refused, and the Git diff
+   view still works.
 
 ## 4. Point Cline at the server
 
@@ -60,7 +88,7 @@ Click the Cline icon, then the gear icon. Per Cline's docs (https://docs.cline.b
 | Field | Value |
 |---|---|
 | API Provider | **OpenAI Compatible** |
-| Base URL | `https://<words>.trycloudflare.com/v1` (the `/v1` part: [test this first]) |
+| Base URL | `https://<hostname>/v1` (the `/v1` part: [test this first]) |
 | API Key | the key you made in step 1 |
 | Model ID | `kaggle-coder` |
 | Model Configuration: Context Window size | `32768` (match `KC_CTX`) |
@@ -105,13 +133,15 @@ until the first text, and until done? Did the server complain about the context 
 
 - Stop the Kaggle session (stop button). [test this first: where it is]
 - Delete the key from Cline's settings, then rotate the Kaggle Secret `CODER_API_KEY`.
+- Check the old hostname no longer answers from the model. Keep `KC_TUNNEL_TOKEN` unticked on
+  notebooks that do not need it.
 - Delete the throwaway folder.
 
 ## 9. Write the result here (or tell me), then we decide
 
 | Check | Result |
 |---|---|
-| Streaming through the quick tunnel (step 2) | |
+| Streaming through the named tunnel (step 2) | |
 | Base URL needed `/v1`? | |
 | Context window used / did it fit in GPU memory? | |
 | Tool calls worked? | |

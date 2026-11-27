@@ -1,0 +1,43 @@
+// VS Code USER settings for the Cline side-panel route. (Aider route: use vscodium/settings.json.)
+// For the teen's laptop: %APPDATA%\Code\User\settings.json [test this first]
+// It blocks every other extension. Do not put it on a laptop where you need other extensions.
+// It is a safety net against mistakes, not a lock: user settings can be changed.
+// Nothing here has been tested yet.
+{
+  // ---- Turn off VS Code's built-in AI, including Copilot ----
+  // [test this first]: Cline still opens and answers with this on.
+  "chat.disableAIFeatures": true,
+
+  // ---- Extensions: only the approved Cline version (hash in kaggle/PINS.md) ----
+  // Needs VS Code 1.96 or newer. [test this first]: Cline installs, another extension is
+  // refused, and Git and the diff view still work.
+  "extensions.allowed": {
+    "*": false,
+    "saoudrizwan.claude-dev": ["4.1.26"]
+  },
+  "extensions.autoUpdate": false,
+  "extensions.autoCheckUpdates": false,
+  "extensions.ignoreRecommendations": true,
+
+  // ---- Code view: old and new side by side ----
+  "diffEditor.renderSideBySide": true,
+  "diffEditor.useInlineViewWhenSpaceIsLimited": false,
+
+  // ---- Workspace Trust: downloaded folders open in Restricted Mode ----
+  "security.workspace.trust.enabled": true,
+  "security.workspace.trust.startupPrompt": "once",
+  "security.workspace.trust.untrustedFiles": "prompt",
+  "security.workspace.trust.emptyWindow": false,
+  "terminal.integrated.allowInUntrustedWorkspace": false,
+
+  // ---- Never run tasks automatically when a folder opens ----
+  "task.allowAutomaticTasks": "off",
+
+  // ---- Updates by hand, telemetry off ----
+  "update.mode": "manual",
+  "telemetry.telemetryLevel": "off",
+
+  // ---- Git: no background fetches, no opening a parent folder's repository ----
+  "git.autofetch": false,
+  "git.openRepositoryInParentFolders": "never"
+}

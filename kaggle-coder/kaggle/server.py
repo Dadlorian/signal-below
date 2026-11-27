@@ -14,7 +14,7 @@ Requirements (kept word for word from the stub):
      monitoring endpoints. If the runtime has no built-in key check (Ollama has none as far
      as checked), a reviewed local key-checking proxy sits in front of it.
   5. Before the tunnel opens: a request WITHOUT the key must get 401. Otherwise stop.
-  6. Print only the tunnel address and model name. Never print the key.
+  6. Print only the tunnel address and model name. Never print the key or the tunnel token.
   7. Keep-alive loop, stop by itself after a few hours, clean up the key file.
   8. Child processes get a minimal environment, not the notebook's.
   (Changed after the Kaggle-policy review: the loop only watches the processes and stops
@@ -47,7 +47,14 @@ import urllib.request
 # Settings that are not secret. Change them in the notebook cell if needed.
 # ---------------------------------------------------------------------------------------
 PROFILE = os.environ.get("KC_PROFILE", "auto")   # "auto", "A", "A-small" or "B"
-MODE = "tunnel"            # "tunnel" (normal) or "notebook" (no tunnel: chat with ask("...") here)
+# "tunnel" (default): temporary quick tunnel, for Aider. Cloudflare's docs say it cannot stream.
+# "named": your own separate Cloudflare tunnel with a fixed hostname, for Cline. Needs the Kaggle
+#          Secret KC_TUNNEL_TOKEN and os.environ["KC_TUNNEL_HOST"]. NEVER the game's tunnel.
+# "notebook": no tunnel; chat with ask("...") here.
+MODE = os.environ.get("KC_MODE", "tunnel")
+TUNNEL_HOST = os.environ.get("KC_TUNNEL_HOST", "").strip().lower()  # hostname only, no https://
+TUNNEL_TOKEN_LABEL = "KC_TUNNEL_TOKEN"
+GAME_HOST = "signal.gamelab.link"   # the live game; refused as a helper hostname
 SECRET_LABEL = "CODER_API_KEY"
 MIN_KEY_LEN = 32
 MODEL_ALIAS = "kaggle-coder"
@@ -225,6 +232,43 @@ def read_key():
     return value
 
 
+def check_mode():
+    if MODE not in ("tunnel", "named", "notebook"):
+        stop("KC_MODE must be tunnel, named or notebook.")
+    if MODE != "named":
+        return
+    if not re.fullmatch(r"([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}", TUNNEL_HOST):
+        stop('set os.environ["KC_TUNNEL_HOST"] to your helper hostname only (no https://, no path).')
+    if TUNNEL_HOST == GAME_HOST:
+        stop("that is the live game's hostname. The helper needs its own separate tunnel.")
+
+
+def read_tunnel_token():
+    """Named mode only. The token lets its holder serve this hostname, so treat it like a key."""
+    try:
+        from kaggle_secrets import UserSecretsClient
+        value = UserSecretsClient().get_secret(TUNNEL_TOKEN_LABEL)
+    except Exception:  # noqa: BLE001 - any failure means no token
+        value = None
+    value = (value or "").strip()
+    if not value or re.search(r"\s", value):
+        stop("attach a Kaggle Secret named %s holding only the tunnel token "
+             "(not the whole install command)." % TUNNEL_TOKEN_LABEL)
+    return value
+
+
+def public_status(url):
+    """Status of a request through the public hostname. Deliberately sends no key."""
+    req = urllib.request.Request(url, headers={"User-Agent": "kaggle-coder"})
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            return r.status
+    except urllib.error.HTTPError as e:
+        return e.code
+    except (urllib.error.URLError, OSError):
+        return None
+
+
 # ------------------------------------------------------------------ step 3: downloads
 def sha256_of(path):
     h = hashlib.sha256()
@@ -345,9 +389,11 @@ def ask(question, max_tokens=800):
 
 # ---------------------------------------------------------------------------- main
 def main():
+    check_mode()
     name, profile = choose_profile()
     check_pins(profile)
     key = read_key()
+    token = read_tunnel_token() if MODE == "named" else None
 
     dl = os.path.join(WORKDIR, "downloads")
     os.makedirs(dl, exist_ok=True)
@@ -465,29 +511,56 @@ def main():
         say("Stop the Kaggle session when you are done.")
         return
 
-    # ----------------------------------------------------------- step 6: quick tunnel
+    # ----------------------------------------------------------------- step 6: tunnel
     cfd_log = os.path.join(WORKDIR, "cloudflared.log")
-    tunnel = subprocess.Popen([cfd, "tunnel", "--no-autoupdate", "--url", BASE],
-                              stdout=open(cfd_log, "w"), stderr=subprocess.STDOUT,
-                              env=clean_env({}), start_new_session=True)
+    if MODE == "named":
+        # The hostname -> http://localhost:8080 route is set in the Cloudflare dashboard.
+        # The token goes in the environment, so it does not show in the process list.
+        args = [cfd, "tunnel", "--no-autoupdate", "run"]
+        extra_env = {"TUNNEL_TOKEN": token}
+    else:
+        args = [cfd, "tunnel", "--no-autoupdate", "--url", BASE]
+        extra_env = {}
+    tunnel = subprocess.Popen(args, stdout=open(cfd_log, "w"), stderr=subprocess.STDOUT,
+                              env=clean_env(extra_env), start_new_session=True)
     _procs.append(tunnel)
     url = None
     deadline = time.time() + 120
-    pattern = re.compile(r"https://[a-z0-9-]+\.trycloudflare\.com")  # [test this first] log line format
-    while url is None and time.time() < deadline and tunnel.poll() is None:
-        try:
-            with open(cfd_log, "r", errors="replace") as f:
-                m = pattern.search(f.read())
-                url = m.group(0) if m else None
-        except OSError:
-            pass
-        time.sleep(2)
-    if not url:
-        stop("the tunnel did not give an address within 2 minutes.")
+    if MODE == "named":
+        # Ready when the public hostname refuses a request that has no key. [test this first]
+        status = None
+        while url is None and time.time() < deadline and tunnel.poll() is None:
+            status = public_status("https://%s/v1/models" % TUNNEL_HOST)
+            if status == 401:
+                url = "https://" + TUNNEL_HOST
+            elif status == 200:
+                stop("the public hostname answered WITHOUT a key. It does not lead to this "
+                     "protected server. Check the tunnel's route in Cloudflare.")
+            else:
+                time.sleep(5)
+        if not url:
+            stop("the named tunnel was not ready within 2 minutes (last status %s). Check the "
+                 "token and the route to http://localhost:%d. Last tunnel log lines:\n%s"
+                 % (status, PORT, tail_scrubbed(cfd_log, token)))
+    else:
+        pattern = re.compile(r"https://[a-z0-9-]+\.trycloudflare\.com")  # [test this first] log line format
+        while url is None and time.time() < deadline and tunnel.poll() is None:
+            try:
+                with open(cfd_log, "r", errors="replace") as f:
+                    m = pattern.search(f.read())
+                    url = m.group(0) if m else None
+            except OSError:
+                pass
+            time.sleep(2)
+        if not url:
+            stop("the tunnel did not give an address within 2 minutes.")
 
     print("", flush=True)
     print("=" * 64, flush=True)
-    print("Address (give it to start-helper):  " + url, flush=True)
+    if MODE == "named":
+        print("Cline Base URL:                     " + url + "/v1", flush=True)
+    else:
+        print("Address (give it to start-helper):  " + url, flush=True)
     print("Model name:                         " + MODEL_ALIAS + "   (profile " + name + ")", flush=True)
     print("Keep this notebook private: this log holds the address.", flush=True)
     print("=" * 64, flush=True)

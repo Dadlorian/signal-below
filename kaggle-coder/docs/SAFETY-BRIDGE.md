@@ -60,6 +60,16 @@ Tools installed for one account still run as that account and can read that acco
 
 Never in the game folder, a commit, a chat, a screenshot, a message, or a note file.
 
+**Cline route:** the coding-helper key goes in Cline's own key box instead of the environment
+variable. The named tunnel's token lives only in the Kaggle Secret `KC_TUNNEL_TOKEN` (see
+[TEST-CLINE.md](TEST-CLINE.md), step 0). A leaked token means: replace it or delete the tunnel,
+and change the key too.
+
+**Cline route, also stop and ask Corey:** any command Cline wants to run; any auto-approve switch
+that is on; a project that has `.clinerules`, `.cline/`, `.cursorrules`, `.windsurfrules` or
+`AGENTS.md` (Cline reads these as instructions); any request to add an MCP server. The Aider
+layers in the table above (2 and 3) do not describe Cline, and Cline is untested.
+
 **If a key leaks** (pushed, pasted, shown on screen to someone, or you are not sure):
 1. Stop the Kaggle notebook. The address dies with it.
 2. Corey makes a new coding-helper key and replaces it in the Kaggle Secret and on the laptop.

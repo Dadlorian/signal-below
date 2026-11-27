@@ -219,6 +219,34 @@ whole network. `loop test` previews on 127.0.0.1 only.
 
 ---
 
+## Cline route (side panel)
+
+Only if Corey picked Cline, and only after Corey has run [TEST-CLINE.md](TEST-CLINE.md). Nothing
+here is tested. Cline needs streaming, and Cloudflare's docs say quick tunnels do not support it,
+so TEST-CLINE uses a separate named tunnel (its step 0). This route replaces steps 8 to 12 and the
+`loop design` / `loop code` commands. Steps 1 to 7 still apply.
+
+1. **(with Corey)** Install VS Code ([the README, Part 1](../README.md)).
+2. Corey gives you `cline-4.1.26.vsix`. Check it with
+   `certutil -hashfile <file> SHA256` against [PINS.md](../kaggle/PINS.md).
+3. VS Code > Extensions (`Ctrl+Shift+X`) > **...** > **Install from VSIX...**. The publisher must
+   read **saoudrizwan**, id `saoudrizwan.claude-dev`.
+4. Corey copies [cline/settings.json](../cline/settings.json) to
+   `%APPDATA%\Code\User\settings.json` (back up the old one first). It turns Copilot off and
+   blocks every other extension.
+5. Corey copies [cline/rules.md](../cline/rules.md) to `Documents\Cline\Rules\signal-below.md`.
+6. In Cline's settings: provider **OpenAI Compatible**, Base URL = the **Cline Base URL** your
+   notebook printed, model `kaggle-coder`, context window `32768`, max output `4096`. Corey types
+   the key into **Cline's own key box**, never into a file.
+7. Leave every **auto-approve** switch **off**. Say **no** to every command it wants to run, and
+   write it down for Corey.
+8. Each change: **Plan** first, then **Act**. Read the diff, then approve or reject. Before
+   `loop push`, check the changed files in **Source Control** (`Ctrl+Shift+G`).
+
+Also read the Cline notes under "Where keys may live" in [SAFETY-BRIDGE.md](SAFETY-BRIDGE.md).
+
+---
+
 ## Big files
 
 `BuriedComplexGame.tsx` (about 2,700 lines) and `deep-signal-engine.ts` (about 2,700 lines) are

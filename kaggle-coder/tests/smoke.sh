@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Smoke test for the Kaggle coding server. Corey only, on Ubuntu.
 # Usage:  bash kaggle-coder/tests/smoke.sh https://<words>.trycloudflare.com
+# Named tunnel:  CODER_HOST=<your helper hostname> bash kaggle-coder/tests/smoke.sh https://<that hostname>
+# (CODER_HOST must match exactly, so a mistyped address never receives the key.)
 #
 # The key is NEVER a command-line argument (that would land in shell history and in `ps`).
 # Either it is in the environment variable CODER_KEY, set without echoing it:
@@ -16,8 +18,10 @@ set -euo pipefail
 
 BASE="${1:-}"
 BASE="${BASE%/}"; BASE="${BASE%/v1}"
-if [[ ! "$BASE" =~ ^https://[a-z0-9-]+\.trycloudflare\.com$ ]]; then
-  echo "usage: bash $0 https://<words>.trycloudflare.com   (key in CODER_KEY or typed when asked)" >&2; exit 2
+if [[ ! "$BASE" =~ ^https://[a-z0-9-]+\.trycloudflare\.com$ ]] &&
+   ! { [ -n "${CODER_HOST:-}" ] && [ "$BASE" = "https://${CODER_HOST:-}" ]; }; then
+  echo "usage: bash $0 https://<words>.trycloudflare.com   (key in CODER_KEY or typed when asked)" >&2
+  echo "named tunnel: set CODER_HOST to your helper hostname, then pass https://<that hostname>" >&2; exit 2
 fi
 
 K="${CODER_KEY:-}"

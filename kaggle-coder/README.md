@@ -191,6 +191,8 @@ what they cannot rule out is at the end of `docs/SAFETY-BRIDGE.md`.
 | `github/` | The pull-request checks (`loop-check.yml` or `safety.yml`), gitleaks rules, CODEOWNERS. **Not live** until you copy them into `.github/` |
 | `aider/`, `continue/`, `vscodium/` | Aider settings and launcher; Continue (parked); optional editor settings |
 | `loop/`, `tests/` | `loop.cmd` and its page; `smoke.sh` for a new Kaggle address |
+| `cline/` | Cline side-panel route (untested): VS Code user settings (Copilot off, only Cline allowed) and Cline's rules. Steps in `docs/GUIDE-WINDOWS.md`; test first with `docs/TEST-CLINE.md` |
+| `KAGGLE-PLAN.md` | Proposal: each person's own Kaggle account, one command to start (not built) |
 
 **One switch for the GitHub checks:** copy `github/workflows/loop-check.yml` to
 `.github/workflows/` in the game repo, and turn on branch protection for `main` (required review,
