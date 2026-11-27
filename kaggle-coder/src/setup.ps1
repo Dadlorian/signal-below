@@ -2,7 +2,8 @@
 # Installs only: Git, VS Code, Python (via winget, for your user only), Kaggle's tool, and the Cline extension.
 # It never asks for an admin password. If Windows asks for one, say no and ask Corey.
 $ErrorActionPreference = 'Stop'
-$home2 = Join-Path $env:USERPROFILE '.kaggle-coder'
+$root = Split-Path -Parent $PSScriptRoot           # the kaggle-coder folder
+$home2 = Join-Path $root 'run'                      # everything generated goes here (ignored by git)
 $venv = Join-Path $home2 'venv'
 $kaggle = Join-Path $venv 'Scripts\kaggle.exe'
 function Say($t) { Write-Host "`n$t" -ForegroundColor Cyan }

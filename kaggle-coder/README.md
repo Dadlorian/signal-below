@@ -32,7 +32,7 @@ and set:
 | Cline setting | Value |
 |---|---|
 | API Provider | OpenAI Compatible |
-| Base URL and API Key | `start.cmd` puts these on your clipboard for you |
+| Base URL and API Key | shown on the settings card at READY (and by `logs.cmd`) |
 | Model ID | `kaggle-coder` |
 | Context Window Size | `65536` |
 | Max Output Tokens | `8192` |
@@ -45,7 +45,10 @@ and set:
    - A **coding block** (30/45/60) keeps the AI up for that long, even while you are thinking or reading.
    - With just Enter, it turns off after 10 minutes without a question.
 2. Watch the one line: *Waiting for a Kaggle GPU*, *Downloading the AI*, *Loading onto the GPUs*, then **READY**.
-3. At READY it puts the **Base URL** (and, the first time, the **key**) on your clipboard. Paste each into Cline.
+   It shows how long you have waited and when it will give up. Want the detail? Double-click **`logs.cmd`**
+   for a live view of what the AI is doing.
+3. At READY it prints a green **settings card** with everything Cline needs (Base URL, key, model, sizes) and puts the
+   Base URL on your clipboard. Copy the rest from the card. **Double-click `logs.cmd` any time to see the card again.**
 4. Ask Cline for **one small thing**: choose **Plan**, read the plan, then choose **Act**. Read each change
    (red is removed, green is added) and approve or reject it. If Cline wants to run a command or install
    something, say **no** and ask Corey.
@@ -65,8 +68,8 @@ session is listed, stop it there (the power button), because the website keeps c
 | `less than 1 GPU hour left` | Wait for the refresh time it shows. Nothing was started. |
 | `Kaggle has no free GPU right now` | Try again in 30 minutes. |
 | `STOPPED: ... out of memory` | Tell Corey. |
-| Cline says connection or key error | Double-click `start.cmd` again and paste the new Base URL. Type `k` at the key question to copy the key again. |
-| Anything else | Send Corey the message and the file `%USERPROFILE%\.kaggle-coder\doctor.txt` (it has no key or address in it). |
+| Cline says connection or key error | Double-click `logs.cmd`: the card shows the current Base URL and key. The address changes every run. |
+| Anything else | Send Corey the message and the file `kaggle-coder\run\last-run.log` (it has no key or address in it). |
 
 ## 5. Play your game, and send your work to Corey
 Node runs the game. Ask Corey to help you install it the first time. Then:
@@ -95,8 +98,9 @@ you did, press **Commit**, then **Publish Branch**. On GitHub: **Compare & pull 
 ## For Corey and for developers
 ```
 kaggle-coder/
-  setup.cmd  start.cmd  stop.cmd     the only things he double-clicks
-  .env.example                       every setting and its default (the real .env is in %USERPROFILE%\.kaggle-coder\)
+  setup.cmd  start.cmd  stop.cmd     the things he double-clicks (logs.cmd shows the one log file live)
+  .env.example                       every setting and its default. The real file is kaggle-coder\.env (made on first run)
+  run/                               everything the tool makes: log, settings card, state, the Kaggle tool (git ignores it)
   src/
     start.ps1    laptop side: checks, sends the server to Kaggle, waits, hands Cline the address, watches
     setup.ps1    first-run installs (VS Code, Python, Cline, Kaggle token)
@@ -109,11 +113,45 @@ kaggle-coder/
 - **Measured on real Kaggle (2026-11-27):** the 18.5 GB model downloads in about 2 minutes (150 MiB/s, hash-checked as
   it streams); the programs take 30 s in parallel. Storing the model on Kaggle first saved only about 38 s
   (mounted read 224 MiB/s) at the cost of a 23-minute prep, so it was removed. A free CPU run starts in about 20 s.
-- **Not yet run on a real GPU session:** model load time, READY, the tunnel, the idle stop on real Cline traffic, and
-  Cline's tool-call format with Qwen3-Coder. First GPU run: set `SELF_TEST=1` once in `.env` (about 0.3 GPU hours),
-  note the time to READY and the tool-call and cache lines in the log, then ask Cline one small task.
-- Expect roughly 3 to 5 minutes from start to READY plus any queue wait. Under 60 seconds is not possible on Kaggle's
-  free batch GPUs.
-- **Stopping:** Kaggle's command line has no cancel. `stop.cmd` deletes the notebook (whether that ends a running
-  session is unproven), and the server stops itself on idle or `MAX_HOURS`, with Kaggle's own `-t` limit as a backstop.
-  Check Active Events on kaggle.com until that is proven.
+- **Proven on a real GPU session (2026-11-27, 2x Tesla T4, 0.34 GPU hours):**
+  - Kaggle start to READY: **320 s** (download 168 s, load onto the GPUs 145 s, tunnel 7 s). GPU memory used: 11.3 and 10.7 GB of 15.3 GB each.
+  - Through the public address: 401 without the key, 200 with it, a reply in 0.7 s.
+  - Tool calls parse (`parsed tool_calls: True`). The prompt cache works: the same long prompt took 6.3 s, then 0.1 s.
+  - Idle stop: warning at 8 quiet minutes, stopped itself at 10, GPUs given back.
+  - Billing: T4 x2 counts **1 quota hour per hour** (0.32 hours used in 18.8 minutes).
+  - Queue: the first push waited 4 minutes, then the automatic re-push started within a minute (see below).
+- **Still to try with the junior:** a real Cline task (the tool-call format is proven, the full agent loop is not), and the
+  optional permanent address (Cloudflare Worker).
+
+### Kaggle rules we follow (checked 2026-11-27)
+**Official** ([kernels reference](https://github.com/Kaggle/kaggle-cli/blob/main/skills/references/kernels.md),
+[docs](https://github.com/Kaggle/kaggle-cli/blob/main/docs/kernels.md); CLI 2.2.5 is the latest release):
+- `kernels push` uploads and runs. Pushing to an existing name makes a new version, so we reuse one name.
+- A notebook's title and name are linked; the title must match the name.
+- The accelerator is a request: "the server decides what a session actually runs on". `NvidiaTeslaT4` means GPU T4 x2.
+- There is no cancel command. We stop with `kernels delete`, and the server also stops itself (idle, coding block,
+  `MAX_HOURS`), with Kaggle's own `-t` limit as a backstop. The documented way to end a session is Active Events > Stop,
+  so `stop.cmd` tells him to check it.
+
+**Community, from a project updated 2026-11-25** ([kaggle-llm-server](https://github.com/Tahsine/kaggle-llm-server)):
+- Run it as a background (commit) session, which is what `kernels push` does. Interactive sessions are cut after about 40
+  minutes of browser inactivity; background ones can run up to 12 hours. Weekly GPU quota is about 30 hours.
+- Internet in notebooks needs a phone-verified account. The Cloudflare quick tunnel beats ngrok for long streams.
+- Even with files stored in a private Dataset, they report about **5 to 6 minutes** to a working server. Expect that, plus
+  any queue wait. Under 60 seconds is not possible.
+
+**Queued runs, and what we do about it:**
+- Developers report that Kaggle sometimes leaves a pushed run `QUEUED` for good, and that a fresh push then starts normally
+  ([example](https://github.com/eslam733/voicetut-kaggle/pull/3), [another](https://github.com/amasat01/eagle/pull/17)).
+  Kaggle's forum also has recent threads about sessions stuck in the queue ([one](https://www.kaggle.com/product-feedback/757624)).
+- So `start.ps1` waits 4 minutes, deletes the notebook and pushes again, up to 3 tries. This worked on the first real
+  attempt: queued 4 minutes, re-pushed, running in under a minute. Before the retry existed, our real run waited 15 to 20
+  minutes three times while tiny test jobs started in 3 to 4 seconds.
+- Kaggle's status answer holds only the state and an (empty) failure message. There is no queue position and no reason.
+
+**Not confirmed (do not rely on it):**
+- Why a run sticks: nothing official explains it. It was not the accelerator name, internet access or the time limit.
+- A Kaggle staff post says 1 interactive plus 2 background GPU sessions at once ([source](https://www.kaggle.com/general/105509),
+  undated), so we never run more than one at a time.
+- Whether running a tunnel from a notebook is allowed. No rule mentions it; some sources say the terms limit use to personal
+  use. Read kaggle.com/terms before relying on this.

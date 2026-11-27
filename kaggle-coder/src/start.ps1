@@ -1,16 +1,18 @@
 # Starts YOUR AI helper on YOUR Kaggle account, then hands Cline what it needs.  (Double-click start.cmd.)
 #   start.cmd  -> this script            stop.cmd -> this script with -Stop
 #   -SetFixed  -> optional permanent address (see fixed-address\README.md)
-# Settings live in %USERPROFILE%\.kaggle-coder\.env (see .env.example). Every one has a safe default.
+# Settings live in kaggle-coder\.env (see .env.example). Every one has a safe default. Everything the tool
+# makes (log, state, settings card, the Kaggle tool) goes in kaggle-coder\run\. Both are ignored by git.
 # Your key is in that file too. It is sent inside your PRIVATE Kaggle notebook (Kaggle's command line
 # cannot attach Secrets) and is never printed. Stopping deletes that notebook.
 param([switch]$Stop, [switch]$SetFixed)
 $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 $ci = [Globalization.CultureInfo]::InvariantCulture
-$home2 = Join-Path $env:USERPROFILE '.kaggle-coder'
+$root = Split-Path -Parent $PSScriptRoot           # the kaggle-coder folder
+$home2 = Join-Path $root 'run'
 $kaggle = Join-Path $home2 'venv\Scripts\kaggle.exe'
-$envFile = Join-Path $home2 '.env'
+$envFile = Join-Path $root '.env'
 $stateFile = Join-Path $home2 'state.json'
 $addressPattern = 'https://(?!api\.)[a-z0-9-]+\.trycloudflare\.com'   # the key is only ever sent to this kind of address
 $key = $null
@@ -22,19 +24,21 @@ function Stop-Here($text) {
     Write-Doctor
     exit 1
 }
-# A redacted summary Corey can read. Never contains your key, token or address.
+# The ONE log file: the server's progress plus, when something stops, a short summary at the end.
+# Never contains your key, token or address. logs.cmd shows it live. Corey can read it as-is.
+$runLog = Join-Path $home2 'last-run.log'
+$cardFile = Join-Path $home2 'cline.txt'   # what Cline needs for the current run (local only: it holds your key)
 function Write-Doctor {
     try {
-        $f = Join-Path $home2 'doctor.txt'
-        $lines = @("Windows $([Environment]::OSVersion.Version)  PowerShell $($PSVersionTable.PSVersion)",
-            "setup done: $(Test-Path -LiteralPath (Join-Path $home2 'setup-done.txt'))  kaggle tool: $(Test-Path -LiteralPath $kaggle)")
         $st = Get-State
-        $lines += "notebook: $($st.notebook)  pushed: $($st.pushedAt)"
-        $stop = Join-Path $home2 'last-stop.log'
-        if (Test-Path -LiteralPath $stop) { $lines += "last stop log (tail):"; $lines += @(Get-Content -LiteralPath $stop | Select-Object -Last 15) }
+        $lines = @("", "=== why it stopped (summary for Corey) ===",
+            "Windows $([Environment]::OSVersion.Version)  PowerShell $($PSVersionTable.PSVersion)  time $(Get-Date -Format s)",
+            "setup done: $(Test-Path -LiteralPath (Join-Path $home2 'setup-done.txt'))  kaggle tool: $(Test-Path -LiteralPath $kaggle)",
+            "notebook: $($st.notebook)  pushed: $($st.pushedAt)")
         $text = ($lines -join "`r`n") -replace $addressPattern, '[address]' -replace '[A-Za-z0-9_-]{32,}', '[hidden]'
-        Set-Content -LiteralPath $f -Value $text -Encoding ASCII
-        Write-Host "Details for Corey (no key or address in it): $f" -ForegroundColor DarkGray
+        New-Item -ItemType Directory -Force $home2 | Out-Null
+        Add-Content -LiteralPath $runLog -Value $text -Encoding ASCII
+        Write-Host "Details for Corey (no key or address in it): $runLog" -ForegroundColor DarkGray
     }
     catch { }
 }
@@ -171,12 +175,14 @@ if (-not $state.user) {
     if ($state.user -notmatch '^[A-Za-z0-9_-]+$') { Stop-Here "that is not a Kaggle username." }
     Save-State $state
 }
+# One notebook name, reused: pushing to an existing name makes a new version (Kaggle CLI docs).
 $notebook = "$($state.user)/kaggle-coder"
 $page = "https://www.kaggle.com/code/$notebook"
 
 function Test-Mine { $s = Get-State; return ($s.notebook -eq $notebook) -and ([long]$s.pushedAt -gt 0) }
 function Get-RunState {
-    $m = [regex]::Match((Invoke-Kaggle @('kernels', 'status', $notebook)).Text, 'has status "(?:KernelWorkerStatus\.)?(\w+)"')
+    $script:lastStatusText = (Invoke-Kaggle @('kernels', 'status', $notebook)).Text
+    $m = [regex]::Match($script:lastStatusText, 'has status "(?:KernelWorkerStatus\.)?(\w+)"')
     return $m.Groups[1].Value.ToUpper()
 }
 function Get-GpuHours {
@@ -193,6 +199,7 @@ function Remove-Notebook {
     # Kaggle says "Cannot access" for a bad sign-in too, so the delete itself must also have worked.
     $deleted = $delete.Code -eq 0 -and $check -match '(?i)cannot access kernel|not found|404'
     if ($deleted) { $s = Get-State; $s.notebook = $null; $s.pushedAt = 0; Save-State $s; Say "Deleted. Kaggle no longer shows the notebook." }
+    Remove-Item -LiteralPath $cardFile -Force -ErrorAction SilentlyContinue   # the settings belong to a run that is gone
     else { Write-Host "COULD NOT CONFIRM the delete. Look at $page and delete it there." -ForegroundColor Red }
     $fx = Get-Fixed
     if ($fx) { [void](Set-Upstream $fx $null) }   # the permanent address stops pointing at this run
@@ -209,7 +216,20 @@ if ($Stop) {
 }
 
 # ---------------------------------------------------------------- 1. pre-flight (a few seconds, before anything is sent)
+# Only ONE start window at a time: two would both follow the run, both clean up, and fight over the clipboard and log.
+$lockFile = Join-Path $home2 'start.lock'
+if (Test-Path -LiteralPath $lockFile) {
+    $other = 0; [void][int]::TryParse("$(@(Get-Content -LiteralPath $lockFile)[0])", [ref]$other)
+    $alive = if ($other -and $other -ne $PID) { Get-Process -Id $other -ErrorAction SilentlyContinue } else { $null }
+    if ($alive -and $alive.ProcessName -match 'powershell') {
+        Write-Host "`nSTOP: another start window is already open (it is the one showing the progress). Use that one, or close it first." -ForegroundColor Red
+        exit 1
+    }
+}
+Set-Content -LiteralPath $lockFile -Value $PID -Encoding ASCII   # a lock left by a closed window is ignored next time
+
 Say "Checking everything first..."
+Set-Content -LiteralPath $runLog -Value "[start.cmd] run started $(Get-Date -Format s)" -Encoding ASCII   # a fresh log for this run
 try { [void](Invoke-WebRequest -Uri 'https://www.kaggle.com' -UseBasicParsing -TimeoutSec 8) }
 catch { if (-not $_.Exception.Response) { Stop-Here "no internet. Connect to Wi-Fi and double-click start.cmd again." } }
 $hours = Get-GpuHours
@@ -230,18 +250,10 @@ catch { Write-Host "Note: the Cline rules were not installed: $($_.Exception.Mes
 
 # ---------------------------------------------------------------- 2. send the server (unless a run is already waiting or running)
 $startWithin = [int]$S.START_WAIT_MINUTES
-$before = Get-RunState
-if ($before -eq 'QUEUED' -or $before -eq 'RUNNING') {
-    Say "A run is already $($before.ToLower()), so nothing new is sent. Connecting to it..."
-}
-else {
-    $block = $S.BLOCK_MINUTES
-    if ($block -eq 'ask') {
-        $answer = Read-Host "How long will you code? Type 30, 45 or 60 (minutes), or press Enter to stop after $($S.IDLE_MINUTES) quiet minutes"
-        $block = if ($answer -match '^(30|45|60)$') { $answer } else { '0' }
-    }
-    if ([int]$block -gt 0) { Write-Host "Coding block: the AI stays up for $block minutes, then stops after $($S.IDLE_MINUTES) quiet minutes." }
-    else { Write-Host "The AI stops by itself after $($S.IDLE_MINUTES) minutes without a question." }
+$block = if ($S.BLOCK_MINUTES -eq 'ask') { '0' } else { $S.BLOCK_MINUTES }   # asked below when a NEW run is sent
+
+# Sends the server to Kaggle (a new version of the one notebook) and records it. Used for the first push and for retries.
+function Push-Run {
     $notAfter = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() + 60 * $startWithin
     $cfg = [ordered]@{ key = $key; idle_minutes = [int]$S.IDLE_MINUTES; block_minutes = [int]$block
         max_hours = [double]::Parse($S.MAX_HOURS, $ci); model = $S.MODEL; context_tokens = [int]$S.CONTEXT_TOKENS
@@ -252,7 +264,7 @@ else {
     try {
         $code = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'server.py'))
         [IO.File]::WriteAllText((Join-Path $work 'server.py'), "import os`nos.environ['KC_CONFIG_B64'] = '$b64'`n" + $code)
-        $meta = [ordered]@{ id = $notebook; title = 'kaggle-coder'; code_file = 'server.py'; language = 'python'
+        $meta = [ordered]@{ id = $notebook; title = ($notebook -split '/')[1]; code_file = 'server.py'; language = 'python'
             kernel_type = 'script'; is_private = $true; enable_gpu = $true; enable_internet = $true
             machine_shape = 'NvidiaTeslaT4'; dataset_sources = @(); competition_sources = @(); kernel_sources = @(); model_sources = @() }
         [IO.File]::WriteAllText((Join-Path $work 'kernel-metadata.json'), ($meta | ConvertTo-Json))
@@ -270,17 +282,44 @@ else {
     finally { Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue }
 }
 
+$before = Get-RunState
+if (($before -eq 'QUEUED' -or $before -eq 'RUNNING') -and (Test-Mine)) {
+    # A run from earlier. Offer a clean restart: delete it, then start fresh. (Nothing on your laptop is touched.)
+    $age = [int](([DateTimeOffset]::UtcNow.ToUnixTimeSeconds() - [long](Get-State).pushedAt) / 60)
+    Say "A run is already $($before.ToLower()) (sent $age minutes ago)."
+    $choice = Read-Host "Press Enter to keep waiting for it, or type r to stop it and start fresh"
+    if ($choice -eq 'r') { [void](Remove-Notebook); Start-Sleep -Seconds 15; $before = '' }
+}
+if ($before -eq 'QUEUED' -or $before -eq 'RUNNING') {
+    Write-Host "Connecting to the run that is already there; nothing new is sent."
+}
+else {
+    if ($S.BLOCK_MINUTES -eq 'ask') {
+        $answer = Read-Host "How long will you code? Type 30, 45 or 60 (minutes), or press Enter to stop after $($S.IDLE_MINUTES) quiet minutes"
+        $block = if ($answer -match '^(30|45|60)$') { $answer } else { '0' }
+    }
+    if ([int]$block -gt 0) { Write-Host "Coding block: the AI stays up for $block minutes, then stops after $($S.IDLE_MINUTES) quiet minutes." }
+    else { Write-Host "The AI stops by itself after $($S.IDLE_MINUTES) minutes without a question." }
+    Push-Run
+}
+
 # ---------------------------------------------------------------- 3. wait, with one live status line
 Write-Host "Closing this window is safe: the AI stops itself. Run stop.cmd to be sure."
 $env:PYTHONUNBUFFERED = '1'
 $out = Join-Path ([IO.Path]::GetTempPath()) ("kc-log-" + [guid]::NewGuid().ToString('N'))
 $state = Get-State
 $runId = if ($state.notAfter) { "$($state.notAfter)" } else { $null }   # server.py prints "run id <number>" first
-$queueDeadline = [DateTimeOffset]::FromUnixTimeSeconds([long]$state.pushedAt).LocalDateTime.AddMinutes($startWithin)
+# Developers report Kaggle sometimes leaves a pushed run QUEUED for good with GPUs free, and that a fresh push then
+# starts normally. So: if still queued after $retryMinutes, delete and push again, up to $maxTries times.
+$retryMinutes = 4; $maxTries = 3; $tries = 1
+$attemptStart = [DateTimeOffset]::FromUnixTimeSeconds([long]$state.pushedAt).LocalDateTime
+$queueDeadline = $attemptStart.AddMinutes($retryMinutes)
+$script:prevStatusText = ''; $script:lastStatusText = ''
+$tooLong = (Get-Date) -gt $attemptStart.AddMinutes($startWithin)   # reconnected to a run that is already older than the limit
 $loadLimit = 15; $runningSince = $null
 if ($before -eq 'RUNNING') { $runningSince = Get-Date }
 $t0 = Get-Date; $lastTick = Get-Date; $nextStatus = Get-Date; $failedPolls = 0
-$base = $null; $follow = $null; $shown = @{}; $phase = 'Sending'; $stopped = $false
+$base = $null; $follow = $null; $shown = @{}; $phase = 'Sending'; $stopped = $false; $written = 0
 function Show-Line($text) { Write-Host ("`r[{0:mm\:ss}] {1}" -f ((Get-Date) - $t0), $text).PadRight(110) -NoNewline }
 try {
     while (-not $base) {
@@ -300,6 +339,13 @@ try {
         # Only this run's lines (an older run's output may still be in the log)
         $thisRun = $log
         if ($runId) { $from = $log.LastIndexOf("run id $runId"); $thisRun = if ($from -ge 0) { $log.Substring($from) } else { '' } }
+        # Append only the NEW whole lines, so a live view of the file works (never rewrite it).
+        if ($thisRun.Length -lt $written) { $written = 0 }
+        $cut = $thisRun.LastIndexOf("`n") + 1
+        if ($cut -gt $written) {
+            try { Add-Content -LiteralPath $runLog -NoNewline -Encoding ASCII -Value (($thisRun.Substring($written, $cut - $written).Replace($key, '[key]')) -replace $addressPattern, '[address]') } catch { }
+            $written = $cut
+        }
         foreach ($m in [regex]::Matches($thisRun, '(\[kaggle-coder\][^\\"\r\n]*)')) {
             if (-not $shown[$m.Value] -and $m.Value -notmatch 'GiB of') { $shown[$m.Value] = $true; Write-Host ("`r" + (' ' * 110) + "`r" + ($m.Value -replace $addressPattern, '[address]')) }
         }
@@ -312,7 +358,10 @@ try {
             $phase = "2/4 Downloading the AI ($gb, about 2 minutes)"
         }
         elseif ($runningSince) { $phase = '2/4 Kaggle started your session' }
-        else { $phase = '1/4 Waiting for a Kaggle GPU (usually under 5 minutes)' }
+        else {
+            $left = $queueDeadline - (Get-Date); if ($left.TotalSeconds -lt 0) { $left = [TimeSpan]::Zero }
+            $phase = ('1/4 Waiting for a Kaggle GPU (try {0} of {1}). Waited {2:mm\:ss} (usually under 5 min). Tries again in {3:mm\:ss}.' -f $tries, $maxTries, ((Get-Date) - $attemptStart), $left)
+        }
         Show-Line $phase
         foreach ($m in [regex]::Matches($thisRun, $addressPattern)) {
             # Refuses without a key AND accepts our key = our own server.
@@ -321,7 +370,6 @@ try {
         if ($base) { break }
         if ($thisRun -match 'STOPPED:') {
             $stopped = $true
-            Set-Content -LiteralPath (Join-Path $home2 'last-stop.log') -Value $log.Replace($key, '[key]') -Encoding ASCII
             $line = [regex]::Match($thisRun, 'STOPPED:[^\\"\r\n]*').Value
             if (Test-Mine) { [void](Remove-Notebook) }
             Stop-Here "the server stopped: $line"
@@ -329,12 +377,32 @@ try {
         if ((Get-Date) -gt $nextStatus) {
             $nextStatus = (Get-Date).AddSeconds(30)
             $st = Get-RunState
+            # Whatever Kaggle prints about the run (a failure message would show here) goes in the log when it changes.
+            if ($script:lastStatusText -ne $script:prevStatusText) {
+                try { Add-Content -LiteralPath $runLog -Encoding ASCII -Value ("[kaggle says " + (Get-Date -Format HH:mm:ss) + "] " + ($script:lastStatusText -replace '\s+', ' ')) } catch { }
+                $script:prevStatusText = $script:lastStatusText
+            }
             if ($st -eq 'RUNNING' -and -not $runningSince) { $runningSince = Get-Date }
             if ($st -eq 'ERROR' -or $st -like 'CANCEL*' -or $st -eq 'COMPLETE') { $failedPolls++ } else { $failedPolls = 0 }
             if ($failedPolls -ge 2) { if (Test-Mine) { [void](Remove-Notebook) }; Stop-Here "the run ended without giving an address. Look at $page" }
             if (-not $runningSince -and (Get-Date) -gt $queueDeadline) {
-                if (Test-Mine) { [void](Remove-Notebook) }
-                Stop-Here "Kaggle has no free GPU right now (waited $startWithin minutes). Nothing is using your hours. Try again in 30 minutes."
+                if ($tries -lt $maxTries -and -not $tooLong -and ((Get-Date) - $t0).TotalMinutes -lt $startWithin) {
+                    $tries++
+                    Write-Host ("`r" + (' ' * 110) + "`rStill queued after $retryMinutes minutes. Trying again (try $tries of $maxTries)...") -ForegroundColor Yellow
+                    Add-Content -LiteralPath $runLog -Encoding ASCII -Value "[start.cmd] still queued after $retryMinutes minutes: pushing again (try $tries of $maxTries)"
+                    if (Test-Mine) { [void](Remove-Notebook) }
+                    Start-Sleep -Seconds 10
+                    Push-Run
+                    $state = Get-State; $runId = "$($state.notAfter)"
+                    $attemptStart = Get-Date; $queueDeadline = $attemptStart.AddMinutes($retryMinutes)
+                    if ($follow -and -not $follow.HasExited) { try { & taskkill.exe /PID $follow.Id /T /F 2>&1 | Out-Null } catch {} }
+                    $follow = $null; Remove-Item -LiteralPath $out, "$out.err" -Force -ErrorAction SilentlyContinue
+                    $written = 0; $shown = @{}; $nextStatus = Get-Date
+                }
+                else {
+                    if (Test-Mine) { [void](Remove-Notebook) }
+                    Stop-Here "Kaggle did not start your run after $tries tries (about $([int]((Get-Date) - $t0).TotalMinutes) minutes). Nothing is using your hours. Kaggle has had trouble starting sessions lately: try again later."
+                }
             }
             if ($runningSince -and ((Get-Date) - $runningSince).TotalMinutes -gt $loadLimit) {
                 if (Test-Mine) { [void](Remove-Notebook) }
@@ -369,42 +437,61 @@ if ($fx) {
     else { Write-Host "The permanent address is not working yet, so the temporary one is used this time." -ForegroundColor Yellow }
 }
 
-# ---------------------------------------------------------------- 5. hand Cline what it needs
-$state = Get-State
+# ---------------------------------------------------------------- 5. everything Cline needs, in one card
 Say "READY after $([int]((Get-Date) - $t0).TotalSeconds) seconds."
-if (-not ($fixedOn -and $state.baseGiven -eq $base)) {
-    Set-Clipboard -Value "$base/v1"
-    Write-Host "1. The Base URL is on your clipboard. Paste it into Cline's Base URL box."
-    try { $Host.UI.RawUI.FlushInputBuffer() } catch {}
-    Read-Host "   Pasted? Press Enter" | Out-Null
-    if ($fixedOn) { $state.baseGiven = $base }
-}
-if (-not $state.keyGiven) {
-    Set-Clipboard -Value $key
-    Write-Host "2. Your key is on the clipboard. Paste it into Cline's API Key box."
-    Read-Host "   Pasted? Press Enter" | Out-Null
-    $state.keyGiven = $true
-}
-else {
-    $k = Read-Host "2. Your key is already in Cline. Press Enter to continue, or type k to copy it again"
-    if ($k -eq 'k') { Set-Clipboard -Value $key; Read-Host "   Copied. Paste it into Cline's API Key box, then press Enter" | Out-Null }
-}
-Save-State $state
-Set-Clipboard -Value ' '   # nothing secret is left on the clipboard
-Write-Host "`nNow ask Cline something small. This window shows the AI while it runs."
+$cardLines = @("Cline settings for this run (private: this has your key)", "",
+    "  API Provider       OpenAI Compatible", "  Base URL           $base/v1", "  API Key            $key",
+    "  Model ID           kaggle-coder", "  Context Window     $($S.CONTEXT_TOKENS)", "  Max Output Tokens  $($S.MAX_OUTPUT_TOKENS)",
+    "  Also in Cline      Use Compact Prompt = on, every auto-approve = off")
+Set-Content -LiteralPath $cardFile -Value $cardLines -Encoding ASCII
+Write-Host ""
+$cardLines | ForEach-Object { Write-Host $_ -ForegroundColor Green }
+Set-Clipboard -Value "$base/v1"
+Write-Host "`nThe Base URL is already on your clipboard. Copy the other lines from here, or double-click logs.cmd any time to see this card again."
+if (-not $fixedOn) { Write-Host "This address changes every run. A permanent one is optional: see fixed-address\README.md." }
 Write-Host "Press S to stop the AI now. Or just leave: it stops by itself after $($S.IDLE_MINUTES) quiet minutes (2 hours at most)."
 
-# ---------------------------------------------------------------- 6. keep watching until it ends
+# ---------------------------------------------------------------- 6. keep watching, and keep the log up to date, until it ends
+function Sync-Log {   # copies the server's NEW whole lines into last-run.log; returns this run's log text
+    $log = ''
+    foreach ($f in $out, "$out.err") {
+        if (Test-Path -LiteralPath $f) {
+            $stream = [IO.File]::Open($f, 'Open', 'Read', 'ReadWrite')
+            $log += (New-Object IO.StreamReader($stream)).ReadToEnd(); $stream.Close()
+        }
+    }
+    $thisRun = $log
+    if ($runId) { $from = $log.LastIndexOf("run id $runId"); $thisRun = if ($from -ge 0) { $log.Substring($from) } else { '' } }
+    if ($thisRun.Length -lt $script:written) { $script:written = 0 }
+    $cut = $thisRun.LastIndexOf("`n") + 1
+    if ($cut -gt $script:written) {
+        try { Add-Content -LiteralPath $runLog -NoNewline -Encoding ASCII -Value (($thisRun.Substring($script:written, $cut - $script:written).Replace($key, '[key]')) -replace $addressPattern, '[address]') } catch { }
+        $script:written = $cut
+    }
+    return $thisRun
+}
+function Stop-Follow { if ($follow -and -not $follow.HasExited) { try { & taskkill.exe /PID $follow.Id /T /F 2>&1 | Out-Null } catch {} }; Remove-Item -LiteralPath $out, "$out.err" -Force -ErrorAction SilentlyContinue }
+$follow = Start-Process -FilePath $kaggle -ArgumentList @('kernels', 'logs', $notebook, '--follow', '--interval', '5') -NoNewWindow -PassThru -RedirectStandardOutput $out -RedirectStandardError "$out.err"
 $began = Get-Date; $nextCheck = (Get-Date).AddSeconds(60)
 while ($true) {
-    Show-Line ("The AI is running ({0:N0} min). Press S to stop it." -f ((Get-Date) - $began).TotalMinutes)
+    Show-Line ("The AI is running ({0:N0} min). Press S to stop it. Settings: logs.cmd" -f ((Get-Date) - $began).TotalMinutes)
     Start-Sleep -Seconds 2
-    try { if ([Console]::KeyAvailable -and ([Console]::ReadKey($true).Key -eq 'S')) { Write-Host ""; [void](Remove-Notebook); exit 0 } } catch { }
+    $now = Sync-Log
+    if ($now -match 'STOPPED:') {
+        $why = [regex]::Match($now, 'STOPPED:[^\\"\r\n]*').Value
+        Write-Host "`n`nThe AI has stopped itself. $why`nDouble-click start.cmd for a new one."
+        Stop-Follow
+        if (Test-Mine) { [void](Remove-Notebook) }   # the finished notebook still holds your key: delete it (this also removes the settings card)
+        [Console]::Beep(); break
+    }
+    try { if ([Console]::KeyAvailable -and ([Console]::ReadKey($true).Key -eq 'S')) { Write-Host ""; Stop-Follow; [void](Remove-Notebook); exit 0 } } catch { }
     if ((Get-Date) -gt $nextCheck) {
         $nextCheck = (Get-Date).AddSeconds(60)
         $st = Get-RunState
         if ($st -and $st -ne 'RUNNING' -and $st -ne 'QUEUED') {
             Write-Host "`n`nThe AI has stopped ($st). Double-click start.cmd for a new one."
+            Stop-Follow
+            if (Test-Mine) { [void](Remove-Notebook) }
             [Console]::Beep(); break
         }
     }

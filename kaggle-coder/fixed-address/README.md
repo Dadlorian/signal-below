@@ -18,7 +18,7 @@ Nothing here touches the tunnel that serves signal.gamelab.link. No Cloudflare s
    Your **Account ID** is on the right of the Workers & Pages overview.
 6. On the laptop that runs the AI, double-click **`fixed-address.cmd`**. Paste the host, Account ID,
    Namespace ID and token when asked (the token stays hidden). It saves them in
-   `%USERPROFILE%\.kaggle-coder\.env` (never in the game folder or on Kaggle) and tests the Worker.
+   `kaggle-coder\.env` (git ignores it; it is never sent to Kaggle) and tests the Worker.
 
 ## Optional hardening in the dashboard
 - Security > WAF > Rate limiting rule for `kaggle.gamelab.link`.

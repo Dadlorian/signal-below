@@ -48,6 +48,7 @@ __pycache__/
 # kaggle-coder/ only (scoped so they cannot hide the son's game files)
 # ---------------------------------------------------------------------------
 # notes someone might make about a key or today's tunnel address
+kaggle-coder/run/
 kaggle-coder/**/api-keys.txt
 kaggle-coder/**/*key*.txt
 kaggle-coder/**/*token*.txt

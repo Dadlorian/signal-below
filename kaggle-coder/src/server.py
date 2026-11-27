@@ -212,7 +212,7 @@ def read_key():
 
 def check_key(value):
     if len(value) < MIN_KEY_LEN:
-        stop("the key is shorter than %d characters. Delete your .kaggle-coder .env file and run start.cmd again." % MIN_KEY_LEN)
+        stop("the key is shorter than %d characters. Delete the CODER_API_KEY line in kaggle-coder/.env and run start.cmd again." % MIN_KEY_LEN)
     if re.search(r"[\s,#]", value):
         stop("the key contains spaces, commas or '#'. Make a new one.")
     return value
