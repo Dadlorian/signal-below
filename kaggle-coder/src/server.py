@@ -14,6 +14,7 @@ Nothing here runs model output.
 """
 
 import atexit
+import base64
 import hashlib
 import json
 import os
@@ -31,33 +32,42 @@ import urllib.error
 import urllib.request
 
 # ---------------------------------------------------------------------------------------
-# Settings (not secret)
+# Settings. start.ps1 sends them as ONE base64 JSON value built from your .env. Every value is checked
+# again here; a missing or bad one falls back to the safe default. Nothing here is secret except "key".
 # ---------------------------------------------------------------------------------------
-PROFILE = os.environ.get("KC_PROFILE", "A")      # "A", or "A-small" if A runs out of GPU memory
+def _load_config():
+    try:
+        return json.loads(base64.b64decode(os.environ.pop("KC_CONFIG_B64", "")).decode())
+    except (ValueError, TypeError):
+        return {}
+
+
+CFG = _load_config()
+
+
+def _num(name, low, high, default):
+    v = CFG.get(name)
+    return v if isinstance(v, (int, float)) and not isinstance(v, bool) and low <= v <= high else default
+
+
 MIN_KEY_LEN = 32
 MODEL_ALIAS = "kaggle-coder"
-PORT = 8080                 # always passed; the README default at this build is 9931
-
-
-# This file is the only place these are set. Cline's two settings must show the same numbers.
-# Memory at 65536: about 18 GB model + 3.2 GiB KV cache + buffers, about 24 of 29 GiB
-# (an estimate, not measured on this hardware). If it does not fit: PROFILE A-small, or 49152.
-CONTEXT_TOKENS = 65536      # Cline: Context Window Size
-MAX_OUTPUT_TOKENS = 8192    # Cline: Max Output Tokens
-
+PORT = 8080                                        # always passed; the README default at this build is 9931
+PROFILE = CFG.get("model") if CFG.get("model") in ("A", "A-small") else "A"   # A-small if A runs out of GPU memory
+# Cline's Context Window Size and Max Output Tokens must show these same numbers (README card).
+# Memory at 65536: about 18 GB model + 3.2 GiB KV cache + buffers, about 24 of 29 GiB (an estimate).
+CONTEXT_TOKENS = int(_num("context_tokens", 8192, 131072, 65536))
+MAX_OUTPUT_TOKENS = int(_num("max_output_tokens", 1024, 32768, 8192))
+if MAX_OUTPUT_TOKENS >= CONTEXT_TOKENS:
+    MAX_OUTPUT_TOKENS = CONTEXT_TOKENS // 8
 # Giving the GPUs back. start.ps1 also gives Kaggle its own run time limit (-t) as a backstop.
-MAX_HOURS = 2.0             # counted from the moment this script starts, downloads included
-# Stop after this long with no model request [test this first]. start.ps1 -Web asks for longer.
-_idle = os.environ.get("KC_IDLE_MINUTES", "").strip()
-IDLE_MINUTES = int(_idle) if _idle.isdigit() and 5 <= int(_idle) <= 60 else 10
+MAX_HOURS = float(_num("max_hours", 0.5, 6, 2.0))  # counted from the moment this script starts, downloads included
+IDLE_MINUTES = int(_num("idle_minutes", 5, 60, 10))  # stop after this long with no model request
 # A "coding block": stay up this many minutes from READY, even through quiet thinking pauses.
 # After the block the normal idle stop applies again. 0 = no block. MAX_HOURS always wins.
-_block = os.environ.get("KC_BLOCK_MINUTES", "").strip()
-BLOCK_MINUTES = int(_block) if _block.isdigit() and 0 <= int(_block) <= 120 else 0
-PREP = os.environ.get("KC_PREP", "")                            # "model" or "bin": save files once, then quit
-DRYRUN = os.environ.get("KC_DRYRUN") == "1"                     # CPU test: can this notebook see and read the stored model?
-CHECK_CACHE = os.environ.get("KC_CHECK_CACHE") == "1"           # after READY: is the prompt cache working?
-NOT_AFTER = os.environ.get("KC_NOT_AFTER", "").strip()         # a run starting later than this quits
+BLOCK_MINUTES = int(_num("block_minutes", 0, 120, 0))
+SELF_TEST = CFG.get("self_test") == 1              # after READY: tool-call and prompt-cache checks
+NOT_AFTER = str(int(_num("not_after", 1, 4102444800, 0))) if _num("not_after", 1, 4102444800, 0) else ""
 STARTED = time.time()
 
 DRIVER_DIR = "/usr/local/nvidia/lib64"   # where Kaggle puts the GPU driver libraries
@@ -157,17 +167,6 @@ def check_system():
              "environment, then run again." % libc)
 
 
-def clear_leftovers():
-    """A restarted web notebook can leave our old server and tunnel running. End them first."""
-    try:
-        done = subprocess.run(["pkill", "-f", WORKDIR + "/"], capture_output=True, text=True, timeout=30)
-    except (OSError, subprocess.SubprocessError):
-        return
-    if getattr(done, "returncode", 1) == 0:
-        say("ended a server left over from an earlier run")
-        time.sleep(3)
-
-
 def check_pins(profile):
     values = dict(PINS)
     values.update({"model_url": profile["url"], "model_sha256": profile["sha256"]})
@@ -205,7 +204,7 @@ def choose_profile():
 def read_key():
     # start.ps1 adds your key to the private notebook it sends. It is removed from the
     # environment at once so no child process sees it.
-    value = os.environ.pop("KC_SESSION_KEY", "").strip()
+    value = str(CFG.pop("key", "")).strip()
     if not value:
         stop("no key. Start this with start.cmd on your laptop.")
     return check_key(value)
@@ -295,93 +294,6 @@ def lib_dirs(*tops):
             if any(".so" in f for f in files) and d not in dirs:
                 dirs.append(d)
     return dirs
-
-
-def find_mounted(profile):
-    """A copy of the model already attached to this notebook (a Kaggle input) saves the whole
-    download. Matched by exact size; the prep run (KC_PREP) already checked its sha256."""
-    want = os.path.basename(profile["url"])
-    for d, _, files in os.walk("/kaggle/input", followlinks=True):
-        for f in files:
-            if f.endswith(".gguf"):
-                path = os.path.join(d, f)
-                try:
-                    if f == want and os.path.getsize(path) == profile["size"]:
-                        return path
-                except OSError:
-                    pass
-    return None
-
-
-def find_input_file(name, sha256):
-    """A stored copy of a small download (llama.cpp, cloudflared) on this notebook's inputs,
-    used only if its sha256 matches the pin."""
-    for d, _, files in os.walk("/kaggle/input", followlinks=True):
-        if name in files:
-            path = os.path.join(d, name)
-            try:
-                if sha256_of(path) == sha256:
-                    return path
-            except OSError:
-                pass
-    return None
-
-
-def fetch(url, dest, sha256, size=None):
-    """Stored copy if there is one and it checks out, otherwise download."""
-    stored = find_input_file(os.path.basename(dest), sha256)
-    if stored:
-        say("using stored %s (sha256 ok)" % os.path.basename(dest))
-        return stored
-    return download(url, dest, sha256, size)
-
-
-def dump_inputs(max_depth=3):
-    base = "/kaggle/input"
-    say("what this notebook can see in %s:" % base)
-    if not os.path.isdir(base):
-        say("  (no such folder)")
-        return
-    for d, dirs, files in os.walk(base, followlinks=True):
-        depth = d[len(base):].count(os.sep)
-        if depth >= max_depth:
-            dirs[:] = []
-        for f in sorted(files)[:20]:
-            path = os.path.join(d, f)
-            try:
-                say("  %s  %.2f GB%s" % (path, os.path.getsize(path) / 1e9, "  (link)" if os.path.islink(path) else ""))
-            except OSError:
-                say("  %s  (unreadable)" % path)
-
-
-def dry_run(profile):
-    """CPU-only test, no GPU hours: can this notebook see the stored files, and how fast are they read?"""
-    dump_inputs()
-    for name, sha in (("llama.tar.gz", PINS["llama_sha256"]), ("cudart.tar.gz", PINS["cudart_sha256"]),
-                      ("cloudflared", PINS["cloudflared_sha256"])):
-        began = time.time()
-        path = find_input_file(name, sha)
-        if path:
-            mib = os.path.getsize(path) / 2 ** 20
-            say("DRYRUN RESULT: %s found, sha256 ok (read and checked %.0f MiB at %.0f MiB/s)"
-                % (name, mib, mib / max(time.time() - began, 0.001)))
-        else:
-            say("DRYRUN RESULT: %s not stored (it will be downloaded)" % name)
-    path = find_mounted(profile)
-    if not path:
-        say("DRYRUN RESULT: model NOT found on inputs. The model storage step has not worked yet.")
-        return
-    began, read, limit = time.time(), 0, 3 * 1024 ** 3
-    with open(path, "rb") as f:
-        while read < limit:
-            chunk = f.read(8 << 20)
-            if not chunk:
-                break
-            read += len(chunk)
-    rate = read / 2 ** 20 / max(time.time() - began, 0.001)
-    say("DRYRUN RESULT: model found (%.2f GB). Read speed %.0f MiB/s, so the whole file reads in about %.0f seconds "
-        "(downloading it from Hugging Face took 117 seconds)."
-        % (os.path.getsize(path) / 1e9, rate, os.path.getsize(path) / 2 ** 20 / max(rate, 1)))
 
 
 def cache_check(key):
@@ -498,60 +410,28 @@ def main():
     if hasattr(watchdog, "cancel"):
         _watchdog.append(watchdog)
     check_system()
-    clear_leftovers()
-    if PREP or DRYRUN:
-        name, profile, key = PROFILE, PROFILES[PROFILE], ""
-        check_pins(profile)
-        if DRYRUN:
-            dry_run(profile)
-            return
-    else:
-        name, profile = choose_profile()
-        check_pins(profile)
-        key = read_key()
+    name, profile = choose_profile()
+    check_pins(profile)
+    key = read_key()
 
     dl = os.path.join(WORKDIR, "downloads")
     os.makedirs(dl, exist_ok=True)
-    need = (profile["size"] if PREP != "bin" else 0) + 4 * 1024 ** 3  # model + tarballs + extracted runtime
-    if PREP:
-        os.makedirs("/kaggle/working", exist_ok=True)
-        if shutil.disk_usage("/kaggle/working").free < need - 3 * 1024 ** 3:
-            stop("not enough room in /kaggle/working to save the files.")
+    need = profile["size"] + 4 * 1024 ** 3  # model + tarballs + extracted runtime
     need -= sum(os.path.getsize(os.path.join(dl, f)) for f in os.listdir(dl))  # kept from an earlier run
     free = shutil.disk_usage(WORKDIR).free
     if free < need:
         stop("not enough disk in %s: %.1f GB free, about %.1f GB needed." % (WORKDIR, free / 1e9, need / 1e9))
 
-    if PREP == "bin":
-        out = "/kaggle/working"
-        for url, name_, sha in ((PINS["llama_url"], "llama.tar.gz", PINS["llama_sha256"]),
-                                (PINS["cudart_url"], "cudart.tar.gz", PINS["cudart_sha256"]),
-                                (PINS["cloudflared_url"], "cloudflared", PINS["cloudflared_sha256"])):
-            download(url, os.path.join(out, name_), sha)
-        say("PREP DONE: llama.cpp and cloudflared are saved as this notebook's output.")
-        return
-    if PREP:
-        # Prep run (CPU is enough, no GPU hours): keep the checked model as this notebook's output,
-        # so later runs attach it and skip the download.
-        out = "/kaggle/working"
-        dest = download(profile["url"], os.path.join(out, os.path.basename(profile["url"])),
-                        profile["sha256"], profile["size"])
-        with open(os.path.join(out, "model.ok"), "w") as f:
-            f.write("%s %d\n" % (profile["sha256"], os.path.getsize(dest)))
-        say("PREP DONE: the model (%d bytes, sha256 checked) is saved as this notebook's output." % os.path.getsize(dest))
-        return
-    mounted = find_mounted(profile)
-    if mounted:
-        say("model found on this notebook's inputs (no download): " + mounted)
-    # Everything is fetched at the same time; the model is the long one.
+    # Everything is fetched at the same time. Measured on Kaggle: the model takes about 2 minutes,
+    # the programs 30 seconds, so they finish inside the model's time.
     with ThreadPoolExecutor(4) as pool:
-        f_llama = pool.submit(fetch, PINS["llama_url"], os.path.join(dl, "llama.tar.gz"), PINS["llama_sha256"])
-        f_cuda = pool.submit(fetch, PINS["cudart_url"], os.path.join(dl, "cudart.tar.gz"), PINS["cudart_sha256"])
-        f_cfd = pool.submit(fetch, PINS["cloudflared_url"], os.path.join(dl, "cloudflared"), PINS["cloudflared_sha256"])
-        f_model = None if mounted else pool.submit(
-            download, profile["url"], os.path.join(dl, "model-%s.gguf" % name), profile["sha256"], profile["size"])
+        f_llama = pool.submit(download, PINS["llama_url"], os.path.join(dl, "llama.tar.gz"), PINS["llama_sha256"])
+        f_cuda = pool.submit(download, PINS["cudart_url"], os.path.join(dl, "cudart.tar.gz"), PINS["cudart_sha256"])
+        f_cfd = pool.submit(download, PINS["cloudflared_url"], os.path.join(dl, "cloudflared"), PINS["cloudflared_sha256"])
+        f_model = pool.submit(download, profile["url"], os.path.join(dl, "model-%s.gguf" % name),
+                              profile["sha256"], profile["size"])
         llama_tar, cudart_tar, cfd = f_llama.result(), f_cuda.result(), f_cfd.result()
-        model = mounted or f_model.result()
+        model = f_model.result()
 
     llama_dir = os.path.join(WORKDIR, "llama")
     cudart_dir = os.path.join(WORKDIR, "cudart")
@@ -616,8 +496,8 @@ def main():
             stop(("llama-server exited while starting." if exited
                   else "llama-server was not ready after 30 minutes.")
                  + " Its last log lines are in the notebook output above. If they say out of memory:"
-                 " in server.py, change the KC_PROFILE default from A to A-small, or set CONTEXT_TOKENS"
-                 " to 49152 (and Context Window Size in Cline to 49152 too). Then run start.cmd again.")
+                 " in your .env set MODEL=A-small (or CONTEXT_TOKENS=49152, and the same Context Window Size"
+                 " in Cline). Then run start.cmd again.")
         time.sleep(1)
     say("llama-server is healthy")
     used = subprocess.run(["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"],
@@ -680,24 +560,24 @@ def main():
     print("=" * 64, flush=True)
     print("", flush=True)
 
-    # ------------- information only, after READY so it never delays you: does tool calling parse?
-    tool = {"type": "function", "function": {
-        "name": "read_file", "description": "Read a text file from the project",
-        "parameters": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}}}
-    status, body = http("/v1/chat/completions", key=key, method="POST", timeout=600, payload={
-        "model": MODEL_ALIAS, "stream": False, "max_tokens": 200, "tools": [tool],
-        "messages": [{"role": "user", "content": "Use the read_file tool to read index.js."}]})
-    parsed = False
-    if status == 200:
-        try:
-            parsed = bool(json.loads(body)["choices"][0]["message"].get("tool_calls"))
-        except (ValueError, KeyError, IndexError):
-            parsed = False
-    fmt = [l.strip() for l in tail_scrubbed(llama_log, key, n=400).splitlines() if "Chat format" in l]
-    say("tool-call check (information only): status %s, parsed tool_calls: %s" % (status, parsed))
-    say("server log: %s" % (fmt[-1] if fmt else "no 'Chat format' line found"))
+    if SELF_TEST:
+        # information only, after READY so it never delays you: does tool calling parse?
+        tool = {"type": "function", "function": {
+            "name": "read_file", "description": "Read a text file from the project",
+            "parameters": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}}}
+        status, body = http("/v1/chat/completions", key=key, method="POST", timeout=600, payload={
+            "model": MODEL_ALIAS, "stream": False, "max_tokens": 200, "tools": [tool],
+            "messages": [{"role": "user", "content": "Use the read_file tool to read index.js."}]})
+        parsed = False
+        if status == 200:
+            try:
+                parsed = bool(json.loads(body)["choices"][0]["message"].get("tool_calls"))
+            except (ValueError, KeyError, IndexError):
+                parsed = False
+        fmt = [l.strip() for l in tail_scrubbed(llama_log, key, n=400).splitlines() if "Chat format" in l]
+        say("tool-call check (information only): status %s, parsed tool_calls: %s" % (status, parsed))
+        say("server log: %s" % (fmt[-1] if fmt else "no 'Chat format' line found"))
 
-    if CHECK_CACHE:
         cache_check(key)
 
     # ------------------------------------------------ step 7: watch, auto-stop, clean up

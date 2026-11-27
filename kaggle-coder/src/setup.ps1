@@ -70,9 +70,4 @@ if ($LASTEXITCODE) { Write-Host "Cline did not install. In VS Code open Extensio
 
 Set-Content -LiteralPath (Join-Path $home2 'setup-done.txt') -Value (Get-Date -Format s) -Encoding ASCII
 Say "Setup is done."
-Write-Host "One more step makes every start much faster: storing the AI on your Kaggle account."
-Write-Host "It is FREE (no GPU hours) and takes about 15 to 40 minutes. You can leave this window open."
-if ((Read-Host "Do it now? Type y, or just press Enter to do it later with start.cmd -PrepModel") -eq 'y') {
-    & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'start.ps1') -PrepModel
-}
-else { Write-Host "OK. Double-click start.cmd any time. It works without the storing step, just slower." }
+Write-Host "Next: double-click start.cmd. It checks everything, starts the AI, and tells you when it is ready."

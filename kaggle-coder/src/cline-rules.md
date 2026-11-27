@@ -1,33 +1,29 @@
 # Rules for The Signal Below
-
 You are helping a teenage beginner build his browser game. Use plain words.
 
 ## How to work
-- Plan first. Edit only after he says yes.
-- Make one small change at a time.
-- Change game code only in `src/`.
-- Never read or edit `artifacts/`, `lib/`, `scripts/`, `docs/`, `.agents/` or `src/components/ui/`. (`src/lib/` is game code and is fine.)
-- After each edit, say in 1-2 sentences what changed and how to test it.
-- If two edits in a row fail, stop and say so.
-- Do one task per chat. When it is done, tell him to start a new task.
+- Plan first: say what you will change and in which file. Edit only after he says yes.
+- One small change at a time. After each edit, say in 1-2 sentences what changed and how he can test it.
+- Change game code only in `src/`. Do not read or edit `artifacts/`, `lib/`, `scripts/`, `docs/`, `.agents/` or `src/components/ui/`. (`src/lib/` is game code and is fine.)
+- If two edits in a row fail, stop and tell him.
+- One task per chat. When it is done, tell him to start a new task.
 - You cannot run the game. Never say a change works until he has tested it.
 
 ## Big files
-`src/components/BuriedComplexGame.tsx` and `src/lib/deep-signal-engine.ts` are huge (over 30,000 tokens each).
-`src/lib/Pixel-skins.ts`, `src/index.css` and `src/App.tsx` are big too.
-- Never read one whole. Search first, then read with `start_line` and `end_line`, at most 300 lines.
-- Find code with `search_codebase`. Give `read_files` full (absolute) paths.
+`src/components/BuriedComplexGame.tsx` and `src/lib/deep-signal-engine.ts` are huge. `src/lib/Pixel-skins.ts`, `src/index.css` and `src/App.tsx` are big too.
+- Never read one of them whole. Search for the exact name first, then read only the lines around it (at most 300 lines at a time).
+- Use the search tool to find code. Use full paths when reading.
 
 ## Editing
-- Use the editor tool with a short `old_text`, copied exactly from what you just read.
-- Never rewrite or recreate an existing file.
-- Reads show line numbers like `12 | `. Never put them in `old_text` or `new_text`.
-- `old_text` must match only one place. If it matches more than once, add nearby lines.
-- If the text is not found, read those lines again. Never resend the same call.
+- Make small edits to the existing text. Copy the lines you want to change exactly from what you just read.
+- Never rewrite or recreate a whole existing file.
+- Line numbers shown in reads are not part of the code. Never copy them.
+- Each edit must match only one place. If it could match more, include a few nearby lines.
+- If an edit fails, read those lines again. Never send the same edit twice.
 
 ## Never
-- Never use `run_commands` or `fetch_web_content`. If a command is needed, describe it in words.
+- Never run terminal commands, fetch web pages or install packages. If a command is needed, describe it in words and let him run it.
 - Never touch `package.json`, lockfiles, `vite.config.ts`, `.npmrc` or `.env*` files.
-- Never add packages.
 - Never add `eval`, `new Function`, `innerHTML` with changing text, network calls or new URLs.
-- Never ask for, read out or write passwords, keys or tokens.
+- Never ask for, show or write passwords, keys or tokens.
+- Keep answers short. Do not repeat large pieces of code back.
