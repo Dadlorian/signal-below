@@ -19,6 +19,9 @@ $key = $null
 
 # ---------------------------------------------------------------- small helpers
 function Say($text) { Write-Host "`n$text" -ForegroundColor Cyan }
+# The window's width. A status line wider than the window wraps, and a wrapped line cannot be redrawn in place.
+function Get-Width { try { $w = $Host.UI.RawUI.WindowSize.Width; if ($w -ge 40) { return $w } } catch { }; return 100 }
+function Clear-Line { Write-Host ("`r" + (' ' * ((Get-Width) - 1)) + "`r") -NoNewline }   # wipe the status line before printing a permanent line
 function Stop-Here($text) {
     Write-Host "`nSTOP: $text" -ForegroundColor Red
     Write-Doctor
@@ -192,19 +195,18 @@ function Get-GpuHours {
     return @{ left = [double]::Parse($m.Groups[2].Value, $ci); total = $m.Groups[3].Value; resets = $m.Groups[4].Value }
 }
 # Only ever called when Test-Mine says yes. Deletes the notebook, then the permanent address's target.
-function Remove-Notebook {
-    Say "Deleting your Kaggle notebook $notebook. Please wait, and do not press Ctrl+C..."
+function Remove-Notebook([switch]$Quiet) {
+    if (-not $Quiet) { Say "Stopping the Kaggle notebook (please do not press Ctrl+C)..." }
     $delete = Invoke-Kaggle @('kernels', 'delete', $notebook, '-y')
     $check = (Invoke-Kaggle @('kernels', 'status', $notebook)).Text
     # Kaggle says "Cannot access" for a bad sign-in too, so the delete itself must also have worked.
     $deleted = $delete.Code -eq 0 -and $check -match '(?i)cannot access kernel|not found|404'
     Remove-Item -LiteralPath $cardFile -Force -ErrorAction SilentlyContinue   # the settings belong to a run that is going away
-    if ($deleted) { $s = Get-State; $s.notebook = $null; $s.pushedAt = 0; Save-State $s; Say "Deleted. Kaggle no longer shows the notebook." }
+    if ($deleted) { $s = Get-State; $s.notebook = $null; $s.pushedAt = 0; Save-State $s; if (-not $Quiet) { Say "Stopped: Kaggle no longer shows the notebook." } }
     else { Write-Host "COULD NOT CONFIRM the delete. Look at $page and delete it there." -ForegroundColor Red }
     $fx = Get-Fixed
     if ($fx) { [void](Set-Upstream $fx $null) }   # the permanent address stops pointing at this run
-    Write-Host "Not proven: deleting may not end a session that is already running."
-    Write-Host "Check Active Events on kaggle.com and stop anything listed there."
+    if (-not $Quiet) { Write-Host "Deleting may not end a session that is already running: check Active Events on kaggle.com." }
     return $deleted
 }
 
@@ -268,12 +270,12 @@ function Push-Run {
             kernel_type = 'script'; is_private = $true; enable_gpu = $true; enable_internet = $true
             machine_shape = 'NvidiaTeslaT4'; dataset_sources = @(); competition_sources = @(); kernel_sources = @(); model_sources = @() }
         [IO.File]::WriteAllText((Join-Path $work 'kernel-metadata.json'), ($meta | ConvertTo-Json))
-        Say "Sending the server to your private Kaggle notebook ($notebook)..."
+        Say "Sending the server to your private Kaggle notebook..."
         # Written BEFORE the push, so a closed window never leaves a run with no record.
         $state = Get-State; $state.notebook = $notebook; $state.pushedAt = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds(); $state.notAfter = $notAfter; Save-State $state
         $limit = [int](3600 * [double]::Parse($S.MAX_HOURS, $ci) + 600)   # Kaggle's own hard stop, a backstop
         $push = Invoke-Kaggle @('kernels', 'push', '-p', $work, '--accelerator', 'NvidiaTeslaT4', '-t', "$limit")
-        Write-Host $push.Text.Replace($key, '[key]')
+        if ($push.Text -match 'successfully pushed') { Write-Host "Sent. Kaggle page: $page" } else { Write-Host $push.Text.Replace($key, '[key]') }
         if ($push.Code -ne 0 -or $push.Text -match '(?i)push error|401|403|unauthorized|forbidden') {
             $state.notebook = $null; $state.pushedAt = 0; Save-State $state
             Stop-Here "Kaggle did not accept it. Sign-in problem? Double-click setup.cmd and paste a new token."
@@ -304,7 +306,7 @@ else {
 }
 
 # ---------------------------------------------------------------- 3. wait, with one live status line
-Write-Host "Closing this window is safe: the AI stops itself. Run stop.cmd to be sure."
+Write-Host "Closing this window is safe: the AI stops itself (stop.cmd to be sure)."
 $env:PYTHONUNBUFFERED = '1'
 $out = Join-Path ([IO.Path]::GetTempPath()) ("kc-log-" + [guid]::NewGuid().ToString('N'))
 $state = Get-State
@@ -319,8 +321,13 @@ $tooLong = (Get-Date) -gt $attemptStart.AddMinutes($startWithin)   # reconnected
 $loadLimit = 15; $runningSince = $null
 if ($before -eq 'RUNNING') { $runningSince = Get-Date }
 $t0 = Get-Date; $lastTick = Get-Date; $nextStatus = Get-Date; $failedPolls = 0
-$base = $null; $follow = $null; $shown = @{}; $phase = 'Sending'; $stopped = $false; $written = 0
-function Show-Line($text) { Write-Host ("`r[{0:mm\:ss}] {1}" -f ((Get-Date) - $t0), $text).PadRight(110) -NoNewline }
+$base = $null; $follow = $null; $shown = @{}; $phase = 'Sending'; $stopped = $false; $written = 0; $busyNoted = $false
+function Show-Line($text) {   # ONE status line, updated in place, always shorter than the window
+    $w = (Get-Width) - 1
+    $line = "[{0:mm\:ss}] {1}" -f ((Get-Date) - $t0), $text
+    if ($line.Length -gt $w) { $line = $line.Substring(0, $w - 3) + '...' }
+    Write-Host ("`r" + $line.PadRight($w)) -NoNewline
+}
 try {
     while (-not $base) {
         $gap = ((Get-Date) - $lastTick).TotalSeconds; $lastTick = Get-Date
@@ -347,21 +354,22 @@ try {
             $written = $cut
         }
         foreach ($m in [regex]::Matches($thisRun, '(\[kaggle-coder\][^\\"\r\n]*)')) {
-            if (-not $shown[$m.Value] -and $m.Value -notmatch 'GiB of') { $shown[$m.Value] = $true; Write-Host ("`r" + (' ' * 110) + "`r" + ($m.Value -replace $addressPattern, '[address]')) }
+            if (-not $shown[$m.Value] -and $m.Value -notmatch 'GiB of') { $shown[$m.Value] = $true; Clear-Line; Write-Host ($m.Value -replace $addressPattern, '[address]') }
         }
         # Which phase are we in?
         if ($thisRun -match 'tunnel address received') { $phase = '4/4 Opening the secure address' }
         elseif ($thisRun -match 'llama-server is healthy') { $phase = '4/4 Checking the AI' }
-        elseif ($thisRun -match 'starting llama-server') { $phase = '3/4 Loading the AI onto the GPUs (about 1 to 2 minutes)' }
+        elseif ($thisRun -match 'starting llama-server') { $phase = '3/4 Loading the AI onto the GPUs (2 to 3 min)' }
         elseif ($thisRun -match 'downloading') {
             $g = [regex]::Matches($thisRun, '(\d+) GiB of ([\d.]+) so far'); $gb = if ($g.Count) { "$($g[$g.Count - 1].Groups[1].Value) of $($g[$g.Count - 1].Groups[2].Value) GB" } else { 'starting' }
-            $phase = "2/4 Downloading the AI ($gb, about 2 minutes)"
+            $phase = "2/4 Downloading the AI ($gb)"
         }
         elseif ($runningSince) { $phase = '2/4 Kaggle started your session' }
         else {
             $left = $queueDeadline - (Get-Date); if ($left.TotalSeconds -lt 0) { $left = [TimeSpan]::Zero }
-            $next = if ($tries -lt $maxTries) { 'Tries again in' } else { 'Gives up in' }
-            $phase = ('1/4 Waiting for a Kaggle GPU (try {0} of {1}). Waited {2:mm\:ss} (often under 5 min, longer when Kaggle is busy). {4} {3:mm\:ss}.' -f $tries, $maxTries, ((Get-Date) - $attemptStart), $left, $next)
+            $next = if ($tries -lt $maxTries) { 'next try in' } else { 'gives up in' }
+            $phase = ('1/4 Waiting for a Kaggle GPU (try {0}/{1}), {2} {3:mm\:ss}' -f $tries, $maxTries, $next, $left)
+            if (((Get-Date) - $t0).TotalMinutes -gt 6 -and -not $busyNoted) { $busyNoted = $true; Clear-Line; Write-Host "Kaggle is busy right now. Waiting is normal." -ForegroundColor Yellow }
         }
         Show-Line $phase
         foreach ($m in [regex]::Matches($thisRun, $addressPattern)) {
@@ -389,9 +397,9 @@ try {
             if (-not $runningSince -and (Get-Date) -gt $queueDeadline) {
                 if ($tries -lt $maxTries -and -not $tooLong -and ((Get-Date) - $t0).TotalMinutes -lt $startWithin) {
                     $tries++
-                    Write-Host ("`r" + (' ' * 110) + "`rStill queued after $retryMinutes minutes. Trying again (try $tries of $maxTries)...") -ForegroundColor Yellow
+                    Clear-Line; Write-Host "Still queued after $retryMinutes minutes. Sending it again (try $tries of $maxTries)." -ForegroundColor Yellow
                     try { Add-Content -LiteralPath $runLog -Encoding ASCII -Value "[start.cmd] still queued after $retryMinutes minutes: pushing again (try $tries of $maxTries)" } catch { }   # a locked log must never stop a run
-                    if (Test-Mine) { [void](Remove-Notebook) }
+                    if (Test-Mine) { [void](Remove-Notebook -Quiet) }
                     Start-Sleep -Seconds 10
                     Push-Run
                     $state = Get-State; $runId = "$($state.notAfter)"
