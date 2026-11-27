@@ -61,7 +61,7 @@ function Save-State($st) { New-Item -ItemType Directory -Force $home2 | Out-Null
 # name = default, kind, low, high. Anything else in the file is ignored with a warning.
 $spec = [ordered]@{
     IDLE_MINUTES = @('10', 'int', 5, 60); BLOCK_MINUTES = @('ask', 'block', 0, 120); MAX_HOURS = @('2', 'num', 0.5, 6)
-    START_WAIT_MINUTES = @('20', 'int', 5, 60); MODEL = @('A', 'enum', 'A', 'A-small'); CONTEXT_TOKENS = @('65536', 'int', 8192, 131072)
+    START_WAIT_MINUTES = @('30', 'int', 5, 60); MODEL = @('A', 'enum', 'A', 'A-small'); CONTEXT_TOKENS = @('65536', 'int', 8192, 131072)
     MAX_OUTPUT_TOKENS = @('8192', 'int', 1024, 32768); SELF_TEST = @('0', 'enum', '0', '1') }
 $otherNames = 'CODER_API_KEY', 'FIXED_HOST', 'CF_ACCOUNT_ID', 'CF_KV_NAMESPACE_ID', 'CF_KV_TOKEN'
 function Read-Settings {
@@ -311,7 +311,7 @@ $state = Get-State
 $runId = if ($state.notAfter) { "$($state.notAfter)" } else { $null }   # server.py prints "run id <number>" first
 # Developers report Kaggle sometimes leaves a pushed run QUEUED for good with GPUs free, and that a fresh push then
 # starts normally. So: if still queued after $retryMinutes, delete and push again, up to $maxTries times.
-$retryMinutes = 4; $maxTries = 3; $tries = 1
+$retryMinutes = 10; $maxTries = 3; $tries = 1   # 10 minutes is what working projects use; each re-push goes to the back of Kaggle's queue
 $attemptStart = [DateTimeOffset]::FromUnixTimeSeconds([long]$state.pushedAt).LocalDateTime
 $queueDeadline = $attemptStart.AddMinutes($retryMinutes)
 $script:prevStatusText = ''; $script:lastStatusText = ''
@@ -360,7 +360,8 @@ try {
         elseif ($runningSince) { $phase = '2/4 Kaggle started your session' }
         else {
             $left = $queueDeadline - (Get-Date); if ($left.TotalSeconds -lt 0) { $left = [TimeSpan]::Zero }
-            $phase = ('1/4 Waiting for a Kaggle GPU (try {0} of {1}). Waited {2:mm\:ss} (usually under 5 min). Tries again in {3:mm\:ss}.' -f $tries, $maxTries, ((Get-Date) - $attemptStart), $left)
+            $next = if ($tries -lt $maxTries) { 'Tries again in' } else { 'Gives up in' }
+            $phase = ('1/4 Waiting for a Kaggle GPU (try {0} of {1}). Waited {2:mm\:ss} (often under 5 min, longer when Kaggle is busy). {4} {3:mm\:ss}.' -f $tries, $maxTries, ((Get-Date) - $attemptStart), $left, $next)
         }
         Show-Line $phase
         foreach ($m in [regex]::Matches($thisRun, $addressPattern)) {
@@ -401,7 +402,7 @@ try {
                 }
                 else {
                     if (Test-Mine) { [void](Remove-Notebook) }
-                    Stop-Here "Kaggle did not start your run after $tries tries (about $([int]((Get-Date) - $t0).TotalMinutes) minutes). Nothing is using your hours. Kaggle has had trouble starting sessions lately: try again later."
+                    Stop-Here "Kaggle is busy right now: it did not start your run after $tries tries (about $([int]((Get-Date) - $t0).TotalMinutes) minutes). Nothing is using your hours. This is Kaggle's queue, not a problem with your setup. Try again in 30 minutes."
                 }
             }
             if ($runningSince -and ((Get-Date) - $runningSince).TotalMinutes -gt $loadLimit) {

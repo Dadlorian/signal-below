@@ -53,7 +53,8 @@ and set:
    (red is removed, green is added) and approve or reject it. If Cline wants to run a command or install
    something, say **no** and ask Corey.
 
-If Kaggle has no free GPU, it gives up after 20 minutes and cleans up. Nothing is used.
+Kaggle is sometimes busy. If it has not started after 10 minutes, `start.cmd` sends it again (up to 3 tries, 30 minutes
+in all), then gives up and cleans up. A busy Kaggle is not a problem with your setup, and nothing is used while you wait.
 
 ## 4. When you finish
 Press **S** in the start window, or **double-click `stop.cmd`**. Then look at **Active Events** on kaggle.com: if a
@@ -119,7 +120,8 @@ kaggle-coder/
   - Tool calls parse (`parsed tool_calls: True`). The prompt cache works: the same long prompt took 6.3 s, then 0.1 s.
   - Idle stop: warning at 8 quiet minutes, stopped itself at 10, GPUs given back.
   - Billing: T4 x2 counts **1 quota hour per hour** (0.32 hours used in 18.8 minutes).
-  - Queue: the first push waited 4 minutes, then the automatic re-push started within a minute (see below).
+  - Queue: varies with how busy Kaggle is (see "Queued runs" below): one run waited 4 minutes then started on the re-push;
+    on a busier afternoon three pushes over 14 minutes never started.
 - **Still to try with the junior:** a real Cline task (the tool-call format is proven, the full agent loop is not), and the
   optional permanent address (Cloudflare Worker).
 
@@ -144,9 +146,11 @@ kaggle-coder/
 - Developers report that Kaggle sometimes leaves a pushed run `QUEUED` for good, and that a fresh push then starts normally
   ([example](https://github.com/eslam733/voicetut-kaggle/pull/3), [another](https://github.com/amasat01/eagle/pull/17)).
   Kaggle's forum also has recent threads about sessions stuck in the queue ([one](https://www.kaggle.com/product-feedback/757624)).
-- So `start.ps1` waits 4 minutes, deletes the notebook and pushes again, up to 3 tries. This worked on the first real
-  attempt: queued 4 minutes, re-pushed, running in under a minute. Before the retry existed, our real run waited 15 to 20
-  minutes three times while tiny test jobs started in 3 to 4 seconds.
+- So `start.ps1` waits 10 minutes (the interval a working project uses), deletes the notebook and pushes again, up to 3 tries.
+  Each re-push goes to the back of Kaggle's queue, so more frequent restarts would only make it worse.
+- It is mostly **capacity**, not our setup. Kaggle staff say there are "far more user sessions than machines" at times
+  ([thread](https://www.kaggle.com/competitions/arc-prize-2026-arc-agi-2/discussion/743927)). Proof from our own tests: an identical tiny GPU
+  job started in 3 to 4 seconds at 13:30 and sat queued for 157 seconds at 15:34, and the notebook name made no difference.
 - Kaggle's status answer holds only the state and an (empty) failure message. There is no queue position and no reason.
 
 **Not confirmed (do not rely on it):**
