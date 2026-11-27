@@ -37,7 +37,7 @@ the server. Run one notebook at a time with the same token.
 ## 1. Start the server (Ubuntu or the Kaggle web page)
 
 Follow **GUIDE-COREY-UBUNTU part J, steps 1 to 5** (key, private T4 x2 notebook with internet on,
-paste `kaggle/server.py`, run, read the address). Tick **both** secrets, `CODER_API_KEY` and
+paste `kaggle-coder/server.py`, run, read the address). Tick **both** secrets, `CODER_API_KEY` and
 `KC_TUNNEL_TOKEN`. Before you run the cell with the script, run these lines in a cell above it:
 
 ```python
@@ -55,7 +55,7 @@ The notebook prints `context window: ...` so you can see what was used.
 
 ## 2. Does the tunnel stream? (the question that decides everything)
 
-On Ubuntu: `CODER_HOST=<hostname> bash kaggle-coder/tests/smoke.sh https://<hostname>` (key from
+On Ubuntu: `CODER_HOST=<hostname> bash kaggle-coder-admin/tests/smoke.sh https://<hostname>` (key from
 `CODER_KEY` or the hidden prompt). Find the line that starts `INFO  stream:true:`. Cloudflare's
 docs say a tunnel passes a stream through when the server marks it `text/event-stream`
 (https://developers.cloudflare.com/tunnel/troubleshooting/); this step shows whether it does here.

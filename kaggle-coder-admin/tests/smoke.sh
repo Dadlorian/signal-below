@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Smoke test for the Kaggle coding server. Corey only, on Ubuntu.
-# Usage:  bash kaggle-coder/tests/smoke.sh https://<words>.trycloudflare.com
-# Named tunnel:  CODER_HOST=<your helper hostname> bash kaggle-coder/tests/smoke.sh https://<that hostname>
+# Usage:  bash kaggle-coder-admin/tests/smoke.sh https://<words>.trycloudflare.com
+# Named tunnel:  CODER_HOST=<your helper hostname> bash kaggle-coder-admin/tests/smoke.sh https://<that hostname>
 # (CODER_HOST must match exactly, so a mistyped address never receives the key.)
 #
 # The key is NEVER a command-line argument (that would land in shell history and in `ps`).

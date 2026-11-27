@@ -198,7 +198,7 @@ Make a key (part B) and add it to **your** Kaggle account as Secret `CODER_API_K
 **Web-UI path (simplest, same as his):**
 1. kaggle.com > Create > New Notebook. Keep it **Private** (its log shows the address).
 2. Settings: Accelerator **GPU T4 x2**, Internet **On**. Add-ons > Secrets: tick `CODER_API_KEY`.
-3. Paste all of `kaggle/server.py` into one cell. Run.
+3. Paste all of `kaggle-coder/server.py` into one cell. Run.
 4. Read the output: every `sha256 ok`; `using profile A` and the MiB values; GPU memory used on
    **both** GPUs; `key check passed`; the tool-call line and the `Chat format` line (write both
    down); then the address.
@@ -211,7 +211,7 @@ Make a key (part B) and add it to **your** Kaggle account as Secret `CODER_API_K
      `read -rs KAGGLE_API_TOKEN; export KAGGLE_API_TOKEN`, or
    - that token saved as `~/.kaggle/access_token`, then `chmod 600 ~/.kaggle/access_token`.
 3. Edit `kaggle/kernel-metadata.json`: replace `corey-kaggle-username`. Keep `"is_private": true`.
-4. `kaggle kernels push -p kaggle-coder/kaggle --accelerator NvidiaTeslaT4`
+4. `kaggle kernels push -p kaggle-coder-admin/kaggle --accelerator NvidiaTeslaT4`
 5. Secrets cannot be attached from the CLI: on kaggle.com open the notebook, Add-ons > Secrets,
    tick `CODER_API_KEY`, then run it again from the page [test this first: whether a pushed
    script can read the secret; if not, use the web-UI path].
@@ -228,7 +228,7 @@ After stopping: start again and check the old address is dead and a new one appe
 ## G. Smoke test (every new address, before use)
 
 ```
-bash kaggle-coder/tests/smoke.sh https://some-random-words.trycloudflare.com
+bash kaggle-coder-admin/tests/smoke.sh https://some-random-words.trycloudflare.com
 ```
 
 The key comes from `CODER_KEY` in your terminal (part B) or a hidden prompt; it is never an
@@ -290,11 +290,11 @@ that decoy folder. Try `/add` on a copy of a 2,700-line file and note what happe
 ## J. First run checklist (Ubuntu)
 
 1. Read Kaggle's current terms (part A).
-2. Read `kaggle/PINS.md` and the diff of `kaggle/server.py`.
+2. Read `kaggle/PINS.md` and the diff of `kaggle-coder/server.py`.
 3. Make a key (part B); add it as Secret `CODER_API_KEY` on your own Kaggle account.
 4. Private notebook, GPU T4 x2, Internet on, paste `server.py`, Run (part F).
 5. Check: all sha256 ok, profile A, both GPUs used, key check passed; note tool-call and Chat format lines.
-6. `bash kaggle-coder/tests/smoke.sh <address>`: everything PASS, large prompt under 100 s.
+6. `bash kaggle-coder-admin/tests/smoke.sh <address>`: everything PASS, large prompt under 100 s.
 7. Aider test and decoy test on a throwaway repo (part H).
 8. Repeat 4 to 7 with `PROFILE = "B"`.
 9. Stop the session; restart; old address dead, new one works; key file gone with the session.

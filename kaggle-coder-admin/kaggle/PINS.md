@@ -1,7 +1,7 @@
 # Pins
 
 Every download is pinned to an exact version (or commit) and checked by sha256. Values here must
-match `kaggle/server.py`, `github/workflows/safety.yml` and the guides. Any value that says
+match `kaggle-coder/server.py`, `github/workflows/safety.yml` and the guides. Any value that says
 `UNPINNED - Corey must fill in` stops `server.py`.
 
 Looked up on 2026-11-26 from official metadata only: GitHub releases API (`digest` field),

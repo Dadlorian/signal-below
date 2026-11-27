@@ -9,7 +9,7 @@ Requirements (kept word for word from the stub):
      documented for the notebook editor. Notebook-cell use (web-UI path): paste the whole
      file into one cell; Add-ons > Secrets > tick CODER_API_KEY for that notebook.
   3. Download the pinned runtime, cloudflared and model files; check every sha256 against
-     PINS.md; refuse on any mismatch. Use an exact model file, never "first file in repo".
+     kaggle-coder-admin/kaggle/PINS.md; refuse on any mismatch. Use an exact model file, never "first file in repo".
   4. Server listens on 127.0.0.1 only, explicit port, key required, no web UI, no extra
      monitoring endpoints. If the runtime has no built-in key check (Ollama has none as far
      as checked), a reviewed local key-checking proxy sits in front of it.
@@ -86,7 +86,7 @@ WORKDIR = os.environ.get("KC_WORKDIR", "/tmp/kaggle-coder")  # outside /kaggle/w
 BASE = "http://127.0.0.1:%d" % PORT
 
 # ---------------------------------------------------------------------------------------
-# PINS. Keep in step with PINS.md. Any value containing "UNPINNED" stops the script.
+# PINS. Keep in step with kaggle-coder-admin/kaggle/PINS.md. Any value containing "UNPINNED" stops the script.
 # Read from the GitHub releases API and the Hugging Face API on 2026-11-26 (metadata only).
 # ---------------------------------------------------------------------------------------
 PINS = {
@@ -177,7 +177,7 @@ def check_pins(profile):
     values.update({"model_url": profile["url"], "model_sha256": profile["sha256"]})
     bad = [k for k, v in values.items() if "UNPINNED" in v or not v.strip()]
     if bad:
-        stop("these pins are not filled in: " + ", ".join(bad) + ". See PINS.md.")
+        stop("these pins are not filled in: " + ", ".join(bad) + ". See kaggle-coder-admin/kaggle/PINS.md.")
     for k, v in values.items():
         if k.endswith("_sha256") and not re.fullmatch(r"[0-9a-f]{64}", v):
             stop("pin %s is not a 64-character lowercase sha256." % k)
@@ -226,7 +226,7 @@ def read_key():
              "(Add-ons > Secrets, then tick it)." % SECRET_LABEL)
     value = value.strip()
     if len(value) < MIN_KEY_LEN:
-        stop("the key is shorter than %d characters. Make a new one (docs/GUIDE-COREY-UBUNTU.md, part B)." % MIN_KEY_LEN)
+        stop("the key is shorter than %d characters. Make a new one (kaggle-coder-admin/docs/GUIDE-COREY-UBUNTU.md, part B)." % MIN_KEY_LEN)
     if re.search(r"[\s,#]", value):
         stop("the key contains spaces, commas or '#'. Make a new one.")
     return value

@@ -60,3 +60,16 @@ kaggle-coder/**/*.log
 kaggle-coder/**/*.ipynb
 kaggle-coder/**/output/
 kaggle-coder/**/downloads/
+
+# the same patterns for kaggle-coder-admin/
+kaggle-coder-admin/**/api-keys.txt
+kaggle-coder-admin/**/*key*.txt
+kaggle-coder-admin/**/*token*.txt
+kaggle-coder-admin/**/*secret*.txt
+kaggle-coder-admin/**/*tunnel*.txt
+kaggle-coder-admin/**/*address*.txt
+kaggle-coder-admin/**/notes-*.txt
+kaggle-coder-admin/**/*.log
+kaggle-coder-admin/**/*.ipynb
+kaggle-coder-admin/**/output/
+kaggle-coder-admin/**/downloads/
