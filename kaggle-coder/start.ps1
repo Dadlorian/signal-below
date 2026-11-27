@@ -20,9 +20,15 @@ function Say($text) { Write-Host "`n$text" -ForegroundColor Cyan }
 if (-not (Test-Path -LiteralPath $kaggle)) {
     Say "First run: this downloads Kaggle's tool (kaggle 2.2.5 and what it needs) from PyPI into $venv"
     if ((Read-Host "Type y to install") -ne 'y') { Stop-Here "nothing was installed." }
-    if (-not (Get-Command python -ErrorAction SilentlyContinue)) { Stop-Here "Python 3.11 or newer is needed." }
-    & python -m venv $venv
-    if ($LASTEXITCODE) { Stop-Here "could not set up Python." }
+    $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+    foreach ($python in 'python', 'py') {
+        if (Get-Command $python -ErrorAction SilentlyContinue) {
+            & $python -m venv $venv 2>&1 | Out-Null
+            if (Test-Path -LiteralPath (Join-Path $venv 'Scripts\python.exe')) { break }
+        }
+    }
+    $ErrorActionPreference = $old
+    if (-not (Test-Path -LiteralPath (Join-Path $venv 'Scripts\python.exe'))) { Stop-Here "could not set up Python. Python 3.11 or newer is needed (close PowerShell and open it again after installing it)." }
     & (Join-Path $venv 'Scripts\python.exe') -m pip install --quiet kaggle==2.2.5 six==1.17.0   # kaggle 2.2.5 needs six but does not install it
     if ($LASTEXITCODE -or -not (Test-Path -LiteralPath $kaggle)) { Stop-Here "the Kaggle tool did not install." }
 }
@@ -89,8 +95,9 @@ catch { Write-Host "Note: the Cline rules were not installed: $($_.Exception.Mes
 
 # 3. Your key: read it from .env, or make it the first time
 $envFile = Join-Path $home2 '.env'
-$newKey = -not (Test-Path -LiteralPath $envFile)
-if ($newKey) {
+$keyGiven = Join-Path $home2 'key-given.txt'   # exists once you have pasted the key into Cline
+if (-not (Test-Path -LiteralPath $envFile)) {
+    Remove-Item -LiteralPath $keyGiven -Force -ErrorAction SilentlyContinue
     $bytes = New-Object byte[] 32
     [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
     New-Item -ItemType Directory -Force $home2 | Out-Null
@@ -125,7 +132,7 @@ else {
         if ($push.Code -ne 0 -or $push.Text -match '(?i)push error|401|403|unauthorized|forbidden') {
             Stop-Here "Kaggle did not accept it. Sign-in problem? Make an API token at https://www.kaggle.com/settings/api and save it as $env:USERPROFILE\.kaggle\access_token"
         }
-        Set-Content -LiteralPath $marker -Value $notebook, ([DateTimeOffset]::UtcNow.ToUnixTimeSeconds()) -Encoding ASCII
+        Set-Content -LiteralPath $marker -Value $notebook, ([DateTimeOffset]::UtcNow.ToUnixTimeSeconds()), $notAfter -Encoding ASCII
         Say "Cline settings (set these once):"
         Write-Host "  API Provider:        OpenAI Compatible`n  Model ID:            kaggle-coder`n  Context Window Size: 65536`n  Max Output Tokens:   8192`n  Auto-approve:        off"
     }
@@ -151,6 +158,10 @@ $deadline = (Get-Date).AddSeconds($secondsLeft)
 $started = $before -eq 'RUNNING'
 if ($started) { $deadline = (Get-Date).AddMinutes(45) }
 $serverStopped = $false
+$failedPolls = 0
+# server.py prints "run id <number>" first. With it, an older run's STOPPED line is ignored.
+$runId = $null
+if ((Test-Mine) -and @(Get-Content -LiteralPath $marker).Count -ge 3) { $runId = @(Get-Content -LiteralPath $marker)[2] }
 $base = $null; $follow = $null; $shown = @{}; $nextStatus = Get-Date
 try {
     while (-not $base) {
@@ -182,7 +193,12 @@ try {
         }
         if (-not $base) {
             # While QUEUED nothing has run yet, so a STOPPED line then is from an older run.
-            if ($log -match 'STOPPED:' -and (Get-RunState) -ne 'QUEUED') {
+            $thisRun = $log
+            if ($runId) {
+                $from = $log.LastIndexOf("run id $runId")
+                $thisRun = if ($from -ge 0) { $log.Substring($from) } else { '' }
+            }
+            if ($thisRun -match 'STOPPED:' -and (Get-RunState) -ne 'QUEUED') {
                 $serverStopped = $true
                 [IO.File]::WriteAllText((Join-Path $home2 'last-stop.log'), $log.Replace($key, '[key]'))
                 Stop-Here "the server stopped. The reason is in the lines above (full log: $home2\last-stop.log)."
@@ -191,6 +207,9 @@ try {
                 $nextStatus = (Get-Date).AddMinutes(1)
                 $status = (Invoke-Kaggle @('kernels', 'status', $notebook)).Text
                 Write-Host "Kaggle says: $status"
+                # Two checks in a row, so a status left over from the previous run does not count.
+                if ($status -match 'has status "(KernelWorkerStatus\.)?(ERROR|CANCEL\w*|COMPLETE)') { $failedPolls++ } else { $failedPolls = 0 }
+                if ($failedPolls -ge 2) { Stop-Here "the run ended without giving an address. Look at $page" }
                 if (-not $started -and $status -match 'has status "(KernelWorkerStatus\.)?RUNNING') {
                     $started = $true   # allow time for the download once it has really started
                     $deadline = (Get-Date).AddMinutes(45)
@@ -201,7 +220,8 @@ try {
 }
 finally {
     # /T also ends the helper's own child processes, which would otherwise keep running.
-    if ($follow -and -not $follow.HasExited) { & taskkill.exe /PID $follow.Id /T /F 2>&1 | Out-Null }
+    # try/catch: "process not found" must never skip the cleanup below.
+    if ($follow -and -not $follow.HasExited) { try { & taskkill.exe /PID $follow.Id /T /F 2>&1 | Out-Null } catch {} }
     Remove-Item -LiteralPath $out, "$out.err" -Force -ErrorAction SilentlyContinue
     # Leaving without a server (time limit, STOPPED, Ctrl+C or an error): clean up.
     if (-not $base) {
@@ -215,11 +235,12 @@ finally {
 
 # 6. Hand Cline what it needs through the clipboard
 Say "READY."
-if ($newKey -or $CopyKey) {
+if ($CopyKey -or -not (Test-Path -LiteralPath $keyGiven)) {
     Set-Clipboard -Value $key
     Read-Host "Your key is on the clipboard. Paste it into Cline's API Key box, then press Enter here" | Out-Null
+    Set-Content -LiteralPath $keyGiven -Value 'yes' -Encoding ASCII
 }
 Set-Clipboard -Value "$base/v1"
 Write-Host "The address is on the clipboard. Paste it into Cline's Base URL box. Then ask Cline something."
 Write-Host "`nWhen you finish: run  .\start.ps1 -Stop  (deletes the notebook), then check Active Events on kaggle.com"
-Write-Host "and stop anything listed there. (If you forget: it stops itself after 20 idle minutes, and after 3 hours at most.)"
+Write-Host "and stop anything listed there. (If you forget: it stops itself after 10 idle minutes, and after 3 hours at most.)"

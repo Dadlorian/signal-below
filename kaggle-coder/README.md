@@ -97,7 +97,9 @@ npx.cmd --no-install vite preview --host 127.0.0.1 --port 4173
 powershell -ExecutionPolicy Bypass -File "$HOME\code\signal\kaggle-coder\start.ps1" -Stop
 ```
 Then check that **Active Events** on Kaggle is empty. If it isn't, stop the session there. Forgot? The AI is set to
-stop itself after 20 quiet minutes, or 3 hours at most.
+stop itself after 10 quiet minutes, or 3 hours at most.
+
+Cline lost your key? Run the start command again with ` -CopyKey` on the end.
 ## 7. Send your work to Corey
 First time only. Use your private `...@users.noreply.github.com` email (GitHub > Settings > Emails).
 ```powershell

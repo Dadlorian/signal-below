@@ -25,6 +25,7 @@ import sys
 import tarfile
 import threading
 import time
+import traceback
 import urllib.error
 import urllib.request
 
@@ -37,23 +38,16 @@ MODEL_ALIAS = "kaggle-coder"
 PORT = 8080                 # always passed; the README default at this build is 9931
 
 
-def _env_int(name, default, lo, hi):
-    """Whole-number setting from the environment, or the default."""
-    raw = os.environ.get(name, "").strip()
-    if not raw:
-        return default
-    if not raw.isdigit() or not (lo <= int(raw) <= hi):
-        raise SystemExit("STOP: %s must be a whole number from %d to %d, not %r" % (name, lo, hi, raw))
-    return int(raw)
-
-
-CONTEXT_TOKENS = _env_int("KC_CTX", 32768, 4096, 131072)       # match Cline's Context Window Size
-MAX_OUTPUT_TOKENS = _env_int("KC_MAX_OUT", 4096, 256, 8192)    # match Cline's Max Output Tokens
+# This file is the only place these are set. Cline's two settings must show the same numbers.
+# Memory at 65536: about 18 GB model + 3.2 GiB KV cache + buffers, about 24 of 29 GiB
+# (an estimate, not measured on this hardware). If it does not fit: PROFILE A-small, or 49152.
+CONTEXT_TOKENS = 65536      # Cline: Context Window Size
+MAX_OUTPUT_TOKENS = 8192    # Cline: Max Output Tokens
 
 # Giving the GPUs back. start.ps1 also gives Kaggle its own run time limit (-t) as a backstop.
 MAX_HOURS = 3.0             # counted from the moment this script starts, downloads included
-IDLE_MINUTES = 20           # stop after this long with no model request [test this first]
-NOT_AFTER = _env_int("KC_NOT_AFTER", 0, 0, 10 ** 11)           # a run starting later than this quits
+IDLE_MINUTES = 10           # stop after this long with no model request [test this first]
+NOT_AFTER = os.environ.get("KC_NOT_AFTER", "").strip()         # a run starting later than this quits
 STARTED = time.time()
 
 MIN_MIB = 15000             # each GPU must report at least this much (a T4 reports a bit under 16 GiB)
@@ -109,6 +103,7 @@ def say(msg):
 
 
 def stop(msg):
+    # Keep msg on one line, without double quotes or backslashes: start.ps1 cuts the line there.
     shutdown()
     say("STOPPED: " + msg)
     sys.exit(1)
@@ -296,9 +291,16 @@ def hard_stop():
     os._exit(0)  # ends the batch run even if the main thread is busy
 
 
+# llama.cpp b12318 logs these at its default verbosity, only while it works on a model request:
+#   "slot <function>: id  0 | task 12 | ..."  when a request starts and ends, after each prompt
+#   batch once the prompt has taken 3 s, and every 3 s of a reply once it passes 100 tokens.
+# "task -1" (no request attached) and "srv" lines (such as a refused key) do not match.
+MODEL_WORK = re.compile(rb"slot +[!-~]+: +id +[0-9]+ [|] task +[0-9]+ [|]")
+
+
 def model_used(path, offset):
-    """(was a model request handled since offset?, new offset). Counts llama-server 'slot'
-    lines, so other traffic (such as a stranger probing the address) does not count."""
+    """(was a model request worked on since offset?, new offset). Other traffic, such as a
+    stranger probing the address, does not count."""
     try:
         with open(path, "rb") as f:
             f.seek(offset)
@@ -306,12 +308,16 @@ def model_used(path, offset):
     except OSError:
         return False, offset
     end = new.rfind(b"\n") + 1  # keep a half-written line for next time
-    return re.search(rb"\bslot\b", new[:end]) is not None, offset + end
+    return MODEL_WORK.search(new[:end]) is not None, offset + end
 
 
 # ---------------------------------------------------------------------------- main
 def main():
-    if NOT_AFTER and time.time() > NOT_AFTER:
+    if NOT_AFTER.isdigit():
+        say("run id " + NOT_AFTER)  # start.ps1 uses this to ignore an older run's output
+    if NOT_AFTER and not NOT_AFTER.isdigit():
+        stop("KC_NOT_AFTER is not a whole number. Run start.ps1 again.")
+    if NOT_AFTER and time.time() > int(NOT_AFTER):
         say("STOPPED: this run waited in Kaggle's queue too long, so it quit to save GPU time. "
             "Run start.ps1 again.")
         return
@@ -368,6 +374,8 @@ def main():
         "--no-mmproj",
         "--offline",                       # no network from llama-server [test this first] with -m
         "--jinja",                         # chat template + tool-call parsing
+        "-fa", "on",                       # flash attention
+        "-ctk", "q8_0", "-ctv", "q8_0",    # 8-bit KV cache: about half the memory of f16
         "-ngl", "all",
         "-sm", "layer", "-ts", "1,1",      # split layers over both T4s
         "-c", str(CONTEXT_TOKENS),
@@ -376,20 +384,22 @@ def main():
         "--no-context-shift",              # overflow gives an error, not a silent cut
     ] + profile["flags"]
     lib_path = ":".join(lib_dirs(llama_dir, cudart_dir))
-    say("context window: %d tokens, default max reply: %d tokens" % (CONTEXT_TOKENS, MAX_OUTPUT_TOKENS))
     say("starting llama-server (loading the model takes several minutes)")
     llama = subprocess.Popen(cmd, stdout=open(llama_log, "w"), stderr=subprocess.STDOUT,
                              env=clean_env({"LD_LIBRARY_PATH": lib_path}), start_new_session=True)
     _procs.append(llama)
-    signal.signal(signal.SIGTERM, lambda *a: (shutdown(), sys.exit(0)))
+    signal.signal(signal.SIGTERM, lambda *a: stop("the run was asked to end."))
 
     deadline = time.time() + 30 * 60
     while http("/health")[0] != 200:
-        if llama.poll() is not None:
-            stop("llama-server exited. Last log lines:\n" + tail_scrubbed(llama_log, key)
-                 + "\nOut of GPU memory? Set KC_PROFILE to A-small.")
-        if time.time() > deadline:
-            stop("llama-server did not become healthy in 30 minutes.\n" + tail_scrubbed(llama_log, key))
+        exited = llama.poll() is not None
+        if exited or time.time() > deadline:
+            print(tail_scrubbed(llama_log, key), flush=True)
+            stop(("llama-server exited while starting." if exited
+                  else "llama-server was not ready after 30 minutes.")
+                 + " Its last log lines are in the notebook output above. If they say out of memory:"
+                 " in server.py, change the KC_PROFILE default from A to A-small, or set CONTEXT_TOKENS"
+                 " to 49152 (and Context Window Size in Cline to 49152 too). Then run start.ps1 again.")
         time.sleep(5)
     say("llama-server is healthy")
     used = subprocess.run(["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"],
@@ -455,7 +465,8 @@ def main():
     print("", flush=True)
     print("=" * 64, flush=True)
     print("Address: " + url, flush=True)
-    print("Model name:                         " + MODEL_ALIAS + "   (profile " + name + ")", flush=True)
+    say("Cline settings: Model ID %s, Context Window Size %d, Max Output Tokens %d (profile %s)"
+        % (MODEL_ALIAS, CONTEXT_TOKENS, MAX_OUTPUT_TOKENS, name))
     print("Keep this notebook private: this log holds the address.", flush=True)
     print("=" * 64, flush=True)
     print("", flush=True)
@@ -464,22 +475,29 @@ def main():
     say("GPUs are given back after %d idle minutes, or %.1f hours at most." % (IDLE_MINUTES, MAX_HOURS))
     offset = os.path.getsize(llama_log)  # startup and self-test lines do not count as use
     last_use = time.time()
+    while True:
+        time.sleep(60)
+        if llama.poll() is not None or tunnel.poll() is not None:
+            stop("llama-server or the tunnel stopped. Run start.ps1 again.")
+        used_now, offset = model_used(llama_log, offset)
+        if used_now:
+            last_use = time.time()
+        if time.time() - last_use > IDLE_MINUTES * 60:
+            shutdown()
+            say("STOPPED: no model requests for %d minutes, so the GPUs are given back." % IDLE_MINUTES)
+            return  # the script ends, which ends the batch run
+
+
+def run():
+    """main(), but an unplanned end also stops the child processes and prints a STOPPED line."""
     try:
-        while True:
-            time.sleep(60)
-            if llama.poll() is not None or tunnel.poll() is not None:
-                stop("llama-server or the tunnel stopped. Run start.ps1 again.")
-            used_now, offset = model_used(llama_log, offset)
-            if used_now:
-                last_use = time.time()
-            if time.time() - last_use > IDLE_MINUTES * 60:
-                shutdown()
-                say("STOPPED: no model requests for %d minutes, so the GPUs are given back." % IDLE_MINUTES)
-                return  # the script ends, which ends the batch run
+        main()
     except KeyboardInterrupt:
-        shutdown()
-        say("stopped by you.")
+        stop("stopped by you.")
+    except Exception as e:
+        traceback.print_tb(e.__traceback__)  # where, without the message: it could hold the key
+        stop("unexpected %s. Run start.ps1 again; if it repeats, tell Corey." % type(e).__name__)
 
 
 if __name__ == "__main__":
-    main()
+    run()
