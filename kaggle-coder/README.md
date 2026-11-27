@@ -100,6 +100,7 @@ Then check that **Active Events** on Kaggle is empty. If it isn't, stop the sess
 stop itself after 10 quiet minutes, or 3 hours at most.
 
 Cline lost your key? Run the start command again with ` -CopyKey` on the end.
+To see your GPU hours left and whether it is waiting or running, add ` -Status` instead.
 ## 7. Send your work to Corey
 First time only. Use your private `...@users.noreply.github.com` email (GitHub > Settings > Emails).
 ```powershell

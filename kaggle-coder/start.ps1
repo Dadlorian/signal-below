@@ -4,7 +4,8 @@
 # Kaggle's command line cannot attach Secrets. It is never printed.
 # New key: delete that .env file and run again.  Need the key in Cline again: add  -CopyKey
 # Finished? Add  -Stop  to delete the notebook this script made.
-param([switch]$CopyKey, [switch]$Stop)
+# Add  -Status  to see your GPU hours left and your run's state. It starts and changes nothing.
+param([switch]$CopyKey, [switch]$Stop, [switch]$Status)
 $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 $home2 = Join-Path $env:USERPROFILE '.kaggle-coder'
@@ -78,6 +79,28 @@ function Remove-Notebook {
     Write-Host "Check Active Events on kaggle.com and stop anything listed there."
 }
 
+function Show-Quota {
+    $quota = Invoke-Kaggle @('quota')
+    if ($quota.Code -eq 0) { Write-Host $quota.Text } else { Write-Host "Could not read your Kaggle hours. See kaggle.com/settings" }
+}
+
+if ($Status) {
+    Say "Your Kaggle hours this week:"
+    Show-Quota
+    $reply = (Invoke-Kaggle @('kernels', 'status', $notebook)).Text
+    $m = [regex]::Match($reply, 'has status "(?:KernelWorkerStatus\.)?(\w+)"')
+    $state = $m.Groups[1].Value.ToUpper()
+    if ($state) { Say "Your helper run: $state"; Write-Host $reply }
+    else { Say "No helper run found (or Kaggle sign-in failed)." }
+    if (($state -eq 'QUEUED' -or $state -eq 'RUNNING') -and (Test-Mine)) {
+        $minutes = ([DateTimeOffset]::UtcNow.ToUnixTimeSeconds() - [long]@(Get-Content -LiteralPath $marker)[1]) / 60
+        Write-Host ("Sent {0:N0} minutes ago. This script asks for GPU T4 x2." -f $minutes)
+    }
+    Write-Host "QUEUED = waiting for a Kaggle machine.  RUNNING = started (the model may still be downloading)."
+    Write-Host "This cannot list other running sessions: check Active Events on kaggle.com."
+    exit 0
+}
+
 if ($Stop) {
     if (-not (Test-Mine)) { Stop-Here "this script has no record of making $notebook, so it deletes nothing. If you see it, handle it at $page and check Active Events on kaggle.com." }
     if ((Read-Host "Delete $notebook from Kaggle? Type y") -ne 'y') { Stop-Here "nothing was deleted." }
@@ -115,6 +138,8 @@ if ($before -eq 'QUEUED' -or $before -eq 'RUNNING') {
     Say "A run is already queued or running, so nothing new is sent. Connecting to it..."
 }
 else {
+    Say "Your Kaggle hours this week:"
+    Show-Quota
     $work = Join-Path ([IO.Path]::GetTempPath()) ("kc-push-" + [guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Force $work | Out-Null
     try {
@@ -205,12 +230,12 @@ try {
             }
             if ((Get-Date) -gt $nextStatus) {
                 $nextStatus = (Get-Date).AddMinutes(1)
-                $status = (Invoke-Kaggle @('kernels', 'status', $notebook)).Text
-                Write-Host "Kaggle says: $status"
+                $statusText = (Invoke-Kaggle @('kernels', 'status', $notebook)).Text
+                Write-Host "Kaggle says: $statusText"
                 # Two checks in a row, so a status left over from the previous run does not count.
-                if ($status -match 'has status "(KernelWorkerStatus\.)?(ERROR|CANCEL\w*|COMPLETE)') { $failedPolls++ } else { $failedPolls = 0 }
+                if ($statusText -match 'has status "(KernelWorkerStatus\.)?(ERROR|CANCEL\w*|COMPLETE)') { $failedPolls++ } else { $failedPolls = 0 }
                 if ($failedPolls -ge 2) { Stop-Here "the run ended without giving an address. Look at $page" }
-                if (-not $started -and $status -match 'has status "(KernelWorkerStatus\.)?RUNNING') {
+                if (-not $started -and $statusText -match 'has status "(KernelWorkerStatus\.)?RUNNING') {
                     $started = $true   # allow time for the download once it has really started
                     $deadline = (Get-Date).AddMinutes(45)
                 }
