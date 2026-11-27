@@ -9,8 +9,9 @@
 # Add  -PrepModel  ONCE (free, no GPU hours) to store the model on Kaggle, so every later start skips the 18 GB download.
 # Add  -DryRun  for a free check (no GPU hours) that the stored model is found and how fast it reads.
 # Add  -SetFixed  once, to use your own permanent address (see fixed-address\README.md). Optional.
+# Add  -Restart  to stop your run (deletes its notebook) and start a fresh one in one go.
 # Add  -Test    on a start to also measure the prompt cache (the first run after setup).
-param([switch]$CopyKey, [switch]$Stop, [switch]$Status, [switch]$Web, [switch]$PrepModel, [switch]$DryRun, [switch]$Test, [switch]$SetFixed)
+param([switch]$CopyKey, [switch]$Stop, [switch]$Status, [switch]$Web, [switch]$PrepModel, [switch]$DryRun, [switch]$Test, [switch]$SetFixed, [switch]$Restart)
 $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
 $home2 = Join-Path $env:USERPROFILE '.kaggle-coder'
@@ -84,6 +85,14 @@ function Set-Upstream($fx, $value) {
     catch { Write-Host "Cloudflare did not accept the update: $($_.Exception.Message.Replace($fx.CF_KV_TOKEN, '[token]'))" -ForegroundColor Yellow; return $false }
 }
 
+# One setting from .env (NAME=value lines); the default when the line is missing.
+function Get-Setting([string]$name, [string]$default) {
+    if (-not (Test-Path -LiteralPath $envFile)) { return $default }
+    $m = [regex]::Match([IO.File]::ReadAllText($envFile), "(?m)^$name=[ \t]*([^\r\n#]*?)[ \t]*(?:#[^\r\n]*)?\r?$")
+    if ($m.Success -and $m.Groups[1].Value) { return $m.Groups[1].Value }
+    return $default
+}
+
 function Send-ToCline($base) {
     $baseGiven = Join-Path $home2 'base-given.txt'
     if ($script:fixedOn -and (Test-Path -LiteralPath $baseGiven) -and (@(Get-Content -LiteralPath $baseGiven)[0] -eq $base)) {
@@ -111,7 +120,7 @@ if ($Web) {
     Install-Rules
     $key = Read-Key
     $code = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'server.py'))
-    $cellText = ("import os`nos.environ['KC_SESSION_KEY'] = '$key'`nos.environ['KC_IDLE_MINUTES'] = '30'`nos.environ.pop('KC_NOT_AFTER', None)  # left over from an upload run`n" + $code)
+    $cellText = ("import os`nos.environ['KC_SESSION_KEY'] = '$key'`nos.environ['KC_IDLE_MINUTES'] = '10'`nos.environ.pop('KC_NOT_AFTER', None)  # left over from an upload run`n" + $code)
     # A notebook file to import on Kaggle, so nothing depends on the clipboard. It holds your key.
     $nbFile = Join-Path $home2 'kaggle-helper.ipynb'
     $lines = @(($cellText -replace "`r", '') -split "`n")
@@ -258,7 +267,7 @@ $modelSlug = "$user/kaggle-coder-model"
 $binSlug = "$user/kaggle-coder-bin"
 $modelFile = Join-Path $home2 'model-stored.txt'
 $binFile = Join-Path $home2 'bin-stored.txt'
-function Get-Stored { return @(@($modelFile, $binFile) | Where-Object { Test-Path -LiteralPath $_ } | ForEach-Object { (Get-Content -LiteralPath $_)[0] }) }
+function Get-Stored { return @(@($modelFile, $binFile) | Where-Object { Test-Path -LiteralPath $_ } | ForEach-Object { @(Get-Content -LiteralPath $_)[0] }) }
 
 if ($SetFixed) {
     Say "Permanent address (optional). Do the dashboard steps in fixed-address\README.md first."
@@ -293,6 +302,21 @@ function Invoke-DryRun {
     [void](Invoke-Kaggle @('kernels', 'delete', $slug, '-y'))
 }
 
+# Kaggle's file list shows wrong sizes (verified: a 40 MB file is listed as 841), so do not trust it.
+# The model run writes model.ok ("<sha256> <size>") only after the model's sha256 matched; read that.
+function Test-ModelSaved([string]$slug) {
+    $files = (Invoke-Kaggle @('kernels', 'files', $slug)).Text
+    if ($files -notmatch '\.gguf' -or $files -notmatch 'model\.ok') { return $false }
+    $tmp = Join-Path ([IO.Path]::GetTempPath()) ("kc-ok-" + [guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Force $tmp | Out-Null
+    try {
+        [void](Invoke-Kaggle @('kernels', 'output', $slug, '-p', $tmp, '--file-pattern', 'model.ok'))
+        $f = Join-Path $tmp 'model.ok'
+        return (Test-Path -LiteralPath $f) -and ((Get-Content -LiteralPath $f -Raw).Trim() -match '^[0-9a-f]{64} 18556689568$')
+    }
+    finally { Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue }
+}
+
 if ($PrepModel) {
     Say "One-time: storing the AI on your private Kaggle account. These are CPU runs: they use NO GPU hours."
     Write-Host "Step 1 of 2 takes about 5 minutes, step 2 about 10 to 30. You can do something else meanwhile."
@@ -302,10 +326,8 @@ if ($PrepModel) {
     Set-Content -LiteralPath $binFile -Value $binSlug -Encoding ASCII
     Write-Host "Step 1 done: the programs are stored."
     Invoke-CpuRun $modelSlug "os.environ['KC_PREP'] = 'model'" @() 7200 90
-    $files = (Invoke-Kaggle @('kernels', 'files', $modelSlug)).Text
-    $g = [regex]::Match($files, '(\S+\.gguf)\s+(\d+)')
-    if (-not $g.Success -or $g.Groups[2].Value -ne '18556689568') {
-        Stop-Here "the model was not saved at the right size (Kaggle's output limit may be too small). Tell Corey. Starts still work: they just download it each time."
+    if (-not (Test-ModelSaved $modelSlug)) {
+        Stop-Here "the model was not saved (Kaggle's output limit may be too small). Tell Corey. Starts still work: they just download it each time."
     }
     Set-Content -LiteralPath $modelFile -Value $modelSlug -Encoding ASCII
     Say "Stored (18556689568 bytes, checked). Now a free check that Kaggle can use it..."
@@ -321,6 +343,13 @@ Install-Rules
 # 3. Your key
 $key = Read-Key
 
+# -Restart: end this script's own run first (never anyone else's), then continue as a normal start
+if ($Restart -and (Test-Mine)) {
+    Say "Restarting: stopping the current run first."
+    Remove-Notebook
+    Start-Sleep -Seconds 15
+}
+
 # 4. Push the server to your private notebook, unless a run is already waiting or running
 #    (a second one would only use more of your weekly GPU time)
 $before = Get-RunState
@@ -334,7 +363,18 @@ else {
     New-Item -ItemType Directory -Force $work | Out-Null
     try {
         $notAfter = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() + [int](60 * $startWithinMinutes)
-        $header = "import os`nos.environ['KC_SESSION_KEY'] = '$key'`nos.environ['KC_NOT_AFTER'] = '$notAfter'`n"
+        # How long the AI may sit idle before it turns itself off, and an optional "coding block".
+        $idle = Get-Setting 'IDLE_MINUTES' '10'
+        if ($idle -notmatch '^\d+$' -or [int]$idle -lt 5 -or [int]$idle -gt 60) { Stop-Here "IDLE_MINUTES=$idle in your .env is not valid: use a whole number from 5 to 60 (default 10), or delete the line." }
+        $block = Get-Setting 'BLOCK_MINUTES' 'ask'
+        if ($block -eq 'ask') {
+            $answer = Read-Host "How long will you code? Type 30, 45 or 60 (minutes), or press Enter to stop after $idle quiet minutes"
+            $block = if ($answer -match '^(30|45|60)$') { $answer } else { '0' }
+        }
+        if ($block -notmatch '^\d+$' -or [int]$block -gt 120) { Stop-Here "BLOCK_MINUTES=$block in your .env is not valid: use ask, 0, or a number up to 120." }
+        if ([int]$block -gt 0) { Write-Host "Coding block: the AI stays up for $block minutes, then stops after $idle quiet minutes." }
+        else { Write-Host "The AI stops by itself after $idle minutes without a question." }
+        $header = "import os`nos.environ['KC_SESSION_KEY'] = '$key'`nos.environ['KC_NOT_AFTER'] = '$notAfter'`nos.environ['KC_IDLE_MINUTES'] = '$idle'`nos.environ['KC_BLOCK_MINUTES'] = '$block'`n"
         if ($Test) { $header += "os.environ['KC_CHECK_CACHE'] = '1'`n" }
         $code = [IO.File]::ReadAllText((Join-Path $PSScriptRoot 'server.py'))
         [IO.File]::WriteAllText((Join-Path $work 'server.py'), $header + $code)
@@ -385,7 +425,7 @@ try {
             else { Stop-Here "no address in time. Look at $page" }
         }
         if (-not $follow -or $follow.HasExited) {
-            $follow = Start-Process -FilePath $kaggle -ArgumentList @('kernels', 'logs', $notebook, '--follow') -NoNewWindow -PassThru -RedirectStandardOutput $out -RedirectStandardError "$out.err"
+            $follow = Start-Process -FilePath $kaggle -ArgumentList @('kernels', 'logs', $notebook, '--follow', '--interval', '3') -NoNewWindow -PassThru -RedirectStandardOutput $out -RedirectStandardError "$out.err"
         }
         Start-Sleep -Seconds 3
         $log = ''
@@ -463,4 +503,4 @@ if ($fx) {
 # 6. Hand Cline what it needs through the clipboard
 Send-ToCline $base
 Write-Host "`nWhen you finish: double-click stop.cmd (deletes the notebook), then check Active Events on kaggle.com"
-Write-Host "and stop anything listed there. (If you forget: it stops itself after 10 idle minutes, and after 3 hours at most.)"
+Write-Host "and stop anything listed there. (If you forget: it stops itself after $(Get-Setting 'IDLE_MINUTES' '10') quiet minutes, and after 2 hours at most.)"

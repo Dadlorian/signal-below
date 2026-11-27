@@ -50,6 +50,10 @@ MAX_HOURS = 2.0             # counted from the moment this script starts, downlo
 # Stop after this long with no model request [test this first]. start.ps1 -Web asks for longer.
 _idle = os.environ.get("KC_IDLE_MINUTES", "").strip()
 IDLE_MINUTES = int(_idle) if _idle.isdigit() and 5 <= int(_idle) <= 60 else 10
+# A "coding block": stay up this many minutes from READY, even through quiet thinking pauses.
+# After the block the normal idle stop applies again. 0 = no block. MAX_HOURS always wins.
+_block = os.environ.get("KC_BLOCK_MINUTES", "").strip()
+BLOCK_MINUTES = int(_block) if _block.isdigit() and 0 <= int(_block) <= 120 else 0
 PREP = os.environ.get("KC_PREP", "")                            # "model" or "bin": save files once, then quit
 DRYRUN = os.environ.get("KC_DRYRUN") == "1"                     # CPU test: can this notebook see and read the stored model?
 CHECK_CACHE = os.environ.get("KC_CHECK_CACHE") == "1"           # after READY: is the prompt cache working?
@@ -351,8 +355,18 @@ def dump_inputs(max_depth=3):
 
 
 def dry_run(profile):
-    """CPU-only test, no GPU hours: is the stored model visible, and how fast can it be read?"""
+    """CPU-only test, no GPU hours: can this notebook see the stored files, and how fast are they read?"""
     dump_inputs()
+    for name, sha in (("llama.tar.gz", PINS["llama_sha256"]), ("cudart.tar.gz", PINS["cudart_sha256"]),
+                      ("cloudflared", PINS["cloudflared_sha256"])):
+        began = time.time()
+        path = find_input_file(name, sha)
+        if path:
+            mib = os.path.getsize(path) / 2 ** 20
+            say("DRYRUN RESULT: %s found, sha256 ok (read and checked %.0f MiB at %.0f MiB/s)"
+                % (name, mib, mib / max(time.time() - began, 0.001)))
+        else:
+            say("DRYRUN RESULT: %s not stored (it will be downloaded)" % name)
     path = find_mounted(profile)
     if not path:
         say("DRYRUN RESULT: model NOT found on inputs. The model storage step has not worked yet.")
@@ -365,11 +379,9 @@ def dry_run(profile):
                 break
             read += len(chunk)
     rate = read / 2 ** 20 / max(time.time() - began, 0.001)
-    say("DRYRUN RESULT: model found (%.2f GB). Read speed %.0f MiB/s, so the whole file loads in about %.0f seconds."
+    say("DRYRUN RESULT: model found (%.2f GB). Read speed %.0f MiB/s, so the whole file reads in about %.0f seconds "
+        "(downloading it from Hugging Face took 117 seconds)."
         % (os.path.getsize(path) / 1e9, rate, os.path.getsize(path) / 2 ** 20 / max(rate, 1)))
-    for name, sha in (("llama.tar.gz", PINS["llama_sha256"]), ("cudart.tar.gz", PINS["cudart_sha256"]),
-                      ("cloudflared", PINS["cloudflared_sha256"])):
-        say("DRYRUN RESULT: %s %s" % (name, "found (sha256 ok)" if find_input_file(name, sha) else "not stored (it will be downloaded)"))
 
 
 def cache_check(key):
@@ -460,6 +472,14 @@ def model_used(path, offset):
         return False, offset
     end = new.rfind(b"\n") + 1  # keep a half-written line for next time
     return MODEL_WORK.search(new[:end]) is not None, offset + end
+
+
+def idle_seconds(now, last_use, block_end, block_minutes):
+    """Seconds of quiet that count toward the idle stop. None while a coding block is running.
+    After the block, quiet time counts from the later of the last request and the block's end."""
+    if block_minutes and now < block_end:
+        return None
+    return now - max(last_use, block_end if block_minutes else 0)
 
 
 # ---------------------------------------------------------------------------- main
@@ -681,9 +701,15 @@ def main():
         cache_check(key)
 
     # ------------------------------------------------ step 7: watch, auto-stop, clean up
-    say("GPUs are given back after %d idle minutes, or %.1f hours at most." % (IDLE_MINUTES, MAX_HOURS))
+    if BLOCK_MINUTES:
+        say("coding block: staying up for %d minutes, then stopping after %d idle minutes (%.1f hours at most)."
+            % (BLOCK_MINUTES, IDLE_MINUTES, MAX_HOURS))
+    else:
+        say("GPUs are given back after %d idle minutes, or %.1f hours at most." % (IDLE_MINUTES, MAX_HOURS))
     offset = os.path.getsize(llama_log)  # startup and self-test lines do not count as use
     last_use = time.time()               # the idle clock starts now, at READY
+    block_end = last_use + BLOCK_MINUTES * 60
+    block_warned = False
     warned = False
     while True:
         time.sleep(15)
@@ -693,7 +719,13 @@ def main():
         if used_now:
             last_use = time.time()
             warned = False
-        idle = time.time() - last_use
+        now = time.time()
+        idle = idle_seconds(now, last_use, block_end, BLOCK_MINUTES)
+        if idle is None:  # inside the coding block: never idle
+            if not block_warned and block_end - now < 120:
+                block_warned = True
+                say("your coding block ends in 2 minutes. After that the AI stops after %d idle minutes." % IDLE_MINUTES)
+            continue
         if idle > (IDLE_MINUTES - 2) * 60 and not warned:
             warned = True
             say("no requests for %d minutes: stopping in 2 minutes unless you ask Cline something." % (IDLE_MINUTES - 2))
